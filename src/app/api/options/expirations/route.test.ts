@@ -18,9 +18,7 @@ describe("GET /api/options/expirations", () => {
   });
 
   it("returns 400 when symbol is missing", async () => {
-    const res = await GET(
-      request("http://localhost/api/options/expirations"),
-    );
+    const res = await GET(request("http://localhost/api/options/expirations"));
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toMatchObject({
       error: { code: "VALIDATION_ERROR", message: "Invalid query parameters" },

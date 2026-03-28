@@ -20,9 +20,7 @@ describe("GET /api/market/symbols", () => {
   });
 
   it("filters by query", async () => {
-    const res = await GET(
-      request("http://localhost/api/market/symbols?q=ms"),
-    );
+    const res = await GET(request("http://localhost/api/market/symbols?q=ms"));
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
       data: [
