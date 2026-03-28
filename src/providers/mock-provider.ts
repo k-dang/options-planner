@@ -1,30 +1,44 @@
+import { z } from "zod";
 import type {
   OptionChain,
   SymbolSearchResult,
   UnderlyingQuote,
 } from "@/domain/market";
-import { mockDatasetVersionSchema, optionChainSchema } from "@/domain/market";
+import {
+  mockDatasetVersionSchema,
+  optionChainContractSchema,
+  symbolSearchResultSchema,
+  underlyingQuoteSchema,
+} from "@/domain/market";
 import rawDataset from "./mock-data.json";
 import type { MarketDataProvider } from "./types";
 
-type MockDataset = {
-  version: string;
-  symbols: SymbolSearchResult[];
-  quotes: Record<string, UnderlyingQuote>;
-  expirations: Record<string, string[]>;
-  chains: Record<
-    string,
-    Record<
-      string,
-      { underlyingPrice: number; contracts: OptionChain["contracts"] }
-    >
-  >;
-};
+const mockDatasetSchema = z.object({
+  version: mockDatasetVersionSchema,
+  symbols: z.array(symbolSearchResultSchema),
+  quotes: z.record(z.string(), underlyingQuoteSchema),
+  expirations: z.record(z.string(), z.array(z.string())),
+  chains: z.record(
+    z.string(),
+    z.record(
+      z.string(),
+      z.object({
+        underlyingPrice: z.number(),
+        contracts: z.array(optionChainContractSchema),
+      }),
+    ),
+  ),
+});
+
+type MockDataset = z.infer<typeof mockDatasetSchema>;
 
 function loadDataset(): MockDataset {
-  const parsed = rawDataset as MockDataset;
-  mockDatasetVersionSchema.parse(parsed.version);
-  return parsed;
+  const result = mockDatasetSchema.safeParse(rawDataset);
+  if (!result.success) {
+    console.error("Invalid mock dataset:", result.error.issues);
+    throw new Error("Invalid mock dataset: failed schema validation");
+  }
+  return result.data;
 }
 
 const dataset = loadDataset();
@@ -68,12 +82,12 @@ export class MockMarketDataProvider implements MarketDataProvider {
     if (!row) {
       return null;
     }
-    return optionChainSchema.parse({
+    return {
       symbol: sym,
       expiry: exp,
       underlyingPrice: row.underlyingPrice,
       contracts: row.contracts,
-    });
+    };
   }
 }
 

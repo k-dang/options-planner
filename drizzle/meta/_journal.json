@@ -15,6 +15,13 @@
       "when": 1774671191488,
       "tag": "0001_open_medusa",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774715793262,
+      "tag": "0002_long_wiccan",
+      "breakpoints": true
     }
   ]
 }

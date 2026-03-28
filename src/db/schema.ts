@@ -1,5 +1,5 @@
+import { sql } from "drizzle-orm";
 import {
-  char,
   date,
   index,
   integer,
@@ -13,6 +13,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const optionsPlannerSchema = pgSchema("options_planner");
+
+export const optionContractRight = optionsPlannerSchema.enum(
+  "option_contract_right",
+  ["C", "P"],
+);
 
 export const instruments = optionsPlannerSchema.table(
   "instrument",
@@ -39,7 +44,7 @@ export const optionContracts = optionsPlannerSchema.table(
       .references(() => instruments.id, { onDelete: "cascade" }),
     expiry: date("expiry").notNull(),
     strike: numeric("strike", { precision: 20, scale: 6 }).notNull(),
-    right: char("right", { length: 1 }).notNull(),
+    right: optionContractRight("right").notNull(),
     exerciseStyle: varchar("exercise_style", { length: 16 }).notNull(),
     contractSymbol: varchar("contract_symbol", { length: 64 })
       .notNull()
@@ -87,7 +92,8 @@ export const savedStrategies = optionsPlannerSchema.table(
       .defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
-      .defaultNow(),
+      .defaultNow()
+      .$onUpdate(() => sql`now()`),
   },
   (table) => [
     index("saved_strategy_instrument_idx").on(table.instrumentId),
@@ -147,5 +153,6 @@ export const appSettings = optionsPlannerSchema.table("app_settings", {
   providerConfig: jsonb("provider_config").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
-    .defaultNow(),
+    .defaultNow()
+    .$onUpdate(() => sql`now()`),
 });

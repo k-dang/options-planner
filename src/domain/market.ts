@@ -49,8 +49,8 @@ export const symbolParamSchema = z.object({
 });
 
 export const chainQuerySchema = z.object({
-  symbol: z.string().min(1),
-  expiry: z.string().min(1),
+  symbol: z.string().trim().min(1),
+  expiry: z.string().trim().min(1),
 });
 
 export type SymbolSearchResult = z.infer<typeof symbolSearchResultSchema>;
