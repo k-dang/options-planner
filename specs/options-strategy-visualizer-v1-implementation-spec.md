@@ -43,20 +43,22 @@ The implementation should be organized as a small set of stable modules rather t
 
 ## Scope and Deliverables
 
-| Deliverable | Effort | Depends On |
-|-------------|--------|------------|
-| D1. Foundation and schema baseline | L | - |
-| D2. Provider abstraction and mock market API | L | D1 |
-| D3. Strategy catalog and builder shell | L | D2 |
-| D4. Pricing, analytics, and visualization contract | XL | D2, D3 |
-| D5. Optimizer engine and UI flow | L | D4 |
-| D6. Saved strategies and daily snapshots | L | D1, D4 |
-| D7. Settings, validation, and operational hardening | M | D1, D2, D6 |
-| D8. Test coverage, docs, and deployment readiness | L | D1-D7 |
+| Deliverable | Effort | Depends On | Status |
+|-------------|--------|------------|--------|
+| D1. Foundation and schema baseline | L | - | Complete |
+| D2. Provider abstraction and mock market API | L | D1 | |
+| D3. Strategy catalog and builder shell | L | D2 | |
+| D4. Pricing, analytics, and visualization contract | XL | D2, D3 | |
+| D5. Optimizer engine and UI flow | L | D4 | |
+| D6. Saved strategies and daily snapshots | L | D1, D4 | |
+| D7. Settings, validation, and operational hardening | M | D1, D2, D6 | |
+| D8. Test coverage, docs, and deployment readiness | L | D1-D7 | |
 
 ## Deliverable Details
 
 ### D1. Foundation and schema baseline
+
+**Status:** Complete.
 
 - Initialize Next.js App Router project with strict TypeScript, linting, formatting, and test runners.
 - Establish PostgreSQL schema and migrations for instruments, option contracts, strategy templates, saved strategies, saved strategy legs, saved snapshots, and app settings.

@@ -1,0 +1,230 @@
+{
+  "version": "1",
+  "symbols": [
+    {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "exchange": "NASDAQ"
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation",
+      "exchange": "NASDAQ"
+    },
+    {
+      "symbol": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "exchange": "ARCA"
+    }
+  ],
+  "quotes": {
+    "AAPL": {
+      "symbol": "AAPL",
+      "name": "Apple Inc.",
+      "last": 212.5,
+      "bid": 212.45,
+      "ask": 212.55,
+      "previousClose": 210.0,
+      "currency": "USD"
+    },
+    "MSFT": {
+      "symbol": "MSFT",
+      "name": "Microsoft Corporation",
+      "last": 428.1,
+      "bid": 428.05,
+      "ask": 428.2,
+      "previousClose": 425.0,
+      "currency": "USD"
+    },
+    "SPY": {
+      "symbol": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "last": 598.2,
+      "bid": 598.15,
+      "ask": 598.25,
+      "previousClose": 595.0,
+      "currency": "USD"
+    }
+  },
+  "expirations": {
+    "AAPL": ["2026-04-17", "2026-05-15"],
+    "MSFT": ["2026-04-17", "2026-05-15"],
+    "SPY": ["2026-04-17", "2026-06-19"]
+  },
+  "chains": {
+    "AAPL": {
+      "2026-04-17": {
+        "underlyingPrice": 212.5,
+        "contracts": [
+          {
+            "strike": 210,
+            "right": "C",
+            "contractSymbol": "AAPL260417C00210000",
+            "bid": 6.2,
+            "ask": 6.35,
+            "mark": 6.28,
+            "iv": 0.28,
+            "delta": 0.55,
+            "gamma": 0.04,
+            "theta": -0.09,
+            "vega": 0.12,
+            "rho": 0.04
+          },
+          {
+            "strike": 210,
+            "right": "P",
+            "contractSymbol": "AAPL260417P00210000",
+            "bid": 3.1,
+            "ask": 3.25,
+            "mark": 3.18,
+            "iv": 0.29,
+            "delta": -0.45,
+            "gamma": 0.04,
+            "theta": -0.08,
+            "vega": 0.11,
+            "rho": -0.03
+          },
+          {
+            "strike": 215,
+            "right": "C",
+            "contractSymbol": "AAPL260417C00215000",
+            "bid": 3.4,
+            "ask": 3.55,
+            "mark": 3.48,
+            "iv": 0.27,
+            "delta": 0.38,
+            "gamma": 0.045,
+            "theta": -0.085,
+            "vega": 0.11,
+            "rho": 0.03
+          },
+          {
+            "strike": 215,
+            "right": "P",
+            "contractSymbol": "AAPL260417P00215000",
+            "bid": 5.0,
+            "ask": 5.15,
+            "mark": 5.08,
+            "iv": 0.3,
+            "delta": -0.62,
+            "gamma": 0.038,
+            "theta": -0.075,
+            "vega": 0.1,
+            "rho": -0.04
+          }
+        ]
+      },
+      "2026-05-15": {
+        "underlyingPrice": 212.5,
+        "contracts": [
+          {
+            "strike": 210,
+            "right": "C",
+            "contractSymbol": "AAPL260515C00210000",
+            "bid": 8.1,
+            "ask": 8.25,
+            "mark": 8.18,
+            "iv": 0.26,
+            "delta": 0.52,
+            "gamma": 0.032,
+            "theta": -0.065,
+            "vega": 0.15,
+            "rho": 0.06
+          },
+          {
+            "strike": 210,
+            "right": "P",
+            "contractSymbol": "AAPL260515P00210000",
+            "bid": 4.2,
+            "ask": 4.35,
+            "mark": 4.28,
+            "iv": 0.27,
+            "delta": -0.48,
+            "gamma": 0.033,
+            "theta": -0.06,
+            "vega": 0.14,
+            "rho": -0.05
+          }
+        ]
+      }
+    },
+    "MSFT": {
+      "2026-04-17": {
+        "underlyingPrice": 428.1,
+        "contracts": [
+          {
+            "strike": 425,
+            "right": "C",
+            "contractSymbol": "MSFT260417C00425000",
+            "bid": 12.0,
+            "ask": 12.2,
+            "mark": 12.1,
+            "iv": 0.22,
+            "delta": 0.58,
+            "gamma": 0.015,
+            "theta": -0.11,
+            "vega": 0.45,
+            "rho": 0.12
+          },
+          {
+            "strike": 425,
+            "right": "P",
+            "contractSymbol": "MSFT260417P00425000",
+            "bid": 8.5,
+            "ask": 8.7,
+            "mark": 8.6,
+            "iv": 0.24,
+            "delta": -0.42,
+            "gamma": 0.016,
+            "theta": -0.1,
+            "vega": 0.42,
+            "rho": -0.09
+          }
+        ]
+      },
+      "2026-05-15": {
+        "underlyingPrice": 428.1,
+        "contracts": []
+      }
+    },
+    "SPY": {
+      "2026-04-17": {
+        "underlyingPrice": 598.2,
+        "contracts": [
+          {
+            "strike": 595,
+            "right": "C",
+            "contractSymbol": "SPY260417C00595000",
+            "bid": 9.8,
+            "ask": 9.95,
+            "mark": 9.88,
+            "iv": 0.14,
+            "delta": 0.52,
+            "gamma": 0.02,
+            "theta": -0.07,
+            "vega": 0.55,
+            "rho": 0.2
+          },
+          {
+            "strike": 595,
+            "right": "P",
+            "contractSymbol": "SPY260417P00595000",
+            "bid": 6.1,
+            "ask": 6.25,
+            "mark": 6.18,
+            "iv": 0.15,
+            "delta": -0.48,
+            "gamma": 0.021,
+            "theta": -0.065,
+            "vega": 0.52,
+            "rho": -0.18
+          }
+        ]
+      },
+      "2026-06-19": {
+        "underlyingPrice": 598.2,
+        "contracts": []
+      }
+    }
+  }
+}

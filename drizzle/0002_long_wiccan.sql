@@ -1,0 +1,2 @@
+CREATE TYPE "options_planner"."option_contract_right" AS ENUM('C', 'P');--> statement-breakpoint
+ALTER TABLE "options_planner"."option_contract" ALTER COLUMN "right" SET DATA TYPE "options_planner"."option_contract_right" USING "right"::"options_planner"."option_contract_right";
