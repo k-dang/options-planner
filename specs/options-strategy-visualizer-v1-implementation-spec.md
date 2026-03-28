@@ -46,8 +46,8 @@ The implementation should be organized as a small set of stable modules rather t
 | Deliverable | Effort | Depends On | Status |
 |-------------|--------|------------|--------|
 | D1. Foundation and schema baseline | L | - | Complete |
-| D2. Provider abstraction and mock market API | L | D1 | |
-| D3. Strategy catalog and builder shell | L | D2 | |
+| D2. Provider abstraction and mock market API | L | D1 | Complete |
+| D3. Strategy catalog and builder shell | L | D2 | In progress |
 | D4. Pricing, analytics, and visualization contract | XL | D2, D3 | |
 | D5. Optimizer engine and UI flow | L | D4 | |
 | D6. Saved strategies and daily snapshots | L | D1, D4 | |
@@ -66,15 +66,25 @@ The implementation should be organized as a small set of stable modules rather t
 
 ### D2. Provider abstraction and mock market API
 
+**Status:** Complete.
+
 - Define provider interfaces for symbol search, quote lookup, expirations, and chain retrieval.
 - Implement deterministic `MockProvider` backed by versioned repository data.
 - Expose market Route Handlers that translate provider results into stable API contracts.
 
+**Implemented:** `MarketDataProvider` in `src/providers/`, deterministic `MockMarketDataProvider` with Zod-validated `mock-data.json` (version field), and Route Handlers `GET /api/market/symbols`, `GET /api/market/quote`, `GET /api/options/expirations`, `GET /api/options/chain` with shared Zod query validation and `{ data }` / structured error responses. Vitest coverage for the mock provider and for the four market routes.
+
 ### D3. Strategy catalog and builder shell
+
+**Status:** In progress.
 
 - Seed the approved v1 strategy template catalog using exact names.
 - Build Home/Search, Strategy Library, and the first-pass Strategy Builder shell.
 - Implement leg editing, assumption controls, template loading, and view state management.
+
+**Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/domain/strategy-catalog.ts`, and `GET /api/strategies/templates` returning `{ data }`. Vitest coverage for that route. Database seeding of `strategy_template` rows is not done yet.
+
+**Not started:** Home/Search, Strategy Library and builder UI routes, leg editing, assumptions, client template loading, and builder view state.
 
 ### D4. Pricing, analytics, and visualization contract
 
@@ -266,7 +276,7 @@ interface MarketDataProvider {
 | Layer | What | How |
 |-------|------|-----|
 | Unit | Pricing formulas, greeks aggregation, breakevens, chance-of-profit, template builders, optimizer ranking | Deterministic fixtures and numeric assertions |
-| Integration | Route handlers, repositories, settings flows, save/close/snapshot flows | Test database plus mock provider |
+| Integration | Route handlers, repositories, settings flows, save/close/snapshot flows | Test database plus mock provider; Vitest covers read-only market and templates handlers with mock provider (DB-backed flows not yet) |
 | E2E | Builder workflow, optimizer workflow, save and reopen flow, close flow | Playwright against mock mode |
 | Scheduled jobs | Daily snapshot processing for open strategies | Job runner tests with seeded open and closed strategies |
 
