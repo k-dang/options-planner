@@ -8,6 +8,13 @@
       "when": 1774669689984,
       "tag": "0000_mysterious_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774671191488,
+      "tag": "0001_open_medusa",
+      "breakpoints": true
     }
   ]
 }
