@@ -1,5 +1,3 @@
-import "server-only";
-
 import { getMockMarketDataProvider } from "./mock-provider";
 import type { MarketDataProvider } from "./types";
 
