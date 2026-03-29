@@ -13,7 +13,7 @@ describe("GET /api/options/expirations", () => {
     );
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
-      data: ["2026-04-17", "2026-06-19"],
+      data: ["2026-04-17", "2026-05-15", "2026-06-19", "2026-07-17"],
     });
   });
 
