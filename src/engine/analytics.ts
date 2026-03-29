@@ -68,8 +68,14 @@ export function calculateStrategyAnalytics(
   input: AnalyticsInput,
 ): AnalyticsResult {
   const valuationDate = input.valuationDate ?? new Date();
-  const pricePoints = Math.max(3, Math.trunc(input.builderState.grid.pricePoints));
-  const datePoints = Math.max(2, Math.trunc(input.builderState.grid.datePoints));
+  const pricePoints = Math.max(
+    3,
+    Math.trunc(input.builderState.grid.pricePoints),
+  );
+  const datePoints = Math.max(
+    2,
+    Math.trunc(input.builderState.grid.datePoints),
+  );
   const priceRangePct = Math.max(0.05, input.builderState.grid.priceRangePct);
   const horizonDays = Math.max(1, Math.trunc(input.builderState.horizonDays));
 
@@ -104,13 +110,16 @@ export function calculateStrategyAnalytics(
     input.quote.last * (1 + Math.max(priceRangePct * 2, 1)),
     161,
   );
-  const finalExpiry = resolvedLegs.reduce((latest, leg) => {
-    if (leg.kind !== "option") {
-      return latest;
-    }
-    const expiry = new Date(`${leg.expiry}T00:00:00Z`);
-    return expiry > latest ? expiry : latest;
-  }, addDays(valuationDate, horizonDays));
+  const finalExpiry = resolvedLegs.reduce(
+    (latest, leg) => {
+      if (leg.kind !== "option") {
+        return latest;
+      }
+      const expiry = new Date(`${leg.expiry}T00:00:00Z`);
+      return expiry > latest ? expiry : latest;
+    },
+    addDays(valuationDate, horizonDays),
+  );
   const expirationPnls = summaryScanPrices.map((price) =>
     calculateTotalPnl({
       price,
@@ -124,9 +133,14 @@ export function calculateStrategyAnalytics(
 
   const breakevens = findBreakevens(summaryScanPrices, expirationPnls);
   const upsideUnbounded = getUpsideSlope(resolvedLegs) > 0;
-  const maxProfit = upsideUnbounded ? null : round(Math.max(...expirationPnls), 2);
+  const maxProfit = upsideUnbounded
+    ? null
+    : round(Math.max(...expirationPnls), 2);
   const maxLoss = round(Math.abs(Math.min(...expirationPnls)), 2);
-  const netDebitOrCredit = round(getNetEntryCost(resolvedLegs) + totalEntryFees, 2);
+  const netDebitOrCredit = round(
+    getNetEntryCost(resolvedLegs) + totalEntryFees,
+    2,
+  );
   const avgIv = getAverageIv(resolvedLegs);
   const chartDate = horizonDates[horizonDates.length - 1];
   const chartSeries = gridPrices.map((price, index) => ({
@@ -179,8 +193,18 @@ export function calculateStrategyAnalytics(
     chart: {
       selectedDate: toIsoDate(chartDate),
       series: chartSeries,
-      impliedMove1x: getImpliedMove(input.quote.last, avgIv, yearFraction(valuationDate, chartDate), 1),
-      impliedMove2x: getImpliedMove(input.quote.last, avgIv, yearFraction(valuationDate, chartDate), 2),
+      impliedMove1x: getImpliedMove(
+        input.quote.last,
+        avgIv,
+        yearFraction(valuationDate, chartDate),
+        1,
+      ),
+      impliedMove2x: getImpliedMove(
+        input.quote.last,
+        avgIv,
+        yearFraction(valuationDate, chartDate),
+        2,
+      ),
     },
   };
 }
@@ -248,7 +272,9 @@ function calculateTotalPnl(args: {
       valuationDate: args.valuationDate,
       expiry: leg.expiry,
     });
-    return total + side * (scenarioValue - leg.entryPrice) * leg.qty * leg.multiplier;
+    return (
+      total + side * (scenarioValue - leg.entryPrice) * leg.qty * leg.multiplier
+    );
   }, 0);
 
   return pnlBeforeFees - args.totalEntryFees;
@@ -265,9 +291,19 @@ function getScenarioOptionValue(args: {
   expiry: string;
 }) {
   const expiryDate = new Date(`${args.expiry}T00:00:00Z`);
-  const totalYears = Math.max(1 / 365, yearFraction(args.valuationDate, expiryDate));
-  const remainingYears = Math.max(0, yearFraction(args.scenarioDate, expiryDate));
-  const scenarioIntrinsic = intrinsicValue(args.contract.right, args.price, args.contract.strike);
+  const totalYears = Math.max(
+    1 / 365,
+    yearFraction(args.valuationDate, expiryDate),
+  );
+  const remainingYears = Math.max(
+    0,
+    yearFraction(args.scenarioDate, expiryDate),
+  );
+  const scenarioIntrinsic = intrinsicValue(
+    args.contract.right,
+    args.price,
+    args.contract.strike,
+  );
   if (remainingYears === 0) {
     return scenarioIntrinsic;
   }
@@ -277,14 +313,20 @@ function getScenarioOptionValue(args: {
     args.currentSpot,
     args.contract.strike,
   );
-  const currentExtrinsic = Math.max(args.contract.mark - currentIntrinsic, 0.01);
+  const currentExtrinsic = Math.max(
+    args.contract.mark - currentIntrinsic,
+    0.01,
+  );
   const decay = Math.sqrt(remainingYears / totalYears);
   const moneynessPenalty = Math.exp(
     -Math.abs(Math.log(Math.max(args.price, 0.01) / args.contract.strike)) /
       Math.max(args.iv * Math.sqrt(remainingYears), 0.1),
   );
 
-  return round(scenarioIntrinsic + currentExtrinsic * decay * moneynessPenalty, 4);
+  return round(
+    scenarioIntrinsic + currentExtrinsic * decay * moneynessPenalty,
+    4,
+  );
 }
 
 function aggregateGreeks(resolvedLegs: ResolvedLeg[]) {
@@ -322,13 +364,14 @@ function probabilityOfProfit(args: {
     if (args.pnls[i] <= 0) {
       continue;
     }
-    const lower =
-      i === 0 ? 0.0001 : (args.prices[i - 1] + args.prices[i]) / 2;
+    const lower = i === 0 ? 0.0001 : (args.prices[i - 1] + args.prices[i]) / 2;
     const upper =
       i === args.prices.length - 1
         ? args.prices[i] * 1.25 + args.spot * 0.25
         : (args.prices[i] + args.prices[i + 1]) / 2;
-    total += lognormalCdf(upper, args.spot, sigma) - lognormalCdf(lower, args.spot, sigma);
+    total +=
+      lognormalCdf(upper, args.spot, sigma) -
+      lognormalCdf(lower, args.spot, sigma);
   }
 
   return Math.min(1, Math.max(0, total));
@@ -353,7 +396,9 @@ function getEntryFees(builderState: BuilderState, resolvedLegs: ResolvedLeg[]) {
     return total + Math.abs(leg.qty) * builderState.commissions.perContract;
   }, 0);
 
-  return perContractFees + resolvedLegs.length * builderState.commissions.perLegFee;
+  return (
+    perContractFees + resolvedLegs.length * builderState.commissions.perLegFee
+  );
 }
 
 function getAverageIv(resolvedLegs: ResolvedLeg[]) {
@@ -363,7 +408,9 @@ function getAverageIv(resolvedLegs: ResolvedLeg[]) {
   if (optionLegs.length === 0) {
     return 0.2;
   }
-  return optionLegs.reduce((total, leg) => total + leg.iv, 0) / optionLegs.length;
+  return (
+    optionLegs.reduce((total, leg) => total + leg.iv, 0) / optionLegs.length
+  );
 }
 
 function getUpsideSlope(resolvedLegs: ResolvedLeg[]) {
@@ -390,7 +437,9 @@ function findBreakevens(prices: number[], pnls: number[]) {
     }
     if ((prev < 0 && next > 0) || (prev > 0 && next < 0)) {
       const ratio = Math.abs(prev) / (Math.abs(prev) + Math.abs(next));
-      points.push(round(prices[i - 1] + (prices[i] - prices[i - 1]) * ratio, 2));
+      points.push(
+        round(prices[i - 1] + (prices[i] - prices[i - 1]) * ratio, 2),
+      );
     }
   }
   return [...new Set(points)];
@@ -406,7 +455,6 @@ function getStockEntryPrice(leg: BuilderLeg, quote: UnderlyingQuote) {
       return (quote.bid + quote.ask) / 2;
     case "manual":
       return leg.manualEntryPrice ?? quote.last;
-    case "mark":
     default:
       return quote.last;
   }
@@ -422,7 +470,6 @@ function getOptionEntryPrice(leg: BuilderLeg, contract: OptionChainContract) {
       return (contract.bid + contract.ask) / 2;
     case "manual":
       return leg.manualEntryPrice ?? contract.mark;
-    case "mark":
     default:
       return contract.mark;
   }
@@ -436,8 +483,14 @@ function getLegIv(expiry: string, baseIv: number, builderState: BuilderState) {
   );
 }
 
-function getImpliedMove(spot: number, iv: number, years: number, multiple: number) {
-  const move = spot * Math.max(iv, 0.05) * Math.sqrt(Math.max(years, 1 / 365)) * multiple;
+function getImpliedMove(
+  spot: number,
+  iv: number,
+  years: number,
+  multiple: number,
+) {
+  const move =
+    spot * Math.max(iv, 0.05) * Math.sqrt(Math.max(years, 1 / 365)) * multiple;
   return {
     down: round(Math.max(0, spot - move), 2),
     up: round(spot + move, 2),
@@ -456,7 +509,9 @@ function buildDateGrid(start: Date, horizonDays: number, datePoints: number) {
 }
 
 function yearFraction(from: Date, to: Date) {
-  return Math.max(0, to.getTime() - from.getTime()) / (365 * 24 * 60 * 60 * 1000);
+  return (
+    Math.max(0, to.getTime() - from.getTime()) / (365 * 24 * 60 * 60 * 1000)
+  );
 }
 
 function linspace(start: number, end: number, count: number) {
@@ -483,8 +538,7 @@ function normalCdf(x: number) {
     d *
       t *
       (0.3193815 +
-        t *
-          (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+        t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
   return x >= 0 ? probability : 1 - probability;
 }
 

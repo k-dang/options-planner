@@ -189,7 +189,11 @@ describe("calculateStrategyAnalytics", () => {
       valuationDate: new Date("2026-03-20T00:00:00Z"),
     });
 
-    expect(stressed.chart.impliedMove1x.up).toBeGreaterThan(base.chart.impliedMove1x.up);
-    expect(stressed.chart.impliedMove1x.down).toBeLessThan(base.chart.impliedMove1x.down);
+    expect(stressed.chart.impliedMove1x.up).toBeGreaterThan(
+      base.chart.impliedMove1x.up,
+    );
+    expect(stressed.chart.impliedMove1x.down).toBeLessThan(
+      base.chart.impliedMove1x.down,
+    );
   });
 });
