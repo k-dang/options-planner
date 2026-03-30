@@ -1,8 +1,8 @@
 import type {
   BuilderLeg,
-  OptionChain,
   OptimizerCandidate,
   OptimizerRequest,
+  OptionChain,
   UnderlyingQuote,
 } from "@/domain";
 import { calculateStrategyAnalytics } from "./analytics";

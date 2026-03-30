@@ -1,4 +1,4 @@
-import OptimizeClient from "./optimize/optimize-client";
+import OptimizeClient from "@/components/optimize-client";
 
 export default async function HomePage({
   searchParams,
