@@ -31,7 +31,7 @@ export const builderLegInputSchema = z
     strike: z.number().optional(),
     expiry: z.string().optional(),
     entryPriceMode: z.enum(["bid", "ask", "mark", "mid", "manual"]),
-    manualEntryPrice: z.number().optional(),
+    manualEntryPrice: z.number().nonnegative().optional(),
   })
   .strict()
   .superRefine((leg, ctx) => {
