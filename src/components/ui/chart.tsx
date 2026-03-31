@@ -1,3 +1,5 @@
+/** biome-ignore-all lint/security/noDangerouslySetInnerHtml: <shadcn base chart component> */
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: <shadcn base chart component> */
 "use client";
 
 import * as React from "react";
