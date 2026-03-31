@@ -226,13 +226,3 @@
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
 }
-
-/* Ticker tape scanline */
-@keyframes scanline {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(100%);
-  }
-}
