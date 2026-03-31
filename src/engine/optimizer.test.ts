@@ -195,4 +195,49 @@ describe("runOptimizer", () => {
       candidates[0].summary.chanceOfProfitAtExpiration,
     );
   });
+
+  it("keeps expected-profit rankings independent of the chart grid", () => {
+    const coarseGridCandidates = runOptimizer({
+      request: request({
+        targetPrice: 218,
+        grid: { pricePoints: 3, datePoints: 3, priceRangePct: 0.1 },
+      }),
+      quote,
+      chainsByExpiry: { "2026-04-17": chain },
+      valuationDate: new Date("2026-03-20T00:00:00Z"),
+    });
+    const fineGridCandidates = runOptimizer({
+      request: request({
+        targetPrice: 218,
+        grid: { pricePoints: 31, datePoints: 3, priceRangePct: 0.45 },
+      }),
+      quote,
+      chainsByExpiry: { "2026-04-17": chain },
+      valuationDate: new Date("2026-03-20T00:00:00Z"),
+    });
+
+    expect(candidateSignatures(coarseGridCandidates)).toEqual(
+      candidateSignatures(fineGridCandidates),
+    );
+    expect(
+      coarseGridCandidates.map((candidate) => candidate.expectedProfitAtTarget),
+    ).toEqual(
+      fineGridCandidates.map((candidate) => candidate.expectedProfitAtTarget),
+    );
+    expect(
+      coarseGridCandidates.map((candidate) => candidate.objectiveValue),
+    ).toEqual(fineGridCandidates.map((candidate) => candidate.objectiveValue));
+  });
 });
+
+function candidateSignatures(candidates: ReturnType<typeof runOptimizer>) {
+  return candidates.map(
+    (candidate) =>
+      `${candidate.strategyName}:${candidate.legs
+        .map(
+          (leg) =>
+            `${leg.side}-${leg.right ?? "S"}-${leg.strike ?? 0}-${leg.expiry ?? ""}`,
+        )
+        .join("|")}`,
+  );
+}

@@ -209,6 +209,26 @@ export function calculateStrategyAnalytics(
   };
 }
 
+export function calculateExpectedProfitAtPrice(
+  input: AnalyticsInput & { targetPrice: number },
+) {
+  const valuationDate = input.valuationDate ?? new Date();
+  const horizonDays = Math.max(1, Math.trunc(input.builderState.horizonDays));
+  const resolvedLegs = input.builderState.legs.map((leg) =>
+    resolveLeg(leg, input),
+  );
+  const totalEntryFees = getEntryFees(input.builderState, resolvedLegs);
+
+  return calculateTotalPnl({
+    price: input.targetPrice,
+    scenarioDate: addDays(valuationDate, horizonDays),
+    valuationDate,
+    resolvedLegs,
+    quote: input.quote,
+    totalEntryFees,
+  });
+}
+
 function resolveLeg(leg: BuilderLeg, input: AnalyticsInput): ResolvedLeg {
   if (leg.kind === "stock") {
     return {

@@ -5,7 +5,10 @@ import type {
   OptionChain,
   UnderlyingQuote,
 } from "@/domain";
-import { calculateStrategyAnalytics } from "./analytics";
+import {
+  calculateExpectedProfitAtPrice,
+  calculateStrategyAnalytics,
+} from "./analytics";
 
 type OptimizerInput = {
   request: OptimizerRequest;
@@ -39,9 +42,12 @@ export function runOptimizer(input: OptimizerInput): OptimizerCandidate[] {
       chainsByExpiry: input.chainsByExpiry,
       valuationDate,
     });
-    const expectedProfitAtTarget = calculateExpectedProfitAtTarget({
+    const expectedProfitAtTarget = calculateExpectedProfitAtPrice({
+      builderState,
+      quote: input.quote,
+      chainsByExpiry: input.chainsByExpiry,
+      valuationDate,
       targetPrice: input.request.targetPrice,
-      analytics,
     });
     const objectiveValue =
       input.request.objective === "expectedProfit"
@@ -228,27 +234,6 @@ function optionLeg(args: {
     expiry: args.expiry,
     entryPriceMode: "mark",
   };
-}
-
-function calculateExpectedProfitAtTarget(args: {
-  targetPrice: number;
-  analytics: ReturnType<typeof calculateStrategyAnalytics>;
-}) {
-  const series = args.analytics.chart.series;
-  if (series.length === 0) {
-    return 0;
-  }
-
-  let best = series[0];
-  for (const point of series) {
-    if (
-      Math.abs(point.price - args.targetPrice) <
-      Math.abs(best.price - args.targetPrice)
-    ) {
-      best = point;
-    }
-  }
-  return best.pnl;
 }
 
 function dedupeDefinitions(definitions: StrategyDefinition[]) {
