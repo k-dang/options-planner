@@ -1,83 +1,43 @@
-import { type NextRequest, NextResponse } from "next/server";
 import { treeifyError } from "zod";
 import { strategyCalcRequestSchema } from "@/domain";
-import { calculateStrategyAnalytics } from "@/engine";
 import { jsonError } from "@/lib/api-response";
-import { getMarketDataProvider } from "@/providers";
+import { ServiceError } from "@/server/service-errors";
+import { calculateStrategyFromBuilderState } from "@/server/strategy-service";
 
-export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => null);
-  const parsed = strategyCalcRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError(
-      400,
-      "VALIDATION_ERROR",
-      "Invalid request body",
-      treeifyError(parsed.error),
-    );
-  }
-
-  const { builderState } = parsed.data;
-  const provider = getMarketDataProvider();
-  const quote = await provider.getQuote(builderState.symbol);
-  if (!quote) {
-    return jsonError(
-      404,
-      "NOT_FOUND",
-      `No quote for symbol: ${builderState.symbol}`,
-    );
-  }
-
-  const expiries = [
-    ...new Set(
-      builderState.legs
-        .filter((leg) => leg.kind === "option")
-        .map((leg) => leg.expiry)
-        .filter((expiry): expiry is string => Boolean(expiry)),
-    ),
-  ];
-
-  const chains = await Promise.all(
-    expiries.map(async (expiry) => ({
-      expiry,
-      chain: await provider.getChain(builderState.symbol, expiry),
-    })),
-  );
-
-  const missingExpiry = chains.find((item) => item.chain === null)?.expiry;
-  if (missingExpiry) {
-    return jsonError(
-      404,
-      "NOT_FOUND",
-      `No option chain for symbol ${builderState.symbol} and expiry ${missingExpiry}`,
-    );
-  }
-
-  const chainsByExpiry = Object.fromEntries(
-    chains
-      .filter(
-        (
-          item,
-        ): item is {
-          expiry: string;
-          chain: NonNullable<(typeof chains)[number]["chain"]>;
-        } => item.chain !== null,
-      )
-      .map((item) => [item.expiry, item.chain]),
-  );
-
+export async function POST(request: Request) {
   try {
-    const data = calculateStrategyAnalytics({
-      builderState,
-      quote,
-      chainsByExpiry,
-    });
-    return NextResponse.json({ data });
-  } catch (error) {
-    return jsonError(
-      400,
-      "CALCULATION_ERROR",
-      error instanceof Error ? error.message : "Strategy calculation failed",
+    const body = await request.json().catch(() => null);
+    const parsed = strategyCalcRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonError(
+        400,
+        "VALIDATION_ERROR",
+        "Invalid request body",
+        treeifyError(parsed.error),
+      );
+    }
+
+    const data = await calculateStrategyFromBuilderState(
+      parsed.data.builderState,
     );
+    return Response.json({ data });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      if (error.kind === "not-found") {
+        return jsonError(404, "NOT_FOUND", error.message, error.details);
+      }
+
+      if (error.kind === "calculation") {
+        return jsonError(
+          400,
+          "CALCULATION_ERROR",
+          error.message,
+          error.details,
+        );
+      }
+    }
+
+    console.error(error);
+    return jsonError(500, "INTERNAL_SERVER_ERROR", "Unexpected server error");
   }
 }

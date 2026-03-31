@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { strategyCalcResponseSchema } from "@/domain";
+import * as providers from "@/providers";
 import { POST } from "./route";
 
 function request(url: string, body: unknown) {
@@ -12,6 +13,10 @@ function request(url: string, body: unknown) {
     },
   });
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("POST /api/strategies/calc", () => {
   it("returns analytics for a valid strategy payload", async () => {
@@ -91,6 +96,49 @@ describe("POST /api/strategies/calc", () => {
       error: {
         code: "NOT_FOUND",
         message: "No option chain for symbol AAPL and expiry 2099-01-01",
+      },
+    });
+  });
+
+  it("returns 500 JSON when the provider throws", async () => {
+    vi.spyOn(providers, "getMarketDataProvider").mockReturnValue({
+      searchSymbols: async () => [],
+      getQuote: async () => {
+        throw new Error("boom");
+      },
+      getExpirations: async () => [],
+      getChain: async () => null,
+    });
+
+    const res = await POST(
+      request("http://localhost/api/strategies/calc", {
+        builderState: {
+          symbol: "AAPL",
+          horizonDays: 30,
+          riskFreeRate: 0.04,
+          commissions: { perContract: 0.65, perLegFee: 0.1 },
+          ivOverrides: { byExpiry: {}, global: 0.3 },
+          grid: { pricePoints: 5, datePoints: 3, priceRangePct: 0.2 },
+          legs: [
+            {
+              kind: "option",
+              side: "buy",
+              qty: 1,
+              right: "C",
+              strike: 212.5,
+              expiry: "2026-04-17",
+              entryPriceMode: "mark",
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Unexpected server error",
       },
     });
   });

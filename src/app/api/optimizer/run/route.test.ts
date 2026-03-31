@@ -108,4 +108,29 @@ describe("POST /api/optimizer/run", () => {
       error: { code: "VALIDATION_ERROR", message: "Invalid request body" },
     });
   });
+
+  it("returns 500 JSON when the provider throws", async () => {
+    vi.spyOn(providers, "getMarketDataProvider").mockReturnValue({
+      searchSymbols: async () => [],
+      getQuote: async () => {
+        throw new Error("boom");
+      },
+      getExpirations: async () => [],
+      getChain: async () => null,
+    });
+
+    const res = await POST(
+      request("http://localhost/api/optimizer/run", {
+        symbol: "AAPL",
+      }),
+    );
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Unexpected server error",
+      },
+    });
+  });
 });
