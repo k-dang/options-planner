@@ -1,5 +1,18 @@
 import { z } from "zod";
-import { builderLegInputSchema, builderStateSchema } from "./analytics";
+import {
+  builderLegInputSchema,
+  builderStateSchema,
+  calcChartSchema,
+  calcGridSchema,
+  calcSummarySchema,
+} from "./analytics";
+import { underlyingQuoteSchema } from "./market";
+
+export const optimizerRunRequestSchema = z
+  .object({
+    symbol: z.string().trim().min(1),
+  })
+  .strict();
 
 export const optimizerObjectiveSchema = z.enum([
   "expectedProfit",
@@ -88,5 +101,31 @@ export const optimizerResponseSchema = z
   })
   .strict();
 
+export const optimizedStrategyCardSchema = z
+  .object({
+    candidate: optimizerCandidateSchema,
+    detail: z
+      .object({
+        summary: calcSummarySchema,
+        grid: calcGridSchema,
+        chart: calcChartSchema,
+      })
+      .strict(),
+  })
+  .strict();
+
+export const optimizerRunResponseSchema = z
+  .object({
+    data: z
+      .object({
+        quote: underlyingQuoteSchema,
+        selectedExpiry: z.string().nullable(),
+        cards: z.array(optimizedStrategyCardSchema),
+      })
+      .strict(),
+  })
+  .strict();
+
 export type OptimizerRequest = z.infer<typeof optimizerRequestSchema>;
 export type OptimizerCandidate = z.infer<typeof optimizerCandidateSchema>;
+export type OptimizerRunResponse = z.infer<typeof optimizerRunResponseSchema>;

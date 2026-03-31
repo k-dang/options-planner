@@ -81,7 +81,7 @@ export const builderStateSchema = z
   })
   .strict();
 
-const calcSummarySchema = z
+export const calcSummarySchema = z
   .object({
     netDebitOrCredit: z.number(),
     maxProfit: z.number().nullable(),
@@ -101,7 +101,7 @@ const calcSummarySchema = z
   })
   .strict();
 
-const calcGridSchema = z
+export const calcGridSchema = z
   .object({
     prices: z.array(z.number()),
     dates: z.array(z.string()),
@@ -109,7 +109,7 @@ const calcGridSchema = z
   })
   .strict();
 
-const calcChartSchema = z
+export const calcChartSchema = z
   .object({
     selectedDate: z.string(),
     series: z.array(

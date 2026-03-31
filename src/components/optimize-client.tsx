@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -24,8 +25,11 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import type {
   OptimizerCandidate,
+  OptimizerRunResponse,
   StrategyCalcResponse,
   SymbolSearchResult,
 } from "@/domain";
@@ -34,34 +38,13 @@ type OptimizeClientProps = {
   initialSymbol: string;
 };
 
-type QuoteResponse = {
-  data: {
-    symbol: string;
-    name: string;
-    last: number;
-  };
-};
-
-type ExpirationsResponse = {
-  data: string[];
-};
-
-type OptimizerResponse = {
-  data: {
-    candidates: OptimizerCandidate[];
-  };
-};
-
 type ApiErrorResponse = {
   error?: {
     message?: string;
   };
 };
 
-type StrategyCardData = {
-  candidate: OptimizerCandidate;
-  detail: StrategyCalcResponse["data"];
-};
+type StrategyCardData = OptimizerRunResponse["data"]["cards"][number];
 
 const chartConfig = {
   pnl: {
@@ -82,6 +65,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
   const [searchLoading, setSearchLoading] = useState(false);
   const requestSequence = useRef(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectedSymbolRef = useRef<string | null>(null);
   const normalizedSymbol = symbol.trim().toUpperCase();
   const showSuggestions =
     normalizedSymbol.length > 0 && searchResults.length > 0 && !loading;
@@ -90,6 +74,10 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     if (!normalizedSymbol) {
       setSearchResults([]);
       setSearchLoading(false);
+      return;
+    }
+
+    if (selectedSymbolRef.current === normalizedSymbol) {
       return;
     }
 
@@ -126,50 +114,11 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     setStatus(`Scanning strategies for ${symbolToRun}...`);
 
     try {
-      const [quoteResponse, expirationsResponse] = await Promise.all([
-        fetch(`/api/market/quote?symbol=${encodeURIComponent(symbolToRun)}`),
-        fetch(
-          `/api/options/expirations?symbol=${encodeURIComponent(symbolToRun)}`,
-        ),
-      ]);
-
-      if (sequence !== requestSequence.current) {
-        return;
-      }
-
-      if (!quoteResponse.ok) {
-        setCards([]);
-        setQuoteName(null);
-        setError(
-          (await getErrorMessage(quoteResponse)) || "Symbol lookup failed.",
-        );
-        setStatus("Enter a supported symbol.");
-        return;
-      }
-
-      const quote = (await quoteResponse.json()) as QuoteResponse;
-      const expirations = expirationsResponse.ok
-        ? ((await expirationsResponse.json()) as ExpirationsResponse).data
-        : [];
-
-      if (expirations.length === 0) {
-        setCards([]);
-        setQuoteName(quote.data.name);
-        setError("No expirations available for that symbol.");
-        setStatus("No strategy graphs available.");
-        return;
-      }
-
       const optimizerResponse = await fetch("/api/optimizer/run", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           symbol: symbolToRun,
-          targetPrice: quote.data.last,
-          targetDate: expirations[0],
-          objective: "expectedProfit",
-          maxLegs: 2,
-          strikeWindow: 2,
         }),
       });
 
@@ -179,7 +128,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
 
       if (!optimizerResponse.ok) {
         setCards([]);
-        setQuoteName(quote.data.name);
+        setQuoteName(null);
         setError(
           (await getErrorMessage(optimizerResponse)) ||
             "Unable to optimize strategies.",
@@ -188,50 +137,26 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
         return;
       }
 
-      const optimized = (await optimizerResponse.json()) as OptimizerResponse;
-      const bestByStrategy = Object.values(
-        Object.fromEntries(
-          optimized.data.candidates.map((candidate) => [
-            candidate.strategyName,
-            candidate,
-          ]),
-        ),
-      );
-
-      const detailResponses = await Promise.all(
-        bestByStrategy.map(async (candidate) => {
-          const response = await fetch("/api/strategies/calc", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              builderState: candidate.builderState,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              (await getErrorMessage(response)) ||
-                `Unable to load chart for ${candidate.strategyName}.`,
-            );
-          }
-
-          const detail = (await response.json()) as StrategyCalcResponse;
-          return {
-            candidate,
-            detail: detail.data,
-          } satisfies StrategyCardData;
-        }),
-      );
+      const optimized =
+        (await optimizerResponse.json()) as OptimizerRunResponse;
 
       if (sequence !== requestSequence.current) {
         return;
       }
 
-      setQuoteName(quote.data.name);
-      setCards(detailResponses);
+      if (!optimized.data.selectedExpiry) {
+        setCards([]);
+        setQuoteName(optimized.data.quote.name);
+        setError("No expirations available for that symbol.");
+        setStatus("No strategy graphs available.");
+        return;
+      }
+
+      setQuoteName(optimized.data.quote.name);
+      setCards(optimized.data.cards);
       setStatus(
-        detailResponses.length > 0
-          ? `${detailResponses.length} strategies optimized for ${symbolToRun}.`
+        optimized.data.cards.length > 0
+          ? `${optimized.data.cards.length} strategies optimized for ${symbolToRun}.`
           : `No strategy graphs available for ${symbolToRun}.`,
       );
       setActiveSymbol(symbolToRun);
@@ -338,15 +263,19 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
                   <path d="m21 21-4.35-4.35" strokeLinecap="round" />
                 </svg>
               </div>
-              <input
+              <Input
                 ref={inputRef}
                 id="optimize-symbol"
                 value={symbol}
-                onChange={(event) => setSymbol(event.target.value)}
+                onChange={(event) => {
+                  selectedSymbolRef.current = null;
+                  setSymbol(event.target.value);
+                }}
                 placeholder="Search by ticker or company name..."
                 autoCapitalize="characters"
+                autoComplete="off"
                 spellCheck={false}
-                className="h-12 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/40"
+                className="h-12 flex-1 rounded-none border-0 bg-transparent px-3 text-sm text-foreground shadow-none ring-0 focus-visible:ring-0 placeholder:text-muted-foreground/40 dark:bg-transparent [&:-webkit-autofill]:![box-shadow:0_0_0px_1000px_oklch(0.12_0.008_260)_inset] [&:-webkit-autofill]:[caret-color:white] [&:-webkit-autofill]:![-webkit-text-fill-color:oklch(0.95_0_0)]"
               />
               {loading ? (
                 <div className="mr-4 flex items-center gap-2">
@@ -356,13 +285,14 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
                   </span>
                 </div>
               ) : (
-                <button
+                <Button
                   type="submit"
+                  size="lg"
                   disabled={!normalizedSymbol || loading}
-                  className="mr-2 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-4 font-mono text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-primary-foreground transition-all hover:bg-primary/85 hover:shadow-[0_0_16px_oklch(0.65_0.18_160_/_0.25)] disabled:pointer-events-none disabled:opacity-30"
+                  className="mr-2 rounded-lg font-mono text-[0.65rem] font-semibold uppercase tracking-[0.1em] hover:shadow-[0_0_16px_oklch(0.65_0.18_160_/_0.25)]"
                 >
                   Optimize
-                </button>
+                </Button>
               )}
             </div>
 
@@ -379,7 +309,12 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
                     key={result.symbol}
                     type="button"
                     className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-white/[0.04]"
-                    onClick={() => setSymbol(result.symbol)}
+                    onClick={() => {
+                      selectedSymbolRef.current = result.symbol;
+                      setSymbol(result.symbol);
+                      setSearchResults([]);
+                      void runOptimization(result.symbol);
+                    }}
                   >
                     <span className="inline-flex h-6 w-14 items-center justify-center rounded-md bg-primary/10 font-mono text-[0.65rem] font-semibold text-primary">
                       {result.symbol}
@@ -515,17 +450,17 @@ function LoadingSkeleton({ delay = 0 }: { delay?: number }) {
       <div className="p-5">
         <div className="mb-4 flex items-center justify-between">
           <div className="space-y-2">
-            <div className="animate-shimmer h-4 w-32 rounded-md bg-white/[0.04]" />
-            <div className="animate-shimmer h-3 w-48 rounded-md bg-white/[0.03]" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
           </div>
-          <div className="animate-shimmer h-6 w-20 rounded-full bg-white/[0.04]" />
+          <Skeleton className="h-6 w-20 rounded-full" />
         </div>
-        <div className="animate-shimmer h-56 w-full rounded-lg bg-white/[0.03]" />
+        <Skeleton className="h-56 w-full rounded-lg" />
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="animate-shimmer h-14 rounded-lg bg-white/[0.03]" />
-          <div className="animate-shimmer h-14 rounded-lg bg-white/[0.03]" />
-          <div className="animate-shimmer h-14 rounded-lg bg-white/[0.03]" />
-          <div className="animate-shimmer h-14 rounded-lg bg-white/[0.03]" />
+          <Skeleton className="h-14 rounded-lg" />
+          <Skeleton className="h-14 rounded-lg" />
+          <Skeleton className="h-14 rounded-lg" />
+          <Skeleton className="h-14 rounded-lg" />
         </div>
       </div>
     </div>

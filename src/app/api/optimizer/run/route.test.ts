@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
-import { optimizerResponseSchema } from "@/domain";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { optimizerRunResponseSchema } from "@/domain";
+import * as providers from "@/providers";
 import { POST } from "./route";
 
 function request(url: string, body: unknown) {
@@ -13,41 +14,40 @@ function request(url: string, body: unknown) {
   });
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("POST /api/optimizer/run", () => {
-  it("returns ranked candidates for the requested expiry only", async () => {
+  it("returns quote, selected expiry, and hydrated cards", async () => {
     const res = await POST(
       request("http://localhost/api/optimizer/run", {
         symbol: "AAPL",
-        targetPrice: 225,
-        targetDate: "2026-04-17",
-        objective: "expectedProfit",
-        maxLegs: 2,
-        strikeWindow: 2,
       }),
     );
 
     expect(res.status).toBe(200);
-    const body = optimizerResponseSchema.parse(await res.json());
-    expect(body.data.candidates.length).toBeGreaterThan(0);
-    expect(body.data.candidates[0].strategyName).toBeDefined();
+    const body = optimizerRunResponseSchema.parse(await res.json());
+    expect(body.data.quote.symbol).toBe("AAPL");
+    expect(body.data.selectedExpiry).toBe("2026-04-17");
+    expect(body.data.cards.length).toBeGreaterThan(0);
+    expect(body.data.cards[0].candidate.strategyName).toBeDefined();
     expect(
-      body.data.candidates.every((candidate) =>
-        candidate.builderState.legs.every(
+      body.data.cards.every((card) =>
+        card.candidate.builderState.legs.every(
           (leg) => leg.kind !== "option" || leg.expiry === "2026-04-17",
         ),
       ),
     ).toBe(true);
+    expect(
+      body.data.cards.every((card) => card.detail.chart.series.length > 0),
+    ).toBe(true);
   });
 
-  it("returns 404 when the requested expiry has no chain", async () => {
+  it("returns 404 for an unknown symbol", async () => {
     const res = await POST(
       request("http://localhost/api/optimizer/run", {
-        symbol: "AAPL",
-        targetPrice: 225,
-        targetDate: "2099-01-01",
-        objective: "expectedProfit",
-        maxLegs: 2,
-        strikeWindow: 2,
+        symbol: "ZZZZ",
       }),
     );
 
@@ -55,17 +55,53 @@ describe("POST /api/optimizer/run", () => {
     await expect(res.json()).resolves.toMatchObject({
       error: {
         code: "NOT_FOUND",
-        message: "No option chain for symbol AAPL and expiry 2099-01-01",
+        message: "No quote for symbol: ZZZZ",
       },
     });
   });
 
-  it("returns 400 for invalid payloads", async () => {
+  it("returns an empty result when quote exists but no expirations are available", async () => {
+    vi.spyOn(providers, "getMarketDataProvider").mockReturnValue({
+      searchSymbols: async () => [],
+      getQuote: async () => ({
+        symbol: "AAPL",
+        name: "Apple Inc.",
+        last: 225,
+        bid: 224.9,
+        ask: 225.1,
+        previousClose: 223,
+        currency: "USD",
+      }),
+      getExpirations: async () => [],
+      getChain: async () => null,
+    });
+
     const res = await POST(
       request("http://localhost/api/optimizer/run", {
         symbol: "AAPL",
       }),
     );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      data: {
+        quote: {
+          symbol: "AAPL",
+          name: "Apple Inc.",
+          last: 225,
+          bid: 224.9,
+          ask: 225.1,
+          previousClose: 223,
+          currency: "USD",
+        },
+        selectedExpiry: null,
+        cards: [],
+      },
+    });
+  });
+
+  it("returns 400 for invalid payloads", async () => {
+    const res = await POST(request("http://localhost/api/optimizer/run", {}));
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toMatchObject({
