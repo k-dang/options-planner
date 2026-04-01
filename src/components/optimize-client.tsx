@@ -27,12 +27,12 @@ import {
 } from "@/components/ui/chart";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { SymbolSearchResult } from "@/modules/market/schemas";
 import type {
   OptimizerCandidate,
   OptimizerRunResponse,
-  StrategyCalcResponse,
-  SymbolSearchResult,
-} from "@/domain";
+} from "@/modules/optimizer/schemas";
+import type { StrategyCalcResponse } from "@/modules/strategies/schemas";
 
 type OptimizeClientProps = {
   initialSymbol: string;

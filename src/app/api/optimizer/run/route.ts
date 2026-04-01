@@ -1,8 +1,8 @@
 import { treeifyError } from "zod";
-import { optimizerRunRequestSchema } from "@/domain";
 import { jsonError } from "@/lib/api-response";
-import { runOptimizerForSymbol } from "@/server/optimizer-service";
-import { ServiceError } from "@/server/service-errors";
+import { ServiceError } from "@/modules/errors";
+import { runOptimizerForSymbol } from "@/modules/optimizer/run-optimizer";
+import { optimizerRunRequestSchema } from "@/modules/optimizer/schemas";
 
 export async function POST(request: Request) {
   try {

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { optimizerRunResponseSchema } from "@/domain";
-import * as providers from "@/providers";
+import * as market from "@/modules/market";
+import { optimizerRunResponseSchema } from "@/modules/optimizer/schemas";
 import { POST } from "./route";
 
 function request(url: string, body: unknown) {
@@ -61,7 +61,7 @@ describe("POST /api/optimizer/run", () => {
   });
 
   it("returns an empty result when quote exists but no expirations are available", async () => {
-    vi.spyOn(providers, "getMarketDataProvider").mockReturnValue({
+    vi.spyOn(market, "getMarketDataProvider").mockReturnValue({
       searchSymbols: async () => [],
       getQuote: async () => ({
         symbol: "AAPL",
@@ -110,7 +110,7 @@ describe("POST /api/optimizer/run", () => {
   });
 
   it("returns 500 JSON when the provider throws", async () => {
-    vi.spyOn(providers, "getMarketDataProvider").mockReturnValue({
+    vi.spyOn(market, "getMarketDataProvider").mockReturnValue({
       searchSymbols: async () => [],
       getQuote: async () => {
         throw new Error("boom");

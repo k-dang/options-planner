@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { OptimizerRequest, OptionChain, UnderlyingQuote } from "@/domain";
+import type { OptionChain, UnderlyingQuote } from "@/modules/market/schemas";
 import { runOptimizer } from "./optimizer";
+import type { OptimizerRequest } from "./schemas";
 
 const quote: UnderlyingQuote = {
   symbol: "AAPL",

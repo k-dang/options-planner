@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { optionChainSchema } from "@/domain/market";
+import { optionChainSchema } from "@/modules/market/schemas";
 import { GET } from "./route";
 
 function request(url: string) {

@@ -1,39 +1,7 @@
-import type { BuilderLeg, BuilderState, OptionChain } from "@/domain";
-import { calculateStrategyAnalytics } from "@/engine";
-import { getMarketDataProvider, type MarketDataProvider } from "@/providers";
-import { ServiceError } from "./service-errors";
-
-export async function calculateStrategyFromBuilderState(
-  builderState: BuilderState,
-) {
-  const provider = getMarketDataProvider();
-  const quote = await provider.getQuote(builderState.symbol);
-  if (!quote) {
-    throw new ServiceError(
-      "not-found",
-      `No quote for symbol: ${builderState.symbol}`,
-    );
-  }
-
-  const chainsByExpiry = await loadChainsByExpiry({
-    provider,
-    symbol: builderState.symbol,
-    expiries: getOptionExpiries(builderState.legs),
-  });
-
-  try {
-    return calculateStrategyAnalytics({
-      builderState,
-      quote,
-      chainsByExpiry,
-    });
-  } catch (error) {
-    throw new ServiceError(
-      "calculation",
-      error instanceof Error ? error.message : "Strategy calculation failed",
-    );
-  }
-}
+import { ServiceError } from "@/modules/errors";
+import type { MarketDataProvider } from "@/modules/market";
+import type { OptionChain } from "@/modules/market/schemas";
+import type { BuilderLeg } from "./types";
 
 export function getOptionExpiries(legs: BuilderLeg[]) {
   return [

@@ -1,8 +1,8 @@
 import { treeifyError } from "zod";
-import { strategyCalcRequestSchema } from "@/domain";
 import { jsonError } from "@/lib/api-response";
-import { ServiceError } from "@/server/service-errors";
-import { calculateStrategyFromBuilderState } from "@/server/strategy-service";
+import { ServiceError } from "@/modules/errors";
+import { calculateStrategyFromBuilderState } from "@/modules/strategies/calculate-strategy";
+import { strategyCalcRequestSchema } from "@/modules/strategies/schemas";
 
 export async function POST(request: Request) {
   try {

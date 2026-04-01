@@ -1,14 +1,10 @@
-import type {
-  BuilderLeg,
-  OptimizerCandidate,
-  OptimizerRequest,
-  OptionChain,
-  UnderlyingQuote,
-} from "@/domain";
+import type { OptionChain, UnderlyingQuote } from "@/modules/market/schemas";
 import {
   calculateExpectedProfitAtPrice,
   calculateStrategyAnalytics,
-} from "./analytics";
+} from "@/modules/strategies/analytics";
+import type { BuilderLeg } from "@/modules/strategies/types";
+import type { OptimizerCandidate, OptimizerRequest } from "./schemas";
 
 type OptimizerInput = {
   request: OptimizerRequest;

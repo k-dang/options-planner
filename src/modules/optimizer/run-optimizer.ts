@@ -1,8 +1,13 @@
-import type { OptimizerRequest, UnderlyingQuote } from "@/domain";
-import { calculateStrategyAnalytics, runOptimizer } from "@/engine";
-import { getMarketDataProvider } from "@/providers";
-import { ServiceError } from "./service-errors";
-import { getOptionExpiries, loadChainsByExpiry } from "./strategy-service";
+import { ServiceError } from "@/modules/errors";
+import { getMarketDataProvider } from "@/modules/market";
+import type { UnderlyingQuote } from "@/modules/market/schemas";
+import { calculateStrategyAnalytics } from "@/modules/strategies/analytics";
+import {
+  getOptionExpiries,
+  loadChainsByExpiry,
+} from "@/modules/strategies/option-chains";
+import { runOptimizer } from "./optimizer";
+import type { OptimizerRequest } from "./schemas";
 
 export async function runOptimizerForSymbol(symbol: string) {
   const provider = getMarketDataProvider();

@@ -1,10 +1,9 @@
 import type {
-  BuilderLeg,
-  BuilderState,
   OptionChain,
   OptionChainContract,
   UnderlyingQuote,
-} from "@/domain";
+} from "@/modules/market/schemas";
+import type { BuilderLeg, BuilderState } from "./types";
 
 export type AnalyticsInput = {
   builderState: BuilderState;

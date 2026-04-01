@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getV1StrategyTemplates } from "@/domain/strategy-catalog";
+import { getV1StrategyTemplates } from "@/modules/strategies/catalog";
 
 export async function GET() {
   const data = getV1StrategyTemplates();

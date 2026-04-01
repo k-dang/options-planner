@@ -1,16 +1,16 @@
 import { z } from "zod";
+import rawDataset from "./mock-data.json";
 import type {
   OptionChain,
   SymbolSearchResult,
   UnderlyingQuote,
-} from "@/domain/market";
+} from "./schemas";
 import {
   mockDatasetVersionSchema,
   optionChainContractSchema,
   symbolSearchResultSchema,
   underlyingQuoteSchema,
-} from "@/domain/market";
-import rawDataset from "./mock-data.json";
+} from "./schemas";
 import type { MarketDataProvider } from "./types";
 
 const mockDatasetSchema = z.object({

@@ -1,12 +1,12 @@
 import { z } from "zod";
+import { underlyingQuoteSchema } from "@/modules/market/schemas";
 import {
   builderLegInputSchema,
   builderStateSchema,
   calcChartSchema,
   calcGridSchema,
   calcSummarySchema,
-} from "./analytics";
-import { underlyingQuoteSchema } from "./market";
+} from "@/modules/strategies/schemas";
 
 export const optimizerRunRequestSchema = z.strictObject({
   symbol: z.string().trim().min(1),
