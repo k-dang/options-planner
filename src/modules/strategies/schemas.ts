@@ -22,7 +22,7 @@ export const builderLegInputSchema = z
     side: z.enum(["buy", "sell"]),
     qty: z.number().positive(),
     right: z.enum(["C", "P"]).optional(),
-    strike: z.number().optional(),
+    strike: z.number().positive().optional(),
     expiry: z.string().optional(),
     entryPriceMode: z.enum(["bid", "ask", "mark", "mid", "manual"]),
     manualEntryPrice: z.number().nonnegative().optional(),
@@ -31,21 +31,21 @@ export const builderLegInputSchema = z
     if (leg.kind === "option") {
       if (!leg.right) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["right"],
           message: "Option legs require a right",
         });
       }
       if (leg.strike == null) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["strike"],
           message: "Option legs require a strike",
         });
       }
       if (!leg.expiry) {
         ctx.addIssue({
-          code: z.ZodIssueCode.custom,
+          code: "custom",
           path: ["expiry"],
           message: "Option legs require an expiry",
         });
@@ -54,7 +54,7 @@ export const builderLegInputSchema = z
 
     if (leg.entryPriceMode === "manual" && leg.manualEntryPrice == null) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["manualEntryPrice"],
         message: "Manual entry price is required when entryPriceMode is manual",
       });

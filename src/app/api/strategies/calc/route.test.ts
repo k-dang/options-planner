@@ -66,6 +66,37 @@ describe("POST /api/strategies/calc", () => {
     });
   });
 
+  it("returns 400 when an option strike is not positive", async () => {
+    const res = await POST(
+      request("http://localhost/api/strategies/calc", {
+        builderState: {
+          symbol: "AAPL",
+          horizonDays: 30,
+          riskFreeRate: 0.04,
+          commissions: { perContract: 0.65, perLegFee: 0.1 },
+          ivOverrides: { byExpiry: {}, global: 0.3 },
+          grid: { pricePoints: 5, datePoints: 3, priceRangePct: 0.2 },
+          legs: [
+            {
+              kind: "option",
+              side: "buy",
+              qty: 1,
+              right: "C",
+              strike: 0,
+              expiry: "2026-04-17",
+              entryPriceMode: "mark",
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: "VALIDATION_ERROR", message: "Invalid request body" },
+    });
+  });
+
   it("returns 404 when an option chain is missing", async () => {
     const res = await POST(
       request("http://localhost/api/strategies/calc", {

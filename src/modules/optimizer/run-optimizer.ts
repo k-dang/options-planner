@@ -41,16 +41,18 @@ export async function runOptimizerForSymbol(symbol: string) {
     chainsByExpiry: optimizerChainsByExpiry,
   });
 
-  const bestByStrategy = Object.values(
-    Object.fromEntries(
-      candidates.map((candidate) => [candidate.strategyName, candidate]),
-    ),
-  );
+  const bestByStrategy = new Map<string, (typeof candidates)[number]>();
+  for (const candidate of candidates) {
+    if (!bestByStrategy.has(candidate.strategyName)) {
+      bestByStrategy.set(candidate.strategyName, candidate);
+    }
+  }
+  const bestCandidatesByStrategy = Array.from(bestByStrategy.values());
 
   const analyticsChainsByExpiry = await loadChainsByExpiry({
     provider,
     symbol,
-    expiries: bestByStrategy.flatMap((candidate) =>
+    expiries: bestCandidatesByStrategy.flatMap((candidate) =>
       getOptionExpiries(candidate.builderState.legs),
     ),
     initialChainsByExpiry: optimizerChainsByExpiry,
@@ -59,7 +61,7 @@ export async function runOptimizerForSymbol(symbol: string) {
   return {
     quote,
     selectedExpiry,
-    cards: bestByStrategy.map((candidate) => ({
+    cards: bestCandidatesByStrategy.map((candidate) => ({
       candidate,
       detail: calculateStrategyAnalytics({
         builderState: candidate.builderState,
