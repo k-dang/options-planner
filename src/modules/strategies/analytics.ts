@@ -1,10 +1,9 @@
 import type {
-  BuilderLeg,
-  BuilderState,
   OptionChain,
   OptionChainContract,
   UnderlyingQuote,
-} from "@/domain";
+} from "@/modules/market/schemas";
+import type { BuilderLeg, BuilderState } from "./types";
 
 export type AnalyticsInput = {
   builderState: BuilderState;
@@ -207,6 +206,26 @@ export function calculateStrategyAnalytics(
       ),
     },
   };
+}
+
+export function calculateExpectedProfitAtPrice(
+  input: AnalyticsInput & { targetPrice: number },
+) {
+  const valuationDate = input.valuationDate ?? new Date();
+  const horizonDays = Math.max(1, Math.trunc(input.builderState.horizonDays));
+  const resolvedLegs = input.builderState.legs.map((leg) =>
+    resolveLeg(leg, input),
+  );
+  const totalEntryFees = getEntryFees(input.builderState, resolvedLegs);
+
+  return calculateTotalPnl({
+    price: input.targetPrice,
+    scenarioDate: addDays(valuationDate, horizonDays),
+    valuationDate,
+    resolvedLegs,
+    quote: input.quote,
+    totalEntryFees,
+  });
 }
 
 function resolveLeg(leg: BuilderLeg, input: AnalyticsInput): ResolvedLeg {

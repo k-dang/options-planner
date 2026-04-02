@@ -34,9 +34,9 @@ All market-data access flows through a provider abstraction. v1 ships only with 
 
 The implementation should be organized as a small set of stable modules rather than page-bound logic:
 
-- `src/domain/` for shared types, strategy templates, validators, and domain services
-- `src/providers/` for market-data interfaces and the mock provider
-- `src/engine/` for pricing, grid valuation, greeks aggregation, probability, and optimizer logic
+- `src/modules/market/` for market-data schemas, provider interfaces, and the mock provider
+- `src/modules/strategies/` for strategy types, templates, validators, analytics, and calculation use cases
+- `src/modules/optimizer/` for optimizer schemas, ranking logic, and orchestration
 - `src/db/` for schema, repository logic, and migrations
 - `src/components/` for reusable UI building blocks
 - `app/` for routes, layouts, and Route Handlers
@@ -72,7 +72,7 @@ The implementation should be organized as a small set of stable modules rather t
 - Implement deterministic `MockProvider` backed by versioned repository data.
 - Expose market Route Handlers that translate provider results into stable API contracts.
 
-**Implemented:** `MarketDataProvider` in `src/providers/`, deterministic `MockMarketDataProvider` with Zod-validated `mock-data.json` (version field), and Route Handlers `GET /api/market/symbols`, `GET /api/market/quote`, `GET /api/options/expirations`, `GET /api/options/chain` with shared Zod query validation and `{ data }` / structured error responses. Vitest coverage for the mock provider and for the four market routes.
+**Implemented:** `MarketDataProvider` in `src/modules/market/`, deterministic `MockMarketDataProvider` with Zod-validated `mock-data.json` (version field), and Route Handlers `GET /api/market/symbols`, `GET /api/market/quote`, `GET /api/options/expirations`, `GET /api/options/chain` with shared Zod query validation and `{ data }` / structured error responses. Vitest coverage for the mock provider and for the four market routes.
 
 ### D3. Strategy catalog and builder shell
 
@@ -82,7 +82,7 @@ The implementation should be organized as a small set of stable modules rather t
 - Build Home/Search, Strategy Library, and the first-pass Strategy Builder shell.
 - Implement leg editing, assumption controls, template loading, and view state management.
 
-**Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/domain/strategy-catalog.ts`, and `GET /api/strategies/templates` returning `{ data }`. Vitest coverage for that route. Database seeding of `strategy_template` rows is not done yet.
+**Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/modules/strategies/catalog.ts`, and `GET /api/strategies/templates` returning `{ data }`. Vitest coverage for that route. Database seeding of `strategy_template` rows is not done yet.
 
 **Not started:** Home/Search, Strategy Library and builder UI routes, leg editing, assumptions, client template loading, and builder view state.
 
@@ -237,7 +237,7 @@ type CalcResponse = {
 - Validate body payloads with Zod.
 - Reject unknown keys.
 - Return structured error payloads with stable error codes.
-- Keep route handlers thin by delegating domain work to `src/domain/`, `src/engine/`, and `src/db/`.
+- Keep route handlers thin by delegating business work to `src/modules/` and persistence work to `src/db/`.
 
 ### Provider interface
 
@@ -284,7 +284,7 @@ interface MarketDataProvider {
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Pricing implementation drift across builder, optimizer, and snapshots | Medium | High | Centralize all valuation logic in `src/engine/` and reuse the same service interfaces everywhere |
+| Pricing implementation drift across builder, optimizer, and snapshots | Medium | High | Centralize valuation logic inside `src/modules/strategies/` and reuse the same service interfaces everywhere |
 | Analytics grid performance degrades on large defaults | Medium | High | Start with bounded default grids, measure recomputation time, and degrade gracefully before expanding defaults |
 | Mock data is insufficiently realistic for UX and test confidence | Medium | Medium | Version the dataset and generate it from a script with representative symbols, expiries, spreads, and IV shapes |
 | Scope expansion toward full OptionStrat coverage | High | High | Keep the approved strategy set and non-goals explicit in docs, UI copy, and task breakdown |

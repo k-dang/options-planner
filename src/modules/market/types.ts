@@ -2,7 +2,7 @@ import type {
   OptionChain,
   SymbolSearchResult,
   UnderlyingQuote,
-} from "@/domain/market";
+} from "./schemas";
 
 export interface MarketDataProvider {
   searchSymbols(query: string): Promise<SymbolSearchResult[]>;

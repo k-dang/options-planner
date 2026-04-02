@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   strategyTemplateSchema,
   V1_APPROVED_STRATEGY_NAMES,
-} from "@/domain/strategy-catalog";
+} from "@/modules/strategies/catalog";
 import { GET } from "./route";
 
 const responseSchema = z.object({

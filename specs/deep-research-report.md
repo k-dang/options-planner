@@ -461,9 +461,9 @@ Use Next.js App Router with:
 Suggested repository structure:
 
 - `app/`
-- `src/domain/`
-- `src/providers/`
-- `src/engine/`
+- `src/modules/market/`
+- `src/modules/strategies/`
+- `src/modules/optimizer/`
 - `src/db/`
 - `src/components/`
 - `docs/`

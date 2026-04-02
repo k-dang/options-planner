@@ -25,7 +25,7 @@ const builderLegSchema = z.object({
   strike: z.number().optional(),
   expiry: z.string().optional(),
   entryPriceMode: z.enum(["bid", "ask", "mark", "mid", "manual"]),
-  manualEntryPrice: z.number().optional(),
+  manualEntryPrice: z.number().nonnegative().optional(),
 });
 
 export const strategyTemplateSchema = z.object({

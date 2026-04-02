@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { BuilderState, OptionChain, UnderlyingQuote } from "@/domain";
+import type { OptionChain, UnderlyingQuote } from "@/modules/market/schemas";
 import { calculateStrategyAnalytics } from "./analytics";
+import type { BuilderState } from "./types";
 
 const quote: UnderlyingQuote = {
   symbol: "AAPL",
