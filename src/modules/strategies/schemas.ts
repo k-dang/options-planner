@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidIsoDate(value: string) {
+  if (!isoDatePattern.test(value)) {
+    return false;
+  }
+
+  const date = new Date(`${value}T00:00:00Z`);
+  return (
+    !Number.isNaN(date.getTime()) && date.toISOString().startsWith(`${value}T`)
+  );
+}
+
 const commissionsSchema = z.strictObject({
   perContract: z.number().nonnegative(),
   perLegFee: z.number().nonnegative(),
@@ -23,7 +36,12 @@ export const builderLegInputSchema = z
     qty: z.number().positive(),
     right: z.enum(["C", "P"]).optional(),
     strike: z.number().positive().optional(),
-    expiry: z.string().optional(),
+    expiry: z
+      .string()
+      .refine(isValidIsoDate, {
+        message: "expiry must be a valid ISO-8601 date",
+      })
+      .optional(),
     entryPriceMode: z.enum(["bid", "ask", "mark", "mid", "manual"]),
     manualEntryPrice: z.number().nonnegative().optional(),
   })
@@ -43,7 +61,7 @@ export const builderLegInputSchema = z
           message: "Option legs require a strike",
         });
       }
-      if (!leg.expiry) {
+      if (leg.expiry == null) {
         ctx.addIssue({
           code: "custom",
           path: ["expiry"],
@@ -77,8 +95,8 @@ export const calcSummarySchema = z.strictObject({
   maxProfit: z.number().nullable(),
   maxLoss: z.number().nullable(),
   breakevens: z.array(z.number()),
-  chanceOfProfitAtHorizon: z.number(),
-  chanceOfProfitAtExpiration: z.number(),
+  chanceOfProfitAtHorizon: z.number().min(0).max(1),
+  chanceOfProfitAtExpiration: z.number().min(0).max(1),
   netGreeks: z.strictObject({
     delta: z.number(),
     gamma: z.number(),

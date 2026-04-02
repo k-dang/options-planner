@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { underlyingQuoteSchema } from "@/modules/market/schemas";
+import { V1_APPROVED_STRATEGY_NAMES } from "@/modules/strategies/catalog";
 import {
   builderLegInputSchema,
   builderStateSchema,
@@ -53,8 +54,8 @@ const optimizerSummarySchema = z.strictObject({
   maxProfit: z.number().nullable(),
   maxLoss: z.number().nullable(),
   breakevens: z.array(z.number()),
-  chanceOfProfitAtHorizon: z.number(),
-  chanceOfProfitAtExpiration: z.number(),
+  chanceOfProfitAtHorizon: z.number().min(0).max(1),
+  chanceOfProfitAtExpiration: z.number().min(0).max(1),
   netGreeks: z.strictObject({
     delta: z.number(),
     gamma: z.number(),
@@ -65,12 +66,7 @@ const optimizerSummarySchema = z.strictObject({
 });
 
 export const optimizerCandidateSchema = z.strictObject({
-  strategyName: z.enum([
-    "Long Call",
-    "Long Put",
-    "Bull Call Spread",
-    "Bear Put Spread",
-  ]),
+  strategyName: z.enum(V1_APPROVED_STRATEGY_NAMES),
   objectiveValue: z.number(),
   expectedProfitAtTarget: z.number(),
   summary: optimizerSummarySchema,
