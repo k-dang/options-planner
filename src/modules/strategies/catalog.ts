@@ -49,55 +49,64 @@ const V1_STRATEGY_TEMPLATES: readonly StrategyTemplate[] = [
   {
     id: "long-call",
     name: "Long Call",
-    description: "Bullish directional call with limited downside and open upside.",
+    description:
+      "Bullish directional call with limited downside and open upside.",
     legsSpec: [opt("buy", "C")],
   },
   {
     id: "long-put",
     name: "Long Put",
-    description: "Bearish directional put with limited downside and convex payoff.",
+    description:
+      "Bearish directional put with limited downside and convex payoff.",
     legsSpec: [opt("buy", "P")],
   },
   {
     id: "short-call",
     name: "Short Call",
-    description: "Neutral to bearish premium sale with capped credit and undefined upside risk.",
+    description:
+      "Neutral to bearish premium sale with capped credit and undefined upside risk.",
     legsSpec: [opt("sell", "C")],
   },
   {
     id: "short-put",
     name: "Short Put",
-    description: "Neutral to bullish premium sale that benefits from staying above the strike.",
+    description:
+      "Neutral to bullish premium sale that benefits from staying above the strike.",
     legsSpec: [opt("sell", "P")],
   },
   {
     id: "bull-call-spread",
     name: "Bull Call Spread",
-    description: "Defined-risk bullish vertical spread using a long call and a higher short call.",
+    description:
+      "Defined-risk bullish vertical spread using a long call and a higher short call.",
     legsSpec: [opt("buy", "C"), opt("sell", "C")],
   },
   {
     id: "bear-put-spread",
     name: "Bear Put Spread",
-    description: "Defined-risk bearish vertical spread using a long put and a lower short put.",
+    description:
+      "Defined-risk bearish vertical spread using a long put and a lower short put.",
     legsSpec: [opt("buy", "P"), opt("sell", "P")],
   },
   {
     id: "bull-put-spread",
     name: "Bull Put Spread",
-    description: "Credit spread that profits when the underlying stays above the short put.",
+    description:
+      "Credit spread that profits when the underlying stays above the short put.",
     legsSpec: [opt("sell", "P"), opt("buy", "P")],
   },
   {
     id: "bear-call-spread",
     name: "Bear Call Spread",
-    description: "Credit spread that profits when the underlying stays below the short call.",
+    description:
+      "Credit spread that profits when the underlying stays below the short call.",
     legsSpec: [opt("sell", "C"), opt("buy", "C")],
   },
   {
     id: "iron-condor",
     name: "Iron Condor",
-    description: "Defined-risk premium strategy that benefits from range-bound price action.",
+    description:
+      "Defined-risk premium strategy that benefits from range-bound price action.",
     legsSpec: [
       opt("buy", "P"),
       opt("sell", "P"),
@@ -108,19 +117,22 @@ const V1_STRATEGY_TEMPLATES: readonly StrategyTemplate[] = [
   {
     id: "long-straddle",
     name: "Long Straddle",
-    description: "Long volatility position using an at-the-money call and put at one expiry.",
+    description:
+      "Long volatility position using an at-the-money call and put at one expiry.",
     legsSpec: [opt("buy", "C"), opt("buy", "P")],
   },
   {
     id: "long-strangle",
     name: "Long Strangle",
-    description: "Long volatility position using an out-of-the-money call and put.",
+    description:
+      "Long volatility position using an out-of-the-money call and put.",
     legsSpec: [opt("buy", "C"), opt("buy", "P")],
   },
   {
     id: "covered-call",
     name: "Covered Call",
-    description: "Long stock paired with a short call to harvest premium with capped upside.",
+    description:
+      "Long stock paired with a short call to harvest premium with capped upside.",
     legsSpec: [
       { kind: "stock", side: "buy", qty: 100, entryPriceMode: "mark" },
       opt("sell", "C"),
@@ -129,7 +141,8 @@ const V1_STRATEGY_TEMPLATES: readonly StrategyTemplate[] = [
   {
     id: "cash-secured-put",
     name: "Cash-Secured Put",
-    description: "Short put strategy aimed at collecting premium or buying shares lower.",
+    description:
+      "Short put strategy aimed at collecting premium or buying shares lower.",
     legsSpec: [opt("sell", "P")],
   },
 ];
