@@ -1,7 +1,7 @@
 # Options Strategy Visualizer v1 - Implementation Spec
 
-**Status:** Ready for review
-**Date:** 2026-03-27
+**Status:** Updated to reflect repository state
+**Date:** 2026-04-04
 **Type:** Feature plan
 **Effort:** XL
 **Approved input:** `specs/options-strategy-visualizer-v1-functional-parity-prd.md`
@@ -24,7 +24,7 @@ Without this product, the user either works in tooling that is too shallow for t
 
 - `deep-research-report.md` fixes the v1 boundaries and required modeling features.
 - The approved comparison PRD locks Vercel + PostgreSQL, daily snapshots, bounded optimizer scope, and functional parity as the UX target.
-- The current repository is greenfield from an application standpoint, so the main risk is specification drift rather than migration complexity.
+- The current repository is no longer greenfield. Core provider, analytics, and optimizer foundations exist, so the main risk has shifted from greenfield setup to spec drift and incomplete product surface integration.
 
 ## Proposed Solution
 
@@ -47,7 +47,7 @@ The implementation should be organized as a small set of stable modules rather t
 - `src/modules/optimizer/` for optimizer schemas, ranking logic, and orchestration
 - `src/db/` for schema, repository logic, and migrations
 - `src/components/` for reusable UI building blocks
-- `app/` for routes, layouts, and Route Handlers
+- `src/app/` for routes, layouts, and Route Handlers
 
 ## Scope and Deliverables
 
@@ -55,12 +55,12 @@ The implementation should be organized as a small set of stable modules rather t
 |-------------|--------|------------|--------|
 | D1. Foundation and schema baseline | L | - | Complete |
 | D2. Provider abstraction and mock market API | L | D1 | Complete |
-| D3. Strategy templates and builder shell | L | D2 | In progress |
-| D4. Pricing, analytics, and visualization contract | XL | D2, D3 | |
-| D5. Optimizer engine and UI flow | L | D4 | |
-| D6. Saved strategies and daily snapshots | L | D1, D4 | |
-| D7. Settings, validation, and operational hardening | M | D1, D2, D6 | |
-| D8. Test coverage, docs, and deployment readiness | L | D1-D7 | |
+| D3. Strategy templates, builder state, and handoff contract | L | D2 | In progress |
+| D4. Pricing, analytics, and visualization contract | XL | D2, D3 | In progress |
+| D5. Optimizer engine and optimizer-first entry flow | L | D4 | In progress |
+| D6. Builder workspace UI | L | D3, D4, D5 | Not started |
+| D7. Saved strategies, settings, and daily snapshots | L | D1, D4, D6 | Not started |
+| D8. Test coverage, docs, and deployment readiness | L | D1-D7 | In progress |
 
 ## Deliverable Details
 
@@ -80,51 +80,84 @@ The implementation should be organized as a small set of stable modules rather t
 - Implement deterministic `MockProvider` backed by versioned repository data.
 - Expose market Route Handlers that translate provider results into stable API contracts.
 
-**Implemented:** `MarketDataProvider` in `src/modules/market/`, deterministic `MockMarketDataProvider` with Zod-validated `mock-data.json` (version field), and Route Handlers `GET /api/market/symbols`, `GET /api/market/quote`, `GET /api/options/expirations`, `GET /api/options/chain` with shared Zod query validation and `{ data }` / structured error responses. Vitest coverage for the mock provider and for the four market routes.
+**Implemented:** `MarketDataProvider` in `src/modules/market/`, deterministic `MockMarketDataProvider` with Zod-validated `mock-data.json` (version field), and Route Handlers `GET /api/market/symbols`, `GET /api/market/quote`, `GET /api/options/expirations`, `GET /api/options/chain` with shared Zod query validation and `{ data }` / structured error responses. Vitest coverage exists for the mock provider and the four market routes.
 
-### D3. Strategy templates and builder shell
+### D3. Strategy templates, builder state, and handoff contract
 
 **Status:** In progress.
 
 - Seed the approved v1 strategy template catalog using exact names.
-- Build the first-pass Strategy Builder shell and embed template selection into builder and optimizer flows.
-- Implement leg editing, assumption controls, template loading, and view state management.
+- Define the builder-state shape used by templates, optimizer results, and future saved-strategy reopen flows.
+- Implement the shared handoff contract between optimizer results and the builder workspace.
+- Embed template selection into builder and optimizer flows.
 
-**Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/modules/strategies/catalog.ts`, and `GET /api/strategies/templates` returning `{ data }`. Vitest coverage for that route. Database seeding of `strategy_template` rows is not done yet.
+**Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/modules/strategies/catalog.ts`, `GET /api/strategies/templates` returning `{ data }`, strict builder-state and calc schemas in `src/modules/strategies/schemas.ts`, and optimizer candidates returning a full `builderState` handoff payload.
 
-**Not started:** Optimizer-first navigation shell, builder UI route, embedded template loading, leg editing, assumptions, and builder view state.
+**Remaining:** Database seeding of `strategy_template` rows, dedicated builder route, template loading UI, leg editing UI, assumptions controls UI, and builder view-state management.
 
 ### D4. Pricing, analytics, and visualization contract
 
+**Status:** In progress.
+
 - Implement pricing services for European and American-style scenario valuation.
 - Produce summary metrics, profit and loss grids, chart series, breakevens, greeks, and chance-of-profit outputs.
-- Support a builder interaction model with a compact control strip for expiration selection, strike adjustment, position summary, and save/add actions above the charting area.
 - Wire builder edits to immediate recalculation and stable API responses.
 
-### D5. Optimizer engine and UI flow
+**Implemented:** `POST /api/strategies/calc`, shared strategy analytics and scenario valuation logic in `src/modules/strategies/analytics.ts`, quote-and-chain hydration via the market provider, summary metrics, breakevens, net greeks, profit grid output, chart series output, implied-move bands, and chance-of-profit calculations. Unit and route tests cover the current calc path.
+
+**Remaining:** Builder-facing interactive recalculation loop, final builder visualization contract in the actual UI, and any pricing-model refinements needed once more strategies and controls are exposed.
+
+### D5. Optimizer engine and optimizer-first entry flow
+
+**Status:** In progress.
 
 - Implement bounded candidate generation over the approved strategy subset.
 - Support ranking by maximum expected profit or maximum modeled chance of profit.
 - Build the optimizer as the default landing screen and implement the one-click builder handoff flow for any candidate.
 
-### D6. Saved strategies and daily snapshots
+**Implemented:** `POST /api/optimizer/run`, bounded deterministic optimizer logic in `src/modules/optimizer/`, symbol-first optimizer UI as the current app entry experience, optimizer cards hydrated with analytics detail, and route plus engine tests.
+
+**Remaining:** Expand optimizer inputs beyond `symbol` to the approved thesis fields, expose ranking and constraint controls in the UI, generate the full approved strategy subset rather than the currently implemented subset, and add one-click builder handoff for each candidate.
+
+### D6. Builder workspace UI
+
+**Status:** Not started.
+
+- Build the dedicated builder route and workspace shell.
+- Support in-flow template browsing and loading without a standalone strategy-library page.
+- Support direct leg edits, expiration and strike changes, quantity changes, and assumptions updates.
+- Show the compact control strip, summary cards, chart output, grid output, and net greeks in one workspace.
+- Recalculate immediately on builder edits without a manual submit step.
+
+**Why this is next:** The repository already has the calc API, analytics engine, template catalog, and optimizer handoff payload needed to support a first builder vertical slice. This is now the highest-leverage missing user surface.
+
+### D7. Saved strategies, settings, and daily snapshots
+
+**Status:** Not started.
 
 - Persist builder state and normalized legs.
 - Implement save, list, rename, reopen, close, and snapshot flows.
 - Add scheduled daily snapshot processing for open strategies.
-
-### D7. Settings, validation, and operational hardening
-
 - Implement settings persistence for commissions, defaults, IV behavior, and risk-free rate.
 - Ensure all write routes validate input, reject unknown keys, and return structured errors.
 - Keep provider access server-side only and document environment configuration.
 
+**Implemented foundation:** Database schema exists for saved strategies, saved legs, saved snapshots, and app settings. Current write routes for calc and optimizer already validate payloads and return structured errors.
+
+**Remaining:** Repositories, route handlers, scheduled snapshot processing, reopen semantics, and user-facing settings flows.
+
 ### D8. Test coverage, docs, and deployment readiness
+
+**Status:** In progress.
 
 - Add unit coverage around pricing, chance-of-profit, strategy construction, and optimizer ranking.
 - Add integration coverage around routes, persistence, and scheduled jobs.
 - Add Playwright coverage for the highest-value end-to-end flows in mock mode.
 - Write setup, architecture, pricing, mock data, and Vercel operations docs.
+
+**Implemented:** Vitest coverage exists for market routes, template routes, calc routes, optimizer routes, mock provider behavior, pricing analytics, and optimizer ranking.
+
+**Remaining:** Persistence-route integration coverage, scheduled-job coverage, end-to-end UI coverage, and project docs beyond the current planning/spec artifacts.
 
 ## Non-Goals
 
@@ -145,13 +178,14 @@ The implementation should be organized as a small set of stable modules rather t
 - `deep-research-report.md`
 - existing `PRD.md`
 - approved comparison PRD at `specs/options-strategy-visualizer-v1-functional-parity-prd.md`
+- current application code under `src/app/`, `src/modules/`, and `src/components/`
 
 ### Key findings
 
-- The repository contains planning documents only; there is no existing application architecture to preserve.
-- Product decisions that materially affect implementation are already fixed: Vercel-first deployment, PostgreSQL, daily snapshots, bounded optimizer, and functional rather than pixel-level parity.
-- The intended entry flow has changed from standalone discovery pages to an optimizer-first workflow with embedded discovery inside the optimizer and builder.
-- The largest build risks are pricing correctness, responsive analytics performance, and keeping product scope bounded.
+- The repository now contains implemented application foundations, not planning documents only.
+- Product decisions that materially affect implementation remain fixed: Vercel-first deployment, PostgreSQL, daily snapshots, bounded optimizer, and functional rather than pixel-level parity.
+- The intended entry flow remains optimizer first with embedded discovery inside the optimizer and builder.
+- The largest remaining build risks are builder integration, pricing correctness under broader strategy coverage, and keeping optimizer scope bounded while making it useful.
 
 ## Data Model
 
@@ -268,35 +302,37 @@ interface MarketDataProvider {
 
 ### Route and navigation expectations
 
-- `/` should redirect to the optimizer route rather than render a dedicated landing page.
+- `/` should redirect to the optimizer route rather than render a dedicated landing page in the final v1 structure.
 - The optimizer route should own symbol search and initial thesis capture.
 - The builder route should accept optimizer handoff payloads and also support direct loading from saved strategies or explicit template selection.
 - Template browsing should exist as an in-flow selector, modal, or side panel rather than a standalone page.
 
+**Current implementation note:** The repository currently renders the optimizer experience directly on `/`. That is acceptable as an interim implementation, but v1 should either formalize `/` as the optimizer route or add an explicit redirect to a dedicated optimizer route before the spec is considered complete.
+
 ## Acceptance Criteria
 
-- [ ] The default app entry point opens on the optimizer rather than a dedicated home/search screen.
-- [ ] The optimizer can search/select a symbol, collect the thesis inputs, and produce ranked candidates in one flow.
+- [x] The default app entry point opens on the optimizer rather than a dedicated home/search screen.
+- [ ] The optimizer can search/select a symbol, collect the full thesis inputs, and produce ranked candidates in one flow.
 - [ ] Any optimizer result can open in the builder with all required handoff state loaded.
 - [ ] Builder template selection is available in-flow without requiring a standalone strategy-library page.
 - [ ] Builder supports leg edits, assumption controls, and immediate recalculation without manual submit.
 - [ ] Builder exposes summary cards, grid output, chart output, and net greeks.
 - [ ] Builder shows chance of profit at the selected horizon and at expiration.
 - [ ] Builder supports an OptionStrat-style editing workflow with direct expiration, strike, and position adjustments for a selected strategy.
-- [ ] Optimizer runs a bounded deterministic search and opens results in the builder.
+- [ ] Optimizer runs a bounded deterministic search over the approved v1 subset and opens results in the builder.
 - [ ] Saved strategies can be created, renamed, reopened, closed, and snapshotted.
 - [ ] Daily snapshot processing records mark-to-market history for open strategies only.
 - [ ] Settings defaults persist and influence calculations when explicit overrides are absent.
 - [ ] The full product works in deterministic mock mode with no external API keys.
-- [ ] Core write routes reject invalid payloads and unknown fields.
+- [x] Core implemented write routes reject invalid payloads and unknown fields.
 - [ ] Product docs cover setup, architecture, pricing assumptions, mock data, and Vercel operations.
 
 ## Test Strategy
 
 | Layer | What | How |
 |-------|------|-----|
-| Unit | Pricing formulas, greeks aggregation, breakevens, chance-of-profit, template builders, optimizer ranking | Deterministic fixtures and numeric assertions |
-| Integration | Route handlers, repositories, settings flows, save/close/snapshot flows | Test database plus mock provider; Vitest covers read-only market and templates handlers with mock provider (DB-backed flows not yet) |
+| Unit | Pricing formulas, greeks aggregation, breakevens, chance-of-profit, template builders, optimizer ranking | Deterministic fixtures and numeric assertions; Vitest coverage exists for analytics and optimizer modules |
+| Integration | Route handlers, repositories, settings flows, save/close/snapshot flows | Test database plus mock provider; Vitest currently covers market, templates, calc, and optimizer handlers, while DB-backed flows are not yet covered |
 | E2E | Optimizer-first workflow, builder workflow, save and reopen flow, close flow | Playwright against mock mode |
 | Scheduled jobs | Daily snapshot processing for open strategies | Job runner tests with seeded open and closed strategies |
 
@@ -309,6 +345,7 @@ interface MarketDataProvider {
 | Mock data is insufficiently realistic for UX and test confidence | Medium | Medium | Version the dataset and generate it from a script with representative symbols, expiries, spreads, and IV shapes |
 | Scope expansion toward full OptionStrat coverage | High | High | Keep the approved strategy set and non-goals explicit in docs, UI copy, and task breakdown |
 | Optimizer-to-builder handoff becomes lossy or ambiguous | Medium | High | Define a single typed handoff payload and use it for optimizer results, template loading, and saved-strategy reopen flows |
+| Spec drift obscures actual implementation status and next steps | Medium | Medium | Keep deliverable statuses and acceptance criteria updated as backend and UI milestones land |
 | Saved strategy semantics become ambiguous after settings changes | Medium | Medium | Persist full builder state on save and define reload behavior explicitly in repository and API contracts |
 
 ## Trade-Offs Made
@@ -327,6 +364,7 @@ interface MarketDataProvider {
 - [ ] Should reopening a saved strategy preserve historical defaults exactly or merge in newly changed global defaults? -> Owner: product and engineering
 - [ ] What default grid sizes should be considered the standard "responsive" target on a developer laptop? -> Owner: engineering
 - [ ] Should the builder expose template switching as a modal, drawer, or inline side panel once a strategy is already open? -> Owner: product and engineering
+- [ ] Should `/` remain the canonical optimizer route in v1, or should the app introduce a distinct `/optimizer` route and redirect? -> Owner: product and engineering
 
 ## Success Metrics
 
@@ -338,4 +376,12 @@ interface MarketDataProvider {
 
 ## Recommendation
 
-Proceed with D1 through D8 in order, but frame the implementation work around two primary user surfaces: optimizer first, builder second. Execute D2 and D4 with extra rigor because provider and pricing correctness are the highest-risk foundations, then break remaining work into vertical slices around optimizer entry, builder handoff, builder editing, and persistence.
+Proceed with the remaining work as vertical slices rather than strict numeric-order execution:
+
+1. Complete the optimizer-to-builder handoff contract in the UI.
+2. Build the first dedicated builder workspace on top of the existing calc API and analytics engine.
+3. Expand optimizer thesis inputs and candidate generation to the approved v1 subset.
+4. Add persistence, settings, and daily snapshots.
+5. Finish integration, end-to-end coverage, and operational docs.
+
+This preserves the original product priorities while matching the repository's actual state: provider, analytics, and a first optimizer surface already exist, so the next highest-value milestone is the builder workspace rather than more planning around backend foundations.
