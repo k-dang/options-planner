@@ -1,6 +1,5 @@
-import type { OptimizerObjective } from "@/modules/optimizer/schemas";
-
 import { Slider } from "@/components/ui/slider";
+import type { OptimizerObjective } from "@/modules/optimizer/schemas";
 
 type ObjectiveSliderProps = {
   value: OptimizerObjective;
