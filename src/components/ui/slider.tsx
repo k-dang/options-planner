@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: <shadcn defaults> */
 "use client";
 
 import { Slider as SliderPrimitive } from "radix-ui";
@@ -22,7 +23,6 @@ function Slider({
           : [min, max],
     [value, defaultValue, min, max],
   );
-  const thumbCounts = new Map<number, number>();
 
   return (
     <SliderPrimitive.Root
@@ -46,18 +46,13 @@ function Slider({
           className="absolute bg-primary select-none data-horizontal:h-full data-vertical:w-full"
         />
       </SliderPrimitive.Track>
-      {_values.map((thumbValue) => {
-        const thumbCount = thumbCounts.get(thumbValue) ?? 0;
-        thumbCounts.set(thumbValue, thumbCount + 1);
-
-        return (
-          <SliderPrimitive.Thumb
-            data-slot="slider-thumb"
-            key={`${thumbValue}-${thumbCount}`}
-            className="relative block size-3 shrink-0 rounded-md border border-ring bg-white ring-ring/30 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-2 focus-visible:ring-2 focus-visible:outline-hidden active:ring-2 disabled:pointer-events-none disabled:opacity-50"
-          />
-        );
-      })}
+      {Array.from({ length: _values.length }, (_, index) => (
+        <SliderPrimitive.Thumb
+          data-slot="slider-thumb"
+          key={index}
+          className="relative block size-3 shrink-0 rounded-md border border-ring bg-white ring-ring/30 transition-[color,box-shadow] select-none after:absolute after:-inset-2 hover:ring-2 focus-visible:ring-2 focus-visible:outline-hidden active:ring-2 disabled:pointer-events-none disabled:opacity-50"
+        />
+      ))}
     </SliderPrimitive.Root>
   );
 }
