@@ -15,43 +15,49 @@ export const SENTIMENTS = [
     key: "very-bearish",
     label: "Very Bearish",
     multiplier: 0.85,
-    color: "oklch(0.65 0.2 25)",
     icon: ArrowDown,
+    buttonClassName:
+      "border-[oklch(0.65_0.2_25/0.35)] text-[oklch(0.65_0.2_25)] hover:!bg-[oklch(0.65_0.2_25/0.12)] hover:!text-[oklch(0.65_0.2_25)] aria-pressed:border-[oklch(0.65_0.2_25)] aria-pressed:bg-[oklch(0.65_0.2_25/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.65_0.2_25/0.2)]",
   },
   {
     key: "bearish",
     label: "Bearish",
     multiplier: 0.93,
-    color: "oklch(0.7 0.15 55)",
     icon: ArrowDownRight,
+    buttonClassName:
+      "border-[oklch(0.7_0.15_55/0.35)] text-[oklch(0.7_0.15_55)] hover:!bg-[oklch(0.7_0.15_55/0.12)] hover:!text-[oklch(0.7_0.15_55)] aria-pressed:border-[oklch(0.7_0.15_55)] aria-pressed:bg-[oklch(0.7_0.15_55/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.7_0.15_55/0.2)]",
   },
   {
     key: "neutral",
     label: "Neutral",
     multiplier: 1.0,
-    color: "oklch(0.6 0.01 260)",
     icon: ArrowRight,
+    buttonClassName:
+      "border-[oklch(0.6_0.01_260/0.35)] text-[oklch(0.6_0.01_260)] hover:!bg-[oklch(0.6_0.01_260/0.12)] hover:!text-[oklch(0.6_0.01_260)] aria-pressed:border-[oklch(0.6_0.01_260)] aria-pressed:bg-[oklch(0.6_0.01_260/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.6_0.01_260/0.2)]",
   },
   {
     key: "directional",
     label: "Directional",
     multiplier: 1.05,
-    color: "oklch(0.65 0.2 300)",
     icon: ArrowLeftRight,
+    buttonClassName:
+      "border-[oklch(0.65_0.2_300/0.35)] text-[oklch(0.65_0.2_300)] hover:!bg-[oklch(0.65_0.2_300/0.12)] hover:!text-[oklch(0.65_0.2_300)] aria-pressed:border-[oklch(0.65_0.2_300)] aria-pressed:bg-[oklch(0.65_0.2_300/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.65_0.2_300/0.2)]",
   },
   {
     key: "bullish",
     label: "Bullish",
     multiplier: 1.1,
-    color: "oklch(0.72 0.19 155)",
     icon: ArrowUpRight,
+    buttonClassName:
+      "border-[oklch(0.72_0.19_155/0.35)] text-[oklch(0.72_0.19_155)] hover:!bg-[oklch(0.72_0.19_155/0.12)] hover:!text-[oklch(0.72_0.19_155)] aria-pressed:border-[oklch(0.72_0.19_155)] aria-pressed:bg-[oklch(0.72_0.19_155/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.72_0.19_155/0.2)]",
   },
   {
     key: "very-bullish",
     label: "Very Bullish",
     multiplier: 1.2,
-    color: "oklch(0.8 0.22 145)",
     icon: ArrowUp,
+    buttonClassName:
+      "border-[oklch(0.8_0.22_145/0.35)] text-[oklch(0.8_0.22_145)] hover:!bg-[oklch(0.8_0.22_145/0.12)] hover:!text-[oklch(0.8_0.22_145)] aria-pressed:border-[oklch(0.8_0.22_145)] aria-pressed:bg-[oklch(0.8_0.22_145/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.8_0.22_145/0.2)]",
   },
 ] as const;
 
@@ -69,49 +75,34 @@ export function SentimentSelector({
   onSentimentChange,
 }: SentimentSelectorProps) {
   return (
-    <div className="grid w-full grid-cols-6 items-end">
+    <div className="grid w-full grid-cols-6 items-start justify-items-center gap-2">
       {SENTIMENTS.map((s) => {
         const isActive = sentiment === s.key;
         const Icon = s.icon as SentimentIcon;
 
         return (
-          <Button
-            key={s.key}
-            type="button"
-            variant="ghost"
-            className="h-auto w-full flex-col items-center gap-1.5 rounded-none px-0 py-0 hover:bg-transparent"
-            aria-pressed={isActive}
-            onClick={() =>
-              onSentimentChange(
-                s.key,
-                Math.round(quotePrice * s.multiplier * 100) / 100,
-              )
-            }
-          >
-            <span
-              className="flex h-12 w-12 items-center justify-center rounded-full border transition-all sm:h-14 sm:w-14"
-              style={{
-                borderColor: isActive ? s.color : "oklch(1 0 0 / 0.08)",
-                backgroundColor: isActive
-                  ? `color-mix(in oklch, ${s.color} 15%, transparent)`
-                  : "oklch(0.14 0.008 260)",
-                boxShadow: isActive
-                  ? `0 0 12px color-mix(in oklch, ${s.color} 25%, transparent)`
-                  : "none",
-                color: isActive ? s.color : "oklch(0.5 0.01 260)",
-              }}
+          <div key={s.key} className="flex flex-col items-center gap-1.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className={`rounded-full p-8 transition-all ${s.buttonClassName}`}
+              aria-pressed={isActive}
+              aria-label={s.label}
+              title={s.label}
+              onClick={() =>
+                onSentimentChange(
+                  s.key,
+                  Math.round(quotePrice * s.multiplier * 100) / 100,
+                )
+              }
             >
               <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={2.5} />
-            </span>
-            <span
-              className="font-mono text-[0.5rem] uppercase tracking-wider transition-colors sm:text-[0.55rem]"
-              style={{
-                color: isActive ? s.color : "oklch(0.45 0.01 260)",
-              }}
-            >
+            </Button>
+            <span className="text-center font-mono text-[0.55rem] uppercase tracking-wider text-muted-foreground">
               {s.label}
             </span>
-          </Button>
+          </div>
         );
       })}
     </div>
