@@ -8,6 +8,10 @@ import { OptimizerControls } from "@/components/optimize/optimizer-controls";
 import { StrategyCard } from "@/components/optimize/strategy-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  runOptimizer as runOptimizerRequest,
+  searchSymbols,
+} from "@/lib/optimizer-api";
 import type { SymbolSearchResult } from "@/modules/market/schemas";
 import type {
   OptimizerObjective,
@@ -18,44 +22,67 @@ type OptimizeClientProps = {
   initialSymbol: string;
 };
 
-type ApiErrorResponse = {
-  error?: {
-    message?: string;
-  };
+type StrategyCardData = OptimizerRunResponse["data"]["cards"][number];
+
+type OptimizerControlsState = {
+  sentiment: string | null;
+  targetPrice: number | null;
+  budget: number | null;
+  selectedExpiration: string | null;
+  objective: OptimizerObjective;
 };
 
-type StrategyCardData = OptimizerRunResponse["data"]["cards"][number];
+type OptimizationState = {
+  activeSymbol: string | null;
+  quoteName: string | null;
+  quotePrice: number | null;
+  expirations: string[];
+  cards: StrategyCardData[];
+};
+
+type OptimizationOverrides = {
+  targetPrice?: number | null;
+  targetDate?: string | null;
+  objective?: OptimizerObjective;
+  maxLoss?: number | null;
+};
 
 const DEFAULT_OBJECTIVE: OptimizerObjective = "balanced";
 
+const DEFAULT_CONTROLS_STATE: OptimizerControlsState = {
+  sentiment: null,
+  targetPrice: null,
+  budget: null,
+  selectedExpiration: null,
+  objective: DEFAULT_OBJECTIVE,
+};
+
+const EMPTY_OPTIMIZATION_STATE: OptimizationState = {
+  activeSymbol: null,
+  quoteName: null,
+  quotePrice: null,
+  expirations: [],
+  cards: [],
+};
+
 export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
   const [symbol, setSymbol] = useState(initialSymbol);
-  const [activeSymbol, setActiveSymbol] = useState<string | null>(null);
-  const [quoteName, setQuoteName] = useState<string | null>(null);
-  const [quotePrice, setQuotePrice] = useState<number | null>(null);
-  const [expirations, setExpirations] = useState<string[]>([]);
-  const [sentiment, setSentiment] = useState<string | null>(null);
-  const [targetPrice, setTargetPrice] = useState<number | null>(null);
-  const [budget, setBudget] = useState<number | null>(null);
-  const [selectedExpiration, setSelectedExpiration] = useState<string | null>(
-    null,
-  );
-  const [objective, setObjective] =
-    useState<OptimizerObjective>(DEFAULT_OBJECTIVE);
+  const [optimization, setOptimization] = useState(EMPTY_OPTIMIZATION_STATE);
+  const [controls, setControls] = useState(DEFAULT_CONTROLS_STATE);
   const [status, setStatus] = useState("Awaiting symbol input.");
   const [error, setError] = useState<string | null>(null);
-  const [cards, setCards] = useState<StrategyCardData[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<SymbolSearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const requestSequence = useRef(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const selectedSymbolRef = useRef<string | null>(null);
   const normalizedSymbol = symbol.trim().toUpperCase();
   const showSuggestions =
     normalizedSymbol.length > 0 && searchResults.length > 0 && !loading;
 
-  const controlsVisible = quotePrice !== null && expirations.length > 0;
+  const controlsVisible =
+    optimization.quotePrice !== null && optimization.expirations.length > 0;
+  const controlsQuotePrice = optimization.quotePrice ?? 0;
 
   useEffect(() => {
     if (!normalizedSymbol) {
@@ -72,15 +99,8 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
       setSearchLoading(true);
 
       try {
-        const response = await fetch(
-          `/api/market/symbols?q=${encodeURIComponent(normalizedSymbol)}`,
-        );
-        if (!response.ok) {
-          setSearchResults([]);
-          return;
-        }
-        const body = (await response.json()) as { data: SymbolSearchResult[] };
-        setSearchResults(body.data.slice(0, 6));
+        const results = await searchSymbols(normalizedSymbol);
+        setSearchResults(results.slice(0, 6));
       } catch {
         setSearchResults([]);
       } finally {
@@ -93,14 +113,47 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     };
   }, [normalizedSymbol]);
 
+  function resetControls() {
+    setControls(DEFAULT_CONTROLS_STATE);
+  }
+
+  function clearOptimization() {
+    setOptimization((current) => ({
+      ...EMPTY_OPTIMIZATION_STATE,
+      activeSymbol: current.activeSymbol,
+    }));
+  }
+
+  function updateOptimizationResult(
+    symbolToRun: string,
+    optimized: OptimizerRunResponse,
+  ) {
+    const { quote, expirations, selectedExpiry, cards } = optimized.data;
+
+    setOptimization({
+      activeSymbol: symbolToRun,
+      quoteName: quote.name,
+      quotePrice: quote.last,
+      expirations,
+      cards,
+    });
+
+    setControls((current) => ({
+      ...current,
+      targetPrice: current.targetPrice ?? quote.last,
+      selectedExpiration: current.selectedExpiration ?? selectedExpiry,
+    }));
+
+    setStatus(
+      cards.length > 0
+        ? `${cards.length} strategies optimized for ${symbolToRun}.`
+        : `No strategy graphs available for ${symbolToRun}.`,
+    );
+  }
+
   async function runOptimization(
     symbolToRun: string,
-    overrides?: {
-      targetPrice?: number | null;
-      targetDate?: string | null;
-      objective?: OptimizerObjective;
-      maxLoss?: number | null;
-    },
+    overrides?: OptimizationOverrides,
   ) {
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
@@ -109,16 +162,14 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     setStatus(`Scanning strategies for ${symbolToRun}...`);
 
     try {
-      const optimizerResponse = await fetch("/api/optimizer/run", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          symbol: symbolToRun,
-          targetPrice: overrides?.targetPrice ?? targetPrice ?? undefined,
-          targetDate: overrides?.targetDate ?? selectedExpiration ?? undefined,
-          objective: overrides?.objective ?? objective,
-          maxLoss: overrides?.maxLoss ?? budget ?? undefined,
-        }),
+      const optimizerResponse = await runOptimizerRequest({
+        symbol: symbolToRun,
+        targetPrice:
+          overrides?.targetPrice ?? controls.targetPrice ?? undefined,
+        targetDate:
+          overrides?.targetDate ?? controls.selectedExpiration ?? undefined,
+        objective: overrides?.objective ?? controls.objective,
+        maxLoss: overrides?.maxLoss ?? controls.budget ?? undefined,
       });
 
       if (sequence !== requestSequence.current) {
@@ -126,58 +177,38 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
       }
 
       if (!optimizerResponse.ok) {
-        setCards([]);
-        setQuoteName(null);
-        setError(
-          (await getErrorMessage(optimizerResponse)) ||
-            "Unable to optimize strategies.",
-        );
+        clearOptimization();
+        setError(optimizerResponse.error);
         setStatus("No strategy graphs available.");
         return;
       }
 
-      const optimized =
-        (await optimizerResponse.json()) as OptimizerRunResponse;
+      const optimized = optimizerResponse.data;
 
       if (sequence !== requestSequence.current) {
         return;
       }
 
       if (!optimized.data.selectedExpiry) {
-        setCards([]);
-        setQuoteName(optimized.data.quote.name);
-        setQuotePrice(optimized.data.quote.last);
-        setExpirations(optimized.data.expirations);
+        setOptimization({
+          activeSymbol: symbolToRun,
+          quoteName: optimized.data.quote.name,
+          quotePrice: optimized.data.quote.last,
+          expirations: optimized.data.expirations,
+          cards: [],
+        });
         setError("No expirations available for that symbol.");
         setStatus("No strategy graphs available.");
         return;
       }
 
-      setQuoteName(optimized.data.quote.name);
-      setQuotePrice(optimized.data.quote.last);
-      setExpirations(optimized.data.expirations);
-      setCards(optimized.data.cards);
-      setStatus(
-        optimized.data.cards.length > 0
-          ? `${optimized.data.cards.length} strategies optimized for ${symbolToRun}.`
-          : `No strategy graphs available for ${symbolToRun}.`,
-      );
-      setActiveSymbol(symbolToRun);
-
-      // Auto-populate controls on first run for this symbol
-      if (!targetPrice) {
-        setTargetPrice(optimized.data.quote.last);
-      }
-      if (!selectedExpiration && optimized.data.selectedExpiry) {
-        setSelectedExpiration(optimized.data.selectedExpiry);
-      }
+      updateOptimizationResult(symbolToRun, optimized);
     } catch (caughtError) {
       if (sequence !== requestSequence.current) {
         return;
       }
 
-      setCards([]);
-      setQuoteName(null);
+      clearOptimization();
       setError(
         caughtError instanceof Error
           ? caughtError.message
@@ -202,24 +233,26 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
   }
 
   function handleSentimentChange(key: string, price: number) {
-    setSentiment(key);
-    setTargetPrice(price);
+    setControls((current) => ({
+      ...current,
+      sentiment: key,
+      targetPrice: price,
+    }));
   }
 
   function handleTargetPriceChange(price: number) {
-    setSentiment(null);
-    setTargetPrice(price);
+    setControls((current) => ({
+      ...current,
+      sentiment: null,
+      targetPrice: price,
+    }));
   }
 
   function handleSymbolSelect(result: SymbolSearchResult) {
     selectedSymbolRef.current = result.symbol;
     setSymbol(result.symbol);
     setSearchResults([]);
-    setTargetPrice(null);
-    setSelectedExpiration(null);
-    setSentiment(null);
-    setBudget(null);
-    setObjective(DEFAULT_OBJECTIVE);
+    resetControls();
     void runOptimization(result.symbol, {
       targetPrice: null,
       targetDate: null,
@@ -259,7 +292,6 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
                 </svg>
               </div>
               <Input
-                ref={inputRef}
                 id="optimize-symbol"
                 value={symbol}
                 onChange={(event) => {
@@ -320,15 +352,15 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
 
           {/* Status bar */}
           <div className="mt-3 flex items-center gap-2.5 px-1">
-            {activeSymbol ? (
+            {optimization.activeSymbol ? (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[0.6rem] font-semibold text-primary ring-1 ring-primary/20">
                 <span className="h-1 w-1 rounded-full bg-primary" />
-                {activeSymbol}
+                {optimization.activeSymbol}
               </span>
             ) : null}
-            {quoteName ? (
+            {optimization.quoteName ? (
               <span className="text-xs text-muted-foreground/70">
-                {quoteName}
+                {optimization.quoteName}
               </span>
             ) : null}
             <span className="font-mono text-[0.6rem] text-muted-foreground/50">
@@ -350,24 +382,30 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
         {/* Optimizer controls */}
         {controlsVisible ? (
           <OptimizerControls
-            quotePrice={quotePrice}
-            sentiment={sentiment}
+            quotePrice={controlsQuotePrice}
+            sentiment={controls.sentiment}
             onSentimentChange={handleSentimentChange}
-            targetPrice={targetPrice ?? quotePrice}
+            targetPrice={controls.targetPrice ?? controlsQuotePrice}
             onTargetPriceChange={handleTargetPriceChange}
-            budget={budget}
-            onBudgetChange={setBudget}
-            expirations={expirations}
-            selectedExpiration={selectedExpiration}
-            onExpirationChange={setSelectedExpiration}
-            objective={objective}
-            onObjectiveChange={setObjective}
+            budget={controls.budget}
+            onBudgetChange={(budget) => {
+              setControls((current) => ({ ...current, budget }));
+            }}
+            expirations={optimization.expirations}
+            selectedExpiration={controls.selectedExpiration}
+            onExpirationChange={(selectedExpiration) => {
+              setControls((current) => ({ ...current, selectedExpiration }));
+            }}
+            objective={controls.objective}
+            onObjectiveChange={(objective) => {
+              setControls((current) => ({ ...current, objective }));
+            }}
           />
         ) : null}
 
         {/* Strategy cards grid */}
         <div className="grid gap-5 lg:grid-cols-2">
-          {cards.map(({ candidate, detail }, index) => (
+          {optimization.cards.map(({ candidate, detail }, index) => (
             <div
               key={candidate.strategyName}
               className="animate-card-in"
@@ -376,7 +414,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
               <StrategyCard candidate={candidate} detail={detail} />
             </div>
           ))}
-          {!loading && cards.length === 0 && !error ? (
+          {!loading && optimization.cards.length === 0 && !error ? (
             <div
               className="animate-fade-up lg:col-span-2"
               style={{ animationDelay: "200ms" }}
@@ -384,7 +422,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
               <EmptyState />
             </div>
           ) : null}
-          {loading && cards.length === 0 ? (
+          {loading && optimization.cards.length === 0 ? (
             <>
               <LoadingSkeleton />
               <LoadingSkeleton delay={150} />
@@ -394,13 +432,4 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
       </main>
     </div>
   );
-}
-
-/* ── Helpers ────────────────────────────────────────────────────────── */
-
-async function getErrorMessage(response: Response) {
-  const body = (await response
-    .json()
-    .catch(() => null)) as ApiErrorResponse | null;
-  return body?.error?.message ?? null;
 }
