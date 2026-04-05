@@ -58,7 +58,7 @@ export function OptimizerControls({
           <Input
             id="target-price"
             type="number"
-            step="0.01"
+            hideNumberSpinner
             value={targetPrice.toFixed(2)}
             onChange={(e) => {
               const val = Number.parseFloat(e.target.value);
