@@ -154,7 +154,13 @@ export function StrategyCard({
                 ? `${returnOnRisk >= 0 ? "+" : ""}${returnOnRisk.toFixed(1)}%`
                 : "--"
             }
-            tone={returnOnRisk != null && returnOnRisk >= 0 ? "profit" : "loss"}
+            tone={
+              returnOnRisk != null
+                ? returnOnRisk >= 0
+                  ? "profit"
+                  : "loss"
+                : undefined
+            }
           />
           <Metric
             label="Chance of profit"
@@ -199,7 +205,7 @@ function Metric({
 }: {
   label: string;
   value: string;
-  tone: "profit" | "loss" | "neutral";
+  tone?: "profit" | "loss" | "neutral";
 }) {
   const toneClasses = {
     profit: "text-profit",
@@ -213,7 +219,7 @@ function Metric({
         {label}
       </div>
       <div
-        className={`mt-1 font-mono text-sm font-medium ${toneClasses[tone]}`}
+        className={`mt-1 font-mono text-sm font-medium ${tone ? toneClasses[tone] : toneClasses.neutral}`}
       >
         {value}
       </div>

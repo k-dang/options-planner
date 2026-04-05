@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 
 type MonthGroup = {
+  key: string;
   label: string;
   dates: { iso: string; day: number }[];
 };
@@ -9,10 +10,11 @@ function groupByMonth(dates: string[]): MonthGroup[] {
   const groups: Map<string, MonthGroup> = new Map();
   for (const iso of dates) {
     const d = new Date(`${iso}T12:00:00`);
-    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+    const key = iso.slice(0, 7);
     let group = groups.get(key);
     if (!group) {
       group = {
+        key,
         label: d.toLocaleDateString("en-US", { month: "short" }),
         dates: [],
       };
@@ -40,7 +42,7 @@ export function ExpirationPicker({
     <div className="scrollbar-hide w-full overflow-x-auto py-2">
       <div className="flex w-full items-start justify-between px-1">
         {groups.map((group) => (
-          <div key={group.label} className="flex flex-col items-center gap-1.5">
+          <div key={group.key} className="flex flex-col items-center gap-1.5">
             <span className="font-mono text-[0.55rem] uppercase tracking-wider text-muted-foreground/50">
               {group.label}
             </span>

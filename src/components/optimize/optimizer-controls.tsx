@@ -34,9 +34,16 @@ export function OptimizerControls({
   objective,
   onObjectiveChange,
 }: OptimizerControlsProps) {
-  const pctChange = ((targetPrice - quotePrice) / quotePrice) * 100;
+  const hasQuotePrice = Boolean(quotePrice);
+  const pctChange = hasQuotePrice
+    ? ((targetPrice - quotePrice) / quotePrice) * 100
+    : null;
   const pctLabel =
-    pctChange >= 0 ? `+${pctChange.toFixed(0)}%` : `${pctChange.toFixed(0)}%`;
+    pctChange == null
+      ? "N/A"
+      : pctChange >= 0
+        ? `+${pctChange.toFixed(0)}%`
+        : `${pctChange.toFixed(0)}%`;
 
   return (
     <div className="animate-fade-up mb-10 flex w-full flex-col items-center gap-6">
@@ -69,7 +76,7 @@ export function OptimizerControls({
             className="w-24 border-white/[0.08] bg-[oklch(0.12_0.008_260)] px-2.5 py-1.5 font-mono focus-visible:border-primary/30 focus-visible:ring-0"
           />
           <span
-            className={`font-mono text-[0.65rem] font-medium ${pctChange >= 0 ? "text-profit" : "text-loss"}`}
+            className={`font-mono text-[0.65rem] font-medium ${pctChange == null ? "text-muted-foreground" : pctChange >= 0 ? "text-profit" : "text-loss"}`}
           >
             ({pctLabel})
           </span>
