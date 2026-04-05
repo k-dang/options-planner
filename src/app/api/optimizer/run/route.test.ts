@@ -94,6 +94,7 @@ describe("POST /api/optimizer/run", () => {
           previousClose: 223,
           currency: "USD",
         },
+        expirations: [],
         selectedExpiry: null,
         cards: [],
       },
@@ -102,6 +103,33 @@ describe("POST /api/optimizer/run", () => {
 
   it("returns 400 for invalid payloads", async () => {
     const res = await POST(request("http://localhost/api/optimizer/run", {}));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({
+      error: { code: "VALIDATION_ERROR", message: "Invalid request body" },
+    });
+  });
+
+  it("accepts the balanced objective", async () => {
+    const res = await POST(
+      request("http://localhost/api/optimizer/run", {
+        symbol: "AAPL",
+        objective: "balanced",
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = optimizerRunResponseSchema.parse(await res.json());
+    expect(body.data.cards.length).toBeGreaterThan(0);
+  });
+
+  it("rejects unknown objectives", async () => {
+    const res = await POST(
+      request("http://localhost/api/optimizer/run", {
+        symbol: "AAPL",
+        objective: "not-real",
+      }),
+    );
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toMatchObject({

@@ -9,14 +9,19 @@ import {
   calcSummarySchema,
 } from "@/modules/strategies/schemas";
 
-export const optimizerRunRequestSchema = z.strictObject({
-  symbol: z.string().trim().min(1),
-});
-
 export const optimizerObjectiveSchema = z.enum([
   "expectedProfit",
+  "balanced",
   "chanceOfProfit",
 ]);
+
+export const optimizerRunRequestSchema = z.strictObject({
+  symbol: z.string().trim().min(1),
+  targetPrice: z.number().positive().optional(),
+  targetDate: z.string().min(1).optional(),
+  objective: optimizerObjectiveSchema.optional(),
+  maxLoss: z.number().positive().optional(),
+});
 
 export const optimizerRequestSchema = z.strictObject({
   symbol: z.string().trim().min(1),
@@ -92,6 +97,7 @@ export const optimizedStrategyCardSchema = z.strictObject({
 export const optimizerRunResponseSchema = z.strictObject({
   data: z.strictObject({
     quote: underlyingQuoteSchema,
+    expirations: z.array(z.string()),
     selectedExpiry: z.string().nullable(),
     cards: z.array(optimizedStrategyCardSchema),
   }),
@@ -100,3 +106,4 @@ export const optimizerRunResponseSchema = z.strictObject({
 export type OptimizerRequest = z.infer<typeof optimizerRequestSchema>;
 export type OptimizerCandidate = z.infer<typeof optimizerCandidateSchema>;
 export type OptimizerRunResponse = z.infer<typeof optimizerRunResponseSchema>;
+export type OptimizerObjective = z.infer<typeof optimizerObjectiveSchema>;

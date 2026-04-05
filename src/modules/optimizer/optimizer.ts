@@ -45,14 +45,10 @@ export function runOptimizer(input: OptimizerInput): OptimizerCandidate[] {
       valuationDate,
       targetPrice: input.request.targetPrice,
     });
-    const objectiveValue =
-      input.request.objective === "expectedProfit"
-        ? expectedProfitAtTarget
-        : analytics.summary.chanceOfProfitAtExpiration;
 
     return {
       strategyName: definition.strategyName,
-      objectiveValue: round(objectiveValue, 4),
+      objectiveValue: 0,
       expectedProfitAtTarget: round(expectedProfitAtTarget, 2),
       summary: analytics.summary,
       legs: definition.legs,
@@ -60,19 +56,122 @@ export function runOptimizer(input: OptimizerInput): OptimizerCandidate[] {
     } satisfies OptimizerCandidate;
   });
 
-  return candidates
-    .filter((candidate) => {
-      if (input.request.maxLoss == null || candidate.summary.maxLoss == null) {
-        return true;
-      }
-      return candidate.summary.maxLoss <= input.request.maxLoss;
-    })
+  const filteredCandidates = candidates.filter((candidate) => {
+    if (input.request.maxLoss == null || candidate.summary.maxLoss == null) {
+      return true;
+    }
+    return candidate.summary.maxLoss <= input.request.maxLoss;
+  });
+  const expectedProfitScores = createNormalizedScores(
+    filteredCandidates,
+    (candidate) => candidate.expectedProfitAtTarget,
+  );
+  const chanceOfProfitScores = createNormalizedScores(
+    filteredCandidates,
+    (candidate) => candidate.summary.chanceOfProfitAtExpiration,
+  );
+
+  return filteredCandidates
+    .map((candidate) => ({
+      ...candidate,
+      objectiveValue: round(
+        getObjectiveValue({
+          candidate,
+          objective: input.request.objective,
+          expectedProfitScores,
+          chanceOfProfitScores,
+        }),
+        4,
+      ),
+    }))
     .sort((left, right) => {
       if (right.objectiveValue !== left.objectiveValue) {
         return right.objectiveValue - left.objectiveValue;
       }
+      if (right.expectedProfitAtTarget !== left.expectedProfitAtTarget) {
+        return right.expectedProfitAtTarget - left.expectedProfitAtTarget;
+      }
+      if (
+        right.summary.chanceOfProfitAtExpiration !==
+        left.summary.chanceOfProfitAtExpiration
+      ) {
+        return (
+          right.summary.chanceOfProfitAtExpiration -
+          left.summary.chanceOfProfitAtExpiration
+        );
+      }
       return left.summary.netDebitOrCredit - right.summary.netDebitOrCredit;
     });
+}
+
+function getObjectiveValue(args: {
+  candidate: OptimizerCandidate;
+  objective: OptimizerRequest["objective"];
+  expectedProfitScores: Map<string, number>;
+  chanceOfProfitScores: Map<string, number>;
+}) {
+  if (args.objective === "expectedProfit") {
+    return args.candidate.expectedProfitAtTarget;
+  }
+
+  if (args.objective === "chanceOfProfit") {
+    return args.candidate.summary.chanceOfProfitAtExpiration;
+  }
+
+  const key = candidateKey(args.candidate);
+  const expectedProfitScore = args.expectedProfitScores.get(key) ?? 0;
+  const chanceOfProfitScore = args.chanceOfProfitScores.get(key) ?? 0;
+
+  return (expectedProfitScore + chanceOfProfitScore) / 2;
+}
+
+function createNormalizedScores(
+  candidates: OptimizerCandidate[],
+  getValue: (candidate: OptimizerCandidate) => number,
+) {
+  if (candidates.length === 0) {
+    return new Map<string, number>();
+  }
+
+  if (candidates.length === 1) {
+    return new Map([[candidateKey(candidates[0]), 1]]);
+  }
+
+  const sorted = [...candidates].sort((left, right) => {
+    const diff = getValue(right) - getValue(left);
+    if (diff !== 0) {
+      return diff;
+    }
+    return candidateKey(left).localeCompare(candidateKey(right));
+  });
+  const scores = new Map<string, number>();
+
+  for (let start = 0; start < sorted.length; ) {
+    const value = getValue(sorted[start]);
+    let end = start;
+    while (end + 1 < sorted.length && getValue(sorted[end + 1]) === value) {
+      end += 1;
+    }
+
+    const averageIndex = (start + end) / 2;
+    const score = 1 - averageIndex / (sorted.length - 1);
+    for (let index = start; index <= end; index += 1) {
+      scores.set(candidateKey(sorted[index]), score);
+    }
+
+    start = end + 1;
+  }
+
+  return scores;
+}
+
+function candidateKey(candidate: OptimizerCandidate) {
+  return `${candidate.strategyName}:${candidate.legs
+    .map(
+      (leg) =>
+        `${leg.kind}:${leg.side}:${leg.right ?? "S"}:${leg.strike ?? 0}:${leg.expiry ?? ""}:${leg.qty}`,
+    )
+    .join("|")}`;
 }
 
 function buildCandidateDefinitions(

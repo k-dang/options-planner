@@ -22,7 +22,21 @@ describe("MockMarketDataProvider", () => {
 
   it("returns expirations for known symbol", async () => {
     const e = await p.getExpirations("SPY");
-    expect(e).toEqual(["2026-04-17", "2026-05-15", "2026-06-19", "2026-07-17"]);
+    expect(e).toEqual([
+      "2026-04-17",
+      "2026-04-24",
+      "2026-05-01",
+      "2026-05-08",
+      "2026-05-15",
+      "2026-06-19",
+      "2026-07-17",
+      "2026-08-21",
+      "2026-09-18",
+      "2026-10-16",
+      "2026-11-20",
+      "2026-12-18",
+      "2027-01-15",
+    ]);
   });
 
   it("returns chain for known symbol and expiry", async () => {

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const data = await runOptimizerForSymbol(parsed.data.symbol);
+    const data = await runOptimizerForSymbol(parsed.data);
     return Response.json({ data });
   } catch (error) {
     if (error instanceof ServiceError) {

@@ -216,6 +216,14 @@
   }
 }
 
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .animate-shimmer {
   background: linear-gradient(
     90deg,

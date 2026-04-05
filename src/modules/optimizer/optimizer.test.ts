@@ -197,6 +197,25 @@ describe("runOptimizer", () => {
     );
   });
 
+  it("can rank by a balanced score", () => {
+    const candidates = runOptimizer({
+      request: request({ objective: "balanced" }),
+      quote,
+      chainsByExpiry: { "2026-04-17": chain },
+      valuationDate: new Date("2026-03-20T00:00:00Z"),
+    });
+
+    expect(candidates.length).toBeGreaterThan(0);
+    expect(candidates[0].objectiveValue).toBeLessThanOrEqual(1);
+    expect(candidates[0].objectiveValue).toBeGreaterThanOrEqual(0);
+    expect(candidates[0].objectiveValue).not.toBe(
+      candidates[0].expectedProfitAtTarget,
+    );
+    expect(candidates[0].objectiveValue).not.toBe(
+      candidates[0].summary.chanceOfProfitAtExpiration,
+    );
+  });
+
   it("keeps expected-profit rankings independent of the chart grid", () => {
     const coarseGridCandidates = runOptimizer({
       request: request({
