@@ -7,9 +7,18 @@ import {
   loadChainsByExpiry,
 } from "@/modules/strategies/option-chains";
 import { runOptimizer } from "./optimizer";
-import type { OptimizerRequest } from "./schemas";
+import type { OptimizerObjective, OptimizerRequest } from "./schemas";
 
-export async function runOptimizerForSymbol(symbol: string) {
+type RunOptimizerParams = {
+  symbol: string;
+  targetPrice?: number;
+  targetDate?: string;
+  objective?: OptimizerObjective;
+  maxLoss?: number;
+};
+
+export async function runOptimizerForSymbol(params: RunOptimizerParams) {
+  const { symbol } = params;
   const provider = getMarketDataProvider();
   const [quote, expirations] = await Promise.all([
     provider.getQuote(symbol),
@@ -20,10 +29,11 @@ export async function runOptimizerForSymbol(symbol: string) {
     throw new ServiceError("not-found", `No quote for symbol: ${symbol}`);
   }
 
-  const selectedExpiry = expirations[0] ?? null;
+  const selectedExpiry = params.targetDate ?? expirations[0] ?? null;
   if (!selectedExpiry) {
     return {
       quote,
+      expirations,
       selectedExpiry: null,
       cards: [],
     };
@@ -36,7 +46,12 @@ export async function runOptimizerForSymbol(symbol: string) {
   });
 
   const candidates = runOptimizer({
-    request: buildDefaultOptimizerRequest(symbol, quote, selectedExpiry),
+    request: buildDefaultOptimizerRequest(
+      symbol,
+      quote,
+      selectedExpiry,
+      params,
+    ),
     quote,
     chainsByExpiry: optimizerChainsByExpiry,
   });
@@ -60,6 +75,7 @@ export async function runOptimizerForSymbol(symbol: string) {
 
   return {
     quote,
+    expirations,
     selectedExpiry,
     cards: bestCandidatesByStrategy.map((candidate) => ({
       candidate,
@@ -76,12 +92,14 @@ function buildDefaultOptimizerRequest(
   symbol: string,
   quote: UnderlyingQuote,
   targetDate: string,
+  overrides?: Partial<RunOptimizerParams>,
 ): OptimizerRequest {
   return {
     symbol,
-    targetPrice: quote.last,
+    targetPrice: overrides?.targetPrice ?? quote.last,
     targetDate,
-    objective: "expectedProfit",
+    objective: overrides?.objective ?? "balanced",
+    maxLoss: overrides?.maxLoss,
     maxLegs: 2,
     strikeWindow: 2,
     horizonDays: 30,
