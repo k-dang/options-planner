@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Instrument_Serif, Outfit } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -34,7 +35,9 @@ export default function RootLayout({
       lang="en"
       className={`${outfit.variable} ${instrumentSerif.variable} ${geistMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
