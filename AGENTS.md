@@ -6,3 +6,4 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Always use the commands from `package.json` when available.
 
+Do not silence promise rejections with `void` for user-triggered actions or mutation calls. Handle errors explicitly with `try/catch` or an equivalent error path so failures remain observable and recovery behavior is intentional.

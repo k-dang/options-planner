@@ -207,7 +207,11 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     }
 
     setSearchEnabled(false);
-    await optimizeMutation.mutateAsync({ symbolToRun: normalizedSymbol });
+    try {
+      await optimizeMutation.mutateAsync({ symbolToRun: normalizedSymbol });
+    } catch {
+      setSearchEnabled(true);
+    }
   }
 
   function handleSentimentChange(key: string, price: number) {
