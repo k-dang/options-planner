@@ -6,9 +6,9 @@ import { EmptyState } from "@/components/optimize/empty-state";
 import { LoadingSkeleton } from "@/components/optimize/loading-skeleton";
 import { OptimizerControls } from "@/components/optimize/optimizer-controls";
 import { StrategyCard } from "@/components/optimize/strategy-card";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   type RunOptimizationMutationInput,
   type RunOptimizerMutationResult,
