@@ -1,17 +1,20 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { EmptyState } from "@/components/optimize/empty-state";
 import { LoadingSkeleton } from "@/components/optimize/loading-skeleton";
 import { OptimizerControls } from "@/components/optimize/optimizer-controls";
 import { StrategyCard } from "@/components/optimize/strategy-card";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  runOptimizer as runOptimizerRequest,
-  searchSymbols,
-} from "@/lib/optimizer-api";
+  type RunOptimizationMutationInput,
+  type RunOptimizerMutationResult,
+  useRunOptimizerMutation,
+  useSymbolSearchQuery,
+} from "@/hooks/use-optimizer-queries";
 import type { SymbolSearchResult } from "@/modules/market/schemas";
 import type {
   OptimizerObjective,
@@ -40,15 +43,6 @@ type OptimizationState = {
   cards: StrategyCardData[];
 };
 
-type OptimizationOverrides = {
-  targetPrice?: number | null;
-  targetDate?: string | null;
-  objective?: OptimizerObjective;
-  maxLoss?: number | null;
-};
-
-type RunOptimizerInput = Parameters<typeof runOptimizerRequest>[0];
-
 const DEFAULT_OBJECTIVE: OptimizerObjective = "balanced";
 
 const DEFAULT_CONTROLS_STATE: OptimizerControlsState = {
@@ -67,21 +61,6 @@ const EMPTY_OPTIMIZATION_STATE: OptimizationState = {
   cards: [],
 };
 
-function buildOptimizerInput(
-  symbol: string,
-  controls: OptimizerControlsState,
-  overrides?: OptimizationOverrides,
-): RunOptimizerInput {
-  return {
-    symbol,
-    targetPrice: overrides?.targetPrice ?? controls.targetPrice ?? undefined,
-    targetDate:
-      overrides?.targetDate ?? controls.selectedExpiration ?? undefined,
-    objective: overrides?.objective ?? controls.objective,
-    maxLoss: overrides?.maxLoss ?? controls.budget ?? undefined,
-  };
-}
-
 function buildOptimizationState(
   activeSymbol: string,
   optimized: OptimizerRunResponse,
@@ -98,67 +77,80 @@ function buildOptimizationState(
   };
 }
 
-function useSymbolSearch(symbol: string, enabled: boolean) {
-  const normalizedSymbol = symbol.trim().toUpperCase();
-  const [results, setResults] = useState<SymbolSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!enabled || !normalizedSymbol) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const timeoutId = window.setTimeout(async () => {
-      setLoading(true);
-
-      try {
-        const matches = await searchSymbols(normalizedSymbol);
-
-        if (!cancelled) {
-          setResults(matches.slice(0, 6));
-        }
-      } catch {
-        if (!cancelled) {
-          setResults([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }, 150);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [enabled, normalizedSymbol]);
-
-  return {
-    normalizedSymbol,
-    searchResults: results,
-    searchLoading: loading,
-    clearSearchResults: () => setResults([]),
-  };
-}
-
 export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
   const [symbol, setSymbol] = useState(initialSymbol);
   const [optimization, setOptimization] = useState(EMPTY_OPTIMIZATION_STATE);
   const [controls, setControls] = useState(DEFAULT_CONTROLS_STATE);
   const [status, setStatus] = useState("Awaiting symbol input.");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(true);
   const requestSequence = useRef(0);
-  const { normalizedSymbol, searchResults, searchLoading, clearSearchResults } =
-    useSymbolSearch(symbol, searchEnabled);
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const debouncedSymbol = useDebouncedValue(normalizedSymbol, 150);
+  const searchQuery = useSymbolSearchQuery(debouncedSymbol, searchEnabled);
+  const optimizeMutation = useRunOptimizerMutation({
+    controls: {
+      targetPrice: controls.targetPrice,
+      selectedExpiration: controls.selectedExpiration,
+      objective: controls.objective,
+      budget: controls.budget,
+    },
+    mutation: {
+      onMutate: ({ symbolToRun }: RunOptimizationMutationInput) => {
+        const sequence = requestSequence.current + 1;
+        requestSequence.current = sequence;
+        setError(null);
+        setStatus(`Scanning strategies for ${symbolToRun}...`);
+        return { sequence };
+      },
+      onSuccess: (
+        { symbolToRun, optimizerResponse }: RunOptimizerMutationResult,
+        _variables,
+        context,
+      ) => {
+        if (context?.sequence !== requestSequence.current) {
+          return;
+        }
+
+        if (!optimizerResponse.ok) {
+          clearOptimization();
+          showNoStrategies(optimizerResponse.error);
+          return;
+        }
+
+        const optimized = optimizerResponse.data;
+
+        if (!optimized.data.selectedExpiry) {
+          setOptimization(buildOptimizationState(symbolToRun, optimized, []));
+          showNoStrategies("No expirations available for that symbol.");
+          return;
+        }
+
+        updateOptimizationResult(symbolToRun, optimized);
+      },
+      onError: (caughtError, _variables, context) => {
+        if (context?.sequence !== requestSequence.current) {
+          return;
+        }
+
+        clearOptimization();
+        showNoStrategies(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Unable to load strategy graphs.",
+        );
+      },
+    },
+  });
+  const searchResults = searchQuery.data ?? [];
+  const loading = optimizeMutation.isPending;
+  const searchLoading =
+    searchEnabled && debouncedSymbol.length > 0 && searchQuery.isFetching;
   const showSuggestions =
-    normalizedSymbol.length > 0 && searchResults.length > 0 && !loading;
+    searchEnabled &&
+    normalizedSymbol.length > 0 &&
+    searchResults.length > 0 &&
+    !loading;
 
   const controlsVisible =
     optimization.quotePrice !== null && optimization.expirations.length > 0;
@@ -208,62 +200,6 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     setStatus("No strategy graphs available.");
   }
 
-  async function runOptimization(
-    symbolToRun: string,
-    overrides?: OptimizationOverrides,
-  ) {
-    const sequence = requestSequence.current + 1;
-    requestSequence.current = sequence;
-    setLoading(true);
-    setError(null);
-    setStatus(`Scanning strategies for ${symbolToRun}...`);
-
-    try {
-      const optimizerResponse = await runOptimizerRequest(
-        buildOptimizerInput(symbolToRun, controls, overrides),
-      );
-
-      if (sequence !== requestSequence.current) {
-        return;
-      }
-
-      if (!optimizerResponse.ok) {
-        clearOptimization();
-        showNoStrategies(optimizerResponse.error);
-        return;
-      }
-
-      const optimized = optimizerResponse.data;
-
-      if (sequence !== requestSequence.current) {
-        return;
-      }
-
-      if (!optimized.data.selectedExpiry) {
-        setOptimization(buildOptimizationState(symbolToRun, optimized, []));
-        showNoStrategies("No expirations available for that symbol.");
-        return;
-      }
-
-      updateOptimizationResult(symbolToRun, optimized);
-    } catch (caughtError) {
-      if (sequence !== requestSequence.current) {
-        return;
-      }
-
-      clearOptimization();
-      showNoStrategies(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "Unable to load strategy graphs.",
-      );
-    } finally {
-      if (sequence === requestSequence.current) {
-        setLoading(false);
-      }
-    }
-  }
-
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!normalizedSymbol) {
@@ -271,8 +207,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     }
 
     setSearchEnabled(false);
-    clearSearchResults();
-    await runOptimization(normalizedSymbol);
+    await optimizeMutation.mutateAsync({ symbolToRun: normalizedSymbol });
   }
 
   function handleSentimentChange(key: string, price: number) {
@@ -292,13 +227,15 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
   function handleSymbolSelect(result: SymbolSearchResult) {
     setSearchEnabled(false);
     setSymbol(result.symbol);
-    clearSearchResults();
     resetControls();
-    void runOptimization(result.symbol, {
-      targetPrice: null,
-      targetDate: null,
-      objective: DEFAULT_OBJECTIVE,
-      maxLoss: null,
+    optimizeMutation.mutate({
+      symbolToRun: result.symbol,
+      overrides: {
+        targetPrice: null,
+        targetDate: null,
+        objective: DEFAULT_OBJECTIVE,
+        maxLoss: null,
+      },
     });
   }
 
