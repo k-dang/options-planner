@@ -611,7 +611,7 @@ function BuilderGridCard({
             </TableHeader>
             <TableBody>
               {data.grid.prices.map((price, rowIndex) => (
-                <TableRow key={`${price}-${rowIndex}`}>
+                <TableRow key={price}>
                   <TableCell className="font-mono">
                     {formatCurrency(price)}
                   </TableCell>

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { BuilderStateInput } from "@/modules/strategies/schemas";
 import {
   parseBuilderStateFromRouteParams,
   serializeBuilderStateForUrl,
 } from "./builder-state-url";
-import type { BuilderStateInput } from "@/modules/strategies/schemas";
 
 const builderState: BuilderStateInput = {
   symbol: "AAPL",

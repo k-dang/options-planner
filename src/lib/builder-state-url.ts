@@ -1,8 +1,8 @@
-import type { BuilderStateInput } from "@/modules/strategies/schemas";
 import {
   getV1StrategyTemplateById,
   getV1StrategyTemplateByName,
 } from "@/modules/strategies/catalog";
+import type { BuilderStateInput } from "@/modules/strategies/schemas";
 import { builderStateSchema } from "@/modules/strategies/schemas";
 
 const DEFAULT_BUILDER_STATE = {
