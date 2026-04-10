@@ -44,6 +44,17 @@ export const optionChainSchema = z.object({
   contracts: z.array(optionChainContractSchema),
 });
 
+export const optionIndexEntrySchema = z.object({
+  expiry: z.string(),
+  calls: z.array(z.number()),
+  puts: z.array(z.number()),
+});
+
+export const optionIndexSchema = z.object({
+  symbol: z.string(),
+  expirations: z.array(optionIndexEntrySchema),
+});
+
 export const symbolsQuerySchema = z.object({
   q: z.string().optional().default(""),
 });
@@ -52,12 +63,8 @@ export const symbolParamSchema = z.object({
   symbol: z.string().min(1),
 });
 
-export const chainQuerySchema = z.object({
-  symbol: z.string().trim().min(1),
-  expiry: z.string().trim().min(1),
-});
-
 export type SymbolSearchResult = z.infer<typeof symbolSearchResultSchema>;
 export type UnderlyingQuote = z.infer<typeof underlyingQuoteSchema>;
 export type OptionChainContract = z.infer<typeof optionChainContractSchema>;
 export type OptionChain = z.infer<typeof optionChainSchema>;
+export type OptionIndex = z.infer<typeof optionIndexSchema>;

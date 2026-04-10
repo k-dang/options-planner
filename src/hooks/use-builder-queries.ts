@@ -1,0 +1,33 @@
+import { useQuery } from "@tanstack/react-query";
+import { calculateStrategy, getOptionsMetadata } from "@/lib/builder-api";
+import type { BuilderStateInput } from "@/modules/strategies/schemas";
+
+export function useBuilderCalcQuery(builderState: BuilderStateInput | null) {
+  return useQuery({
+    queryKey: ["builder-calc", builderState],
+    queryFn: async () => {
+      if (builderState === null) {
+        throw new Error("Builder state is required to calculate strategy.");
+      }
+
+      return calculateStrategy(builderState);
+    },
+    enabled: builderState !== null,
+  });
+}
+
+export function useOptionsMetadataQuery(
+  builderState: BuilderStateInput | null,
+) {
+  return useQuery({
+    queryKey: ["builder-options-metadata", builderState?.symbol],
+    queryFn: async () => {
+      if (builderState === null) {
+        throw new Error("Builder state is required to load option metadata.");
+      }
+
+      return getOptionsMetadata(builderState.symbol);
+    },
+    enabled: builderState !== null,
+  });
+}

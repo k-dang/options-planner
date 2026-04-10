@@ -93,7 +93,7 @@ The implementation should be organized as a small set of stable modules rather t
 
 **Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/modules/strategies/catalog.ts`, `GET /api/strategies/templates` returning `{ data }`, strict builder-state and calc schemas in `src/modules/strategies/schemas.ts`, and optimizer candidates returning a full `builderState` handoff payload.
 
-**Remaining:** Database seeding of `strategy_template` rows, dedicated builder route, template loading UI, leg editing UI, assumptions controls UI, and builder view-state management.
+**Remaining:** Dedicated builder route, template loading UI, leg editing UI, assumptions controls UI, and builder view-state management.
 
 ### D4. Pricing, analytics, and visualization contract
 

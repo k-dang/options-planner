@@ -142,6 +142,7 @@ export const strategyCalcResponseSchema = z.strictObject({
   }),
 });
 
+export type BuilderLegInput = z.infer<typeof builderLegInputSchema>;
 export type BuilderStateInput = z.infer<typeof builderStateSchema>;
 export type StrategyCalcRequest = z.infer<typeof strategyCalcRequestSchema>;
 export type StrategyCalcResponse = z.infer<typeof strategyCalcResponseSchema>;

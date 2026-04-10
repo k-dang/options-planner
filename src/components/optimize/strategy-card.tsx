@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -24,6 +25,7 @@ import {
   ChartContainer,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { serializeBuilderStateForUrl } from "@/lib/builder-state-url";
 import type { OptimizerCandidate } from "@/modules/optimizer/schemas";
 import type { StrategyCalcResponse } from "@/modules/strategies/schemas";
 
@@ -41,6 +43,10 @@ export function StrategyCard({
   candidate: OptimizerCandidate;
   detail: StrategyCalcResponse["data"];
 }) {
+  const builderHref = serializeBuilderStateForUrl({
+    strategyName: candidate.strategyName,
+    builderState: candidate.builderState,
+  });
   const isProfit = candidate.expectedProfitAtTarget >= 0;
   const returnOnRisk =
     detail.summary.maxLoss != null && detail.summary.maxLoss !== 0
@@ -186,12 +192,12 @@ export function StrategyCard({
 
       <CardFooter className="px-5 pb-4 pt-0">
         <Button
+          asChild
           variant="outline"
           size="sm"
-          disabled
           className="w-full border-white/[0.08] font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted-foreground/60 hover:border-primary/30 hover:text-primary"
         >
-          Open in Builder
+          <Link href={builderHref}>Open in Builder</Link>
         </Button>
       </CardFooter>
     </Card>

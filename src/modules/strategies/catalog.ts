@@ -150,3 +150,11 @@ const V1_STRATEGY_TEMPLATES: readonly StrategyTemplate[] = [
 export function getV1StrategyTemplates(): readonly StrategyTemplate[] {
   return V1_STRATEGY_TEMPLATES;
 }
+
+export function getV1StrategyTemplateById(id: string) {
+  return V1_STRATEGY_TEMPLATES.find((template) => template.id === id);
+}
+
+export function getV1StrategyTemplateByName(name: StrategyTemplate["name"]) {
+  return V1_STRATEGY_TEMPLATES.find((template) => template.name === name);
+}
