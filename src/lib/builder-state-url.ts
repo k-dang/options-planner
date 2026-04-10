@@ -1,8 +1,8 @@
+import type { StrategyTemplate } from "@/modules/strategies/catalog";
 import {
   getV1StrategyTemplateById,
   getV1StrategyTemplateByName,
 } from "@/modules/strategies/catalog";
-import type { StrategyTemplate } from "@/modules/strategies/catalog";
 import type { BuilderStateInput } from "@/modules/strategies/schemas";
 import { builderStateSchema } from "@/modules/strategies/schemas";
 

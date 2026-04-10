@@ -1,8 +1,5 @@
 import type { SymbolSearchResult } from "@/modules/market/schemas";
-import type {
-  OptimizerObjective,
-  OptimizerRunResponse,
-} from "@/modules/optimizer/schemas";
+import type { OptimizerObjective } from "@/modules/optimizer/schemas";
 import { optimizerRunResponseSchema } from "@/modules/optimizer/schemas";
 
 type ApiErrorResponse = {
