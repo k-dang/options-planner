@@ -2,6 +2,7 @@ import {
   getV1StrategyTemplateById,
   getV1StrategyTemplateByName,
 } from "@/modules/strategies/catalog";
+import type { StrategyTemplate } from "@/modules/strategies/catalog";
 import type { BuilderStateInput } from "@/modules/strategies/schemas";
 import { builderStateSchema } from "@/modules/strategies/schemas";
 
@@ -31,35 +32,39 @@ type BuilderRouteParams = {
 };
 
 export function serializeBuilderStateForUrl(args: {
-  strategyName: string;
+  strategyName: StrategyTemplate["name"];
   builderState: BuilderStateInput;
 }) {
-  const normalizedSymbol = normalizeRequiredRouteValue(
-    args.builderState.symbol,
-  );
-  const template = getV1StrategyTemplateByName(args.strategyName as never);
-  if (!template) {
-    throw new Error(`Unsupported strategy: ${args.strategyName}`);
+  try {
+    const normalizedSymbol = normalizeRequiredRouteValue(
+      args.builderState.symbol,
+    );
+    const template = getV1StrategyTemplateByName(args.strategyName);
+    if (!template) {
+      throw new Error(`Unsupported strategy: ${args.strategyName}`);
+    }
+
+    const optionLegTokens = args.builderState.legs
+      .filter((leg) => leg.kind === "option")
+      .map((leg) => {
+        if (!leg.right || leg.strike == null || !leg.expiry) {
+          throw new Error("Option legs require right, strike, and expiry.");
+        }
+
+        return serializeOptionLegToken({
+          symbol: normalizedSymbol,
+          side: leg.side,
+          right: leg.right,
+          strike: leg.strike,
+          expiry: leg.expiry,
+        });
+      })
+      .join(",");
+
+    return `/builder/${template.id}/${encodeURIComponent(normalizedSymbol)}/${optionLegTokens}`;
+  } catch {
+    return null;
   }
-
-  const optionLegTokens = args.builderState.legs
-    .filter((leg) => leg.kind === "option")
-    .map((leg) => {
-      if (!leg.right || leg.strike == null || !leg.expiry) {
-        throw new Error("Option legs require right, strike, and expiry.");
-      }
-
-      return serializeOptionLegToken({
-        symbol: normalizedSymbol,
-        side: leg.side,
-        right: leg.right,
-        strike: leg.strike,
-        expiry: leg.expiry,
-      });
-    })
-    .join(",");
-
-  return `/builder/${template.id}/${encodeURIComponent(normalizedSymbol)}/${optionLegTokens}`;
 }
 
 export function parseBuilderStateFromRouteParams(params: BuilderRouteParams) {

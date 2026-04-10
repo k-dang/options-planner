@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -336,10 +336,12 @@ function BuilderControlsCard({
 }
 
 function ReadonlyField({ label, value }: { label: string; value: string }) {
+  const inputId = useId();
+
   return (
     <div className="grid gap-1.5">
-      <Label>{label}</Label>
-      <Input value={value} readOnly />
+      <Label htmlFor={inputId}>{label}</Label>
+      <Input id={inputId} value={value} readOnly />
     </div>
   );
 }
@@ -353,10 +355,13 @@ function EditableNumberField({
   value: string;
   onChange: (value: number) => void;
 }) {
+  const inputId = useId();
+
   return (
     <div className="grid gap-1.5">
-      <Label>{label}</Label>
+      <Label htmlFor={inputId}>{label}</Label>
       <Input
+        id={inputId}
         type="number"
         hideNumberSpinner
         min={0.01}
@@ -381,11 +386,13 @@ function EditableSelect({
   options: string[];
   onValueChange?: (value: string) => void;
 }) {
+  const selectId = useId();
+
   return (
     <div className="grid gap-1.5">
-      <Label>{label}</Label>
+      <Label htmlFor={selectId}>{label}</Label>
       <Select value={value || undefined} onValueChange={onValueChange}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger id={selectId} className="w-full">
           <SelectValue placeholder="Unavailable" />
         </SelectTrigger>
         <SelectContent>

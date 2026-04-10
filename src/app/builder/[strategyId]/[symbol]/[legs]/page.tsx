@@ -15,6 +15,7 @@ export default async function BuilderPage({
 
   return (
     <BuilderClient
+      key={`${resolvedParams.strategyId}:${resolvedParams.symbol}:${resolvedParams.legs}`}
       initialBuilderState={initialState.builderState}
       initialError={initialState.error}
     />

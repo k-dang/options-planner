@@ -3,6 +3,7 @@ import type {
   OptimizerObjective,
   OptimizerRunResponse,
 } from "@/modules/optimizer/schemas";
+import { optimizerRunResponseSchema } from "@/modules/optimizer/schemas";
 
 type ApiErrorResponse = {
   error?: {
@@ -48,9 +49,17 @@ export async function runOptimizer(input: {
     };
   }
 
+  const parsed = optimizerRunResponseSchema.safeParse(await response.json());
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: "Received an invalid optimizer response.",
+    };
+  }
+
   return {
     ok: true as const,
-    data: (await response.json()) as OptimizerRunResponse,
+    data: parsed.data,
   };
 }
 

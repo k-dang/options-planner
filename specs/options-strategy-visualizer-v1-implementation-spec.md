@@ -58,7 +58,7 @@ The implementation should be organized as a small set of stable modules rather t
 | D3. Strategy templates, builder state, and handoff contract | L | D2 | In progress |
 | D4. Pricing, analytics, and visualization contract | XL | D2, D3 | In progress |
 | D5. Optimizer engine and optimizer-first entry flow | L | D4 | In progress |
-| D6. Builder workspace UI | L | D3, D4, D5 | Not started |
+| D6. Builder workspace UI | L | D3, D4, D5 | In progress |
 | D7. Saved strategies, settings, and daily snapshots | L | D1, D4, D6 | Not started |
 | D8. Test coverage, docs, and deployment readiness | L | D1-D7 | In progress |
 
@@ -93,7 +93,7 @@ The implementation should be organized as a small set of stable modules rather t
 
 **Implemented:** Canonical v1 template list with exact PRD strategy names and `legsSpec` in `src/modules/strategies/catalog.ts`, `GET /api/strategies/templates` returning `{ data }`, strict builder-state and calc schemas in `src/modules/strategies/schemas.ts`, and optimizer candidates returning a full `builderState` handoff payload.
 
-**Remaining:** Dedicated builder route, template loading UI, leg editing UI, assumptions controls UI, and builder view-state management.
+**Remaining:** Template loading UI, broader leg editing UI, and assumptions controls UI.
 
 ### D4. Pricing, analytics, and visualization contract
 
@@ -103,9 +103,9 @@ The implementation should be organized as a small set of stable modules rather t
 - Produce summary metrics, profit and loss grids, chart series, breakevens, greeks, and chance-of-profit outputs.
 - Wire builder edits to immediate recalculation and stable API responses.
 
-**Implemented:** `POST /api/strategies/calc`, shared strategy analytics and scenario valuation logic in `src/modules/strategies/analytics.ts`, quote-and-chain hydration via the market provider, summary metrics, breakevens, net greeks, profit grid output, chart series output, implied-move bands, and chance-of-profit calculations. Unit and route tests cover the current calc path.
+**Implemented:** `POST /api/strategies/calc`, shared strategy analytics and scenario valuation logic in `src/modules/strategies/analytics.ts`, quote-and-chain hydration via the market provider, summary metrics, breakevens, net greeks, profit grid output, chart series output, implied-move bands, and chance-of-profit calculations. The builder UI now consumes the shared calc contract with automatic recalculation on edits and renders the current visualization surface with summary cards, chart output, grid output, and net greeks. Unit and route tests cover the current calc path.
 
-**Remaining:** Builder-facing interactive recalculation loop, final builder visualization contract in the actual UI, and any pricing-model refinements needed once more strategies and controls are exposed.
+**Remaining:** Broaden builder controls beyond the current horizon, quantity, expiry, and strike edits, and make any pricing-model refinements needed once more strategies and assumptions controls are exposed.
 
 ### D5. Optimizer engine and optimizer-first entry flow
 
@@ -117,17 +117,21 @@ The implementation should be organized as a small set of stable modules rather t
 
 **Implemented:** `POST /api/optimizer/run`, bounded deterministic optimizer logic in `src/modules/optimizer/`, symbol-first optimizer UI as the current app entry experience, optimizer cards hydrated with analytics detail, and route plus engine tests.
 
-**Remaining:** Expand optimizer inputs beyond `symbol` to the approved thesis fields, expose ranking and constraint controls in the UI, generate the full approved strategy subset rather than the currently implemented subset, and add one-click builder handoff for each candidate.
+**Remaining:** Expand optimizer inputs beyond the current symbol, target price, selected expiration, objective, and max-loss budget controls to the full approved thesis fields, and generate the full approved strategy subset rather than the currently implemented subset.
 
 ### D6. Builder workspace UI
 
-**Status:** Not started.
+**Status:** In progress.
 
 - Build the dedicated builder route and workspace shell.
 - Support in-flow template browsing and loading without a standalone strategy-library page.
 - Support direct leg edits, expiration and strike changes, quantity changes, and assumptions updates.
 - Show the compact control strip, summary cards, chart output, grid output, and net greeks in one workspace.
 - Recalculate immediately on builder edits without a manual submit step.
+
+**Implemented:** Dedicated builder entry routes at `/builder` and `/builder/{strategyId}/{symbol}/{legs}`, URL-based optimizer handoff parsing, a live builder workspace backed by the shared calc API, immediate recalculation on supported edits, and a first editing surface for horizon days, option expiries, option strikes, and leg quantities. The current builder UI renders summary cards, chance-of-profit metrics, net greeks, chart output, and grid output in one workspace.
+
+**Remaining:** In-flow template browsing/loading, broader OptionStrat-style leg editing beyond the current controls, and assumptions controls for commissions, IV overrides, and related modeling inputs.
 
 **Why this is next:** The repository already has the calc API, analytics engine, template catalog, and optimizer handoff payload needed to support a first builder vertical slice. This is now the highest-leverage missing user surface.
 
@@ -155,7 +159,7 @@ The implementation should be organized as a small set of stable modules rather t
 - Add Playwright coverage for the highest-value end-to-end flows in mock mode.
 - Write setup, architecture, pricing, mock data, and Vercel operations docs.
 
-**Implemented:** Vitest coverage exists for market routes, template routes, calc routes, optimizer routes, mock provider behavior, pricing analytics, and optimizer ranking.
+**Implemented:** Vitest coverage exists for market routes, option metadata route, template routes, calc routes, optimizer routes, mock provider behavior, pricing analytics, optimizer ranking, and builder handoff URL serialization/parsing.
 
 **Remaining:** Persistence-route integration coverage, scheduled-job coverage, end-to-end UI coverage, and project docs beyond the current planning/spec artifacts.
 
@@ -267,6 +271,7 @@ type CalcResponse = {
 | `/api/market/quote?symbol=` | `GET` | Return underlying quote |
 | `/api/options/expirations?symbol=` | `GET` | Return expiries for a symbol |
 | `/api/options/chain?symbol=&expiry=` | `GET` | Return option chain for symbol and expiry |
+| `/api/options/metadata?symbol=` | `GET` | Return expirations plus strike metadata for builder editing controls |
 | `/api/strategies/templates` | `GET` | Return seeded v1 strategy templates |
 | `/api/strategies/calc` | `POST` | Calculate builder analytics |
 | `/api/optimizer/run` | `POST` | Run bounded optimizer search |
@@ -313,11 +318,11 @@ interface MarketDataProvider {
 
 - [x] The default app entry point opens on the optimizer rather than a dedicated home/search screen.
 - [ ] The optimizer can search/select a symbol, collect the full thesis inputs, and produce ranked candidates in one flow.
-- [ ] Any optimizer result can open in the builder with all required handoff state loaded.
+- [x] Any optimizer result can open in the builder with all required handoff state loaded.
 - [ ] Builder template selection is available in-flow without requiring a standalone strategy-library page.
 - [ ] Builder supports leg edits, assumption controls, and immediate recalculation without manual submit.
-- [ ] Builder exposes summary cards, grid output, chart output, and net greeks.
-- [ ] Builder shows chance of profit at the selected horizon and at expiration.
+- [x] Builder exposes summary cards, grid output, chart output, and net greeks.
+- [x] Builder shows chance of profit at the selected horizon and at expiration.
 - [ ] Builder supports an OptionStrat-style editing workflow with direct expiration, strike, and position adjustments for a selected strategy.
 - [ ] Optimizer runs a bounded deterministic search over the approved v1 subset and opens results in the builder.
 - [ ] Saved strategies can be created, renamed, reopened, closed, and snapshotted.

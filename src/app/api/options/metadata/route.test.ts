@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import * as market from "@/modules/market";
 import { optionIndexSchema } from "@/modules/market/schemas";
 import { GET } from "./route";
 
@@ -9,6 +10,10 @@ function request(url: string) {
 }
 
 const metadataEnvelopeSchema = z.object({ data: optionIndexSchema });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("GET /api/options/metadata", () => {
   it("returns 200 with expirations and strikes for a known symbol", async () => {
@@ -39,6 +44,22 @@ describe("GET /api/options/metadata", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({
       data: { symbol: "ZZZZ", expirations: [] },
+    });
+  });
+
+  it("returns 500 JSON when metadata loading throws", async () => {
+    vi.spyOn(market, "getOptionMetadata").mockRejectedValue(new Error("boom"));
+
+    const res = await GET(
+      request("http://localhost/api/options/metadata?symbol=AAPL"),
+    );
+
+    expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toMatchObject({
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Unexpected server error",
+      },
     });
   });
 });

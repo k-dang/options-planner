@@ -191,14 +191,27 @@ export function StrategyCard({
       </CardContent>
 
       <CardFooter className="px-5 pb-4 pt-0">
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="w-full border-white/[0.08] font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted-foreground/60 hover:border-primary/30 hover:text-primary"
-        >
-          <Link href={builderHref}>Open in Builder</Link>
-        </Button>
+        {builderHref ? (
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="w-full border-white/[0.08] font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted-foreground/60 hover:border-primary/30 hover:text-primary"
+          >
+            <Link href={builderHref}>Open in Builder</Link>
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled
+            aria-disabled="true"
+            title="This strategy cannot be opened in the builder."
+            className="w-full border-white/[0.08] font-mono text-[0.6rem] uppercase tracking-[0.12em] text-muted-foreground/40"
+          >
+            Builder Unavailable
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

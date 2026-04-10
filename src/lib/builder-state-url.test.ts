@@ -66,6 +66,10 @@ describe("builder state URL helpers", () => {
       strategyName: "Long Call",
       builderState,
     });
+    expect(serialized).not.toBeNull();
+    if (!serialized) {
+      throw new Error("Expected serialized builder URL");
+    }
     const [, , strategyId, symbol, legs] = serialized.split("/");
     const parsed = parseBuilderStateFromRouteParams({
       strategyId,
@@ -132,6 +136,10 @@ describe("builder state URL helpers", () => {
       strategyName: "Bull Call Spread",
       builderState: decimalStrikeBuilderState,
     });
+    expect(serialized).not.toBeNull();
+    if (!serialized) {
+      throw new Error("Expected serialized builder URL");
+    }
     const [, , strategyId, symbol, legs] = serialized.split("/");
 
     expect(serialized).toBe(
@@ -188,5 +196,22 @@ describe("builder state URL helpers", () => {
       },
       error: null,
     });
+  });
+
+  it("returns null when builder state cannot be serialized", () => {
+    expect(
+      serializeBuilderStateForUrl({
+        strategyName: "Long Call",
+        builderState: {
+          ...builderState,
+          legs: [
+            {
+              ...builderState.legs[0],
+              expiry: undefined,
+            },
+          ],
+        },
+      }),
+    ).toBeNull();
   });
 });
