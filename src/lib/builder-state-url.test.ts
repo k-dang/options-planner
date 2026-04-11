@@ -79,6 +79,7 @@ describe("builder state URL helpers", () => {
 
     expect(serialized).toBe("/builder/long-call/AAPL/+.AAPL260619C210");
     expect(parsed).toEqual({
+      status: "ready",
       builderState: {
         ...builderState,
         horizonDays: 30,
@@ -94,14 +95,13 @@ describe("builder state URL helpers", () => {
         ],
         templateName: "Long Call",
       },
-      error: null,
     });
   });
 
   it("returns the empty-state message when route params are missing", () => {
     expect(parseBuilderStateFromRouteParams({})).toEqual({
-      builderState: null,
-      error: "Open the builder from an optimizer result to load a strategy.",
+      status: "unavailable",
+      message: "Open the builder from an optimizer result to load a strategy.",
     });
   });
 
@@ -113,8 +113,8 @@ describe("builder state URL helpers", () => {
         legs: "not-a-leg",
       }),
     ).toEqual({
-      builderState: null,
-      error: "The builder route could not be parsed.",
+      status: "unavailable",
+      message: "The builder route could not be parsed.",
     });
   });
 
@@ -126,8 +126,8 @@ describe("builder state URL helpers", () => {
         legs: "+.TSLA260619P280,-.TSLA260619P510",
       }),
     ).toEqual({
-      builderState: null,
-      error: "The builder route could not be parsed.",
+      status: "unavailable",
+      message: "The builder route could not be parsed.",
     });
   });
 
@@ -152,6 +152,7 @@ describe("builder state URL helpers", () => {
         legs,
       }),
     ).toEqual({
+      status: "ready",
       builderState: {
         symbol: "AAPL",
         templateName: "Bull Call Spread",
@@ -162,7 +163,6 @@ describe("builder state URL helpers", () => {
         grid: { pricePoints: 7, datePoints: 3, priceRangePct: 0.25 },
         legs: decimalStrikeBuilderState.legs,
       },
-      error: null,
     });
   });
 
@@ -174,6 +174,7 @@ describe("builder state URL helpers", () => {
         legs: "%2b.aapl260619c210",
       }),
     ).toEqual({
+      status: "ready",
       builderState: {
         symbol: "AAPL",
         templateName: "Long Call",
@@ -194,7 +195,6 @@ describe("builder state URL helpers", () => {
           },
         ],
       },
-      error: null,
     });
   });
 
@@ -208,6 +208,23 @@ describe("builder state URL helpers", () => {
             {
               ...builderState.legs[0],
               expiry: undefined,
+            },
+          ],
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("returns null when an option expiry year is outside 2000-2099", () => {
+    expect(
+      serializeBuilderStateForUrl({
+        strategyName: "Long Call",
+        builderState: {
+          ...builderState,
+          legs: [
+            {
+              ...builderState.legs[0],
+              expiry: "2101-01-19",
             },
           ],
         },

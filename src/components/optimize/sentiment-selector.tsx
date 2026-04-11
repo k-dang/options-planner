@@ -10,6 +10,14 @@ import {
 
 import { Button } from "@/components/ui/button";
 
+type SentimentOption = {
+  key: string;
+  label: string;
+  multiplier: number;
+  icon: LucideIcon;
+  buttonClassName: string;
+};
+
 export const SENTIMENTS = [
   {
     key: "very-bearish",
@@ -59,9 +67,7 @@ export const SENTIMENTS = [
     buttonClassName:
       "border-[oklch(0.8_0.22_145/0.35)] text-[oklch(0.8_0.22_145)] hover:!bg-[oklch(0.8_0.22_145/0.12)] hover:!text-[oklch(0.8_0.22_145)] aria-pressed:border-[oklch(0.8_0.22_145)] aria-pressed:bg-[oklch(0.8_0.22_145/0.18)] aria-pressed:shadow-[0_0_12px_oklch(0.8_0.22_145/0.2)]",
   },
-] as const;
-
-type SentimentIcon = LucideIcon;
+] satisfies readonly SentimentOption[];
 
 type SentimentSelectorProps = {
   quotePrice: number;
@@ -78,7 +84,7 @@ export function SentimentSelector({
     <div className="grid w-full grid-cols-6 items-start justify-items-center gap-2">
       {SENTIMENTS.map((s) => {
         const isActive = sentiment === s.key;
-        const Icon = s.icon as SentimentIcon;
+        const Icon = s.icon;
 
         return (
           <div key={s.key} className="flex flex-col items-center gap-1.5">

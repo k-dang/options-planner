@@ -198,8 +198,8 @@ function buildCandidateDefinitions(
 
     if (input.request.maxLegs >= 1) {
       definitions.push(
-        ...calls.map((contract) => ({
-          strategyName: "Long Call" as const,
+        ...calls.map<StrategyDefinition>((contract) => ({
+          strategyName: "Long Call",
           legs: [
             optionLeg({
               side: "buy",
@@ -211,8 +211,8 @@ function buildCandidateDefinitions(
         })),
       );
       definitions.push(
-        ...puts.map((contract) => ({
-          strategyName: "Long Put" as const,
+        ...puts.map<StrategyDefinition>((contract) => ({
+          strategyName: "Long Put",
           legs: [
             optionLeg({
               side: "buy",

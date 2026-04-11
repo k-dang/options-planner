@@ -1,4 +1,4 @@
-import BuilderClient from "@/components/builder-client";
+import BuilderClient from "@/components/builder/builder-client";
 import { parseBuilderStateFromRouteParams } from "@/lib/builder-state-url";
 
 export default async function BuilderPage({
@@ -13,11 +13,21 @@ export default async function BuilderPage({
   const resolvedParams = await params;
   const initialState = parseBuilderStateFromRouteParams(resolvedParams);
 
+  if (initialState.status === "ready") {
+    return (
+      <BuilderClient
+        key={`${resolvedParams.strategyId}:${resolvedParams.symbol}:${resolvedParams.legs}`}
+        status="ready"
+        builderState={initialState.builderState}
+      />
+    );
+  }
+
   return (
     <BuilderClient
       key={`${resolvedParams.strategyId}:${resolvedParams.symbol}:${resolvedParams.legs}`}
-      initialBuilderState={initialState.builderState}
-      initialError={initialState.error}
+      status="unavailable"
+      message={initialState.message}
     />
   );
 }

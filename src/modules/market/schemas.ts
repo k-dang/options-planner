@@ -55,6 +55,14 @@ export const optionIndexSchema = z.object({
   expirations: z.array(optionIndexEntrySchema),
 });
 
+export const symbolSearchResponseSchema = z.strictObject({
+  data: z.array(symbolSearchResultSchema),
+});
+
+export const optionIndexResponseSchema = z.strictObject({
+  data: optionIndexSchema,
+});
+
 export const symbolsQuerySchema = z.object({
   q: z.string().optional().default(""),
 });
@@ -64,7 +72,9 @@ export const symbolParamSchema = z.object({
 });
 
 export type SymbolSearchResult = z.infer<typeof symbolSearchResultSchema>;
+export type SymbolSearchResponse = z.infer<typeof symbolSearchResponseSchema>;
 export type UnderlyingQuote = z.infer<typeof underlyingQuoteSchema>;
 export type OptionChainContract = z.infer<typeof optionChainContractSchema>;
 export type OptionChain = z.infer<typeof optionChainSchema>;
 export type OptionIndex = z.infer<typeof optionIndexSchema>;
+export type OptionIndexResponse = z.infer<typeof optionIndexResponseSchema>;

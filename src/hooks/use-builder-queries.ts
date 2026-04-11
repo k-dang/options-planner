@@ -16,18 +16,16 @@ export function useBuilderCalcQuery(builderState: BuilderStateInput | null) {
   });
 }
 
-export function useOptionsMetadataQuery(
-  builderState: BuilderStateInput | null,
-) {
+export function useOptionsMetadataQuery(symbol: string | null) {
   return useQuery({
-    queryKey: ["builder-options-metadata", builderState?.symbol],
+    queryKey: ["builder-options-metadata", symbol],
     queryFn: async () => {
-      if (builderState === null) {
-        throw new Error("Builder state is required to load option metadata.");
+      if (symbol === null) {
+        throw new Error("A symbol is required to load option metadata.");
       }
 
-      return getOptionsMetadata(builderState.symbol);
+      return getOptionsMetadata(symbol);
     },
-    enabled: builderState !== null,
+    enabled: symbol !== null,
   });
 }

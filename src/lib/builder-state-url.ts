@@ -31,6 +31,23 @@ type BuilderRouteParams = {
   legs?: RouteParamValue;
 };
 
+export type BuilderRouteParseResult =
+  | {
+      status: "ready";
+      builderState: BuilderStateInput;
+    }
+  | {
+      status: "unavailable";
+      message: string;
+    };
+
+type BuilderOptionLeg = BuilderStateInput["legs"][number] & {
+  kind: "option";
+  right?: "C" | "P";
+  strike?: number;
+  expiry?: string;
+};
+
 export function serializeBuilderStateForUrl(args: {
   strategyName: StrategyTemplate["name"];
   builderState: BuilderStateInput;
@@ -44,8 +61,12 @@ export function serializeBuilderStateForUrl(args: {
       throw new Error(`Unsupported strategy: ${args.strategyName}`);
     }
 
+    if (!legsMatchTemplate(args.builderState.legs, template.legsSpec)) {
+      return null;
+    }
+
     const optionLegTokens = args.builderState.legs
-      .filter((leg) => leg.kind === "option")
+      .filter((leg): leg is BuilderOptionLeg => leg.kind === "option")
       .map((leg) => {
         if (!leg.right || leg.strike == null || !leg.expiry) {
           throw new Error("Option legs require right, strike, and expiry.");
@@ -74,17 +95,17 @@ export function parseBuilderStateFromRouteParams(params: BuilderRouteParams) {
 
   if (!strategyId || !symbol || !legs) {
     return {
-      builderState: null,
-      error: "Open the builder from an optimizer result to load a strategy.",
-    } as const;
+      status: "unavailable",
+      message: "Open the builder from an optimizer result to load a strategy.",
+    } satisfies BuilderRouteParseResult;
   }
 
   const template = getV1StrategyTemplateById(strategyId);
   if (!template) {
     return {
-      builderState: null,
-      error: "The builder route is invalid.",
-    } as const;
+      status: "unavailable",
+      message: "The builder route is invalid.",
+    } satisfies BuilderRouteParseResult;
   }
 
   try {
@@ -103,20 +124,20 @@ export function parseBuilderStateFromRouteParams(params: BuilderRouteParams) {
     const parsed = builderStateSchema.safeParse(builderState);
     if (!parsed.success) {
       return {
-        builderState: null,
-        error: "The builder route is invalid.",
-      } as const;
+        status: "unavailable",
+        message: "The builder route is invalid.",
+      } satisfies BuilderRouteParseResult;
     }
 
     return {
-      builderState: parsed.data satisfies BuilderStateInput,
-      error: null,
-    } as const;
+      status: "ready",
+      builderState: parsed.data,
+    } satisfies BuilderRouteParseResult;
   } catch {
     return {
-      builderState: null,
-      error: "The builder route could not be parsed.",
-    } as const;
+      status: "unavailable",
+      message: "The builder route could not be parsed.",
+    } satisfies BuilderRouteParseResult;
   }
 }
 
@@ -168,10 +189,7 @@ function buildTemplateLegs(args: {
     const parsedLeg = args.parsedOptionLegs[optionLegIndex];
     optionLegIndex += 1;
 
-    if (
-      parsedLeg.side !== legTemplate.side ||
-      parsedLeg.right !== legTemplate.right
-    ) {
+    if (!legMatchesTemplate(parsedLeg, legTemplate)) {
       throw new Error("Leg token does not match strategy template.");
     }
 
@@ -187,13 +205,57 @@ function buildTemplateLegs(args: {
   });
 }
 
+function legsMatchTemplate(
+  legs: BuilderStateInput["legs"],
+  legTemplates: StrategyTemplate["legsSpec"],
+) {
+  if (legs.length !== legTemplates.length) {
+    return false;
+  }
+
+  return legs.every((leg, index) =>
+    legMatchesTemplate(leg, legTemplates[index]),
+  );
+}
+
+function legMatchesTemplate(
+  leg:
+    | BuilderStateInput["legs"][number]
+    | {
+        side: "buy" | "sell";
+        right: "C" | "P";
+      },
+  legTemplate: StrategyTemplate["legsSpec"][number],
+) {
+  if (leg.side !== legTemplate.side) {
+    return false;
+  }
+
+  if (legTemplate.kind === "stock") {
+    return !("kind" in leg) || leg.kind === "stock";
+  }
+
+  return (
+    (!("kind" in leg) || leg.kind === "option") &&
+    leg.right === legTemplate.right
+  );
+}
+
 function parseOptionLegTokens(args: { symbol: string; legs: string }) {
   return args.legs
     .split(",")
     .map((token) => parseOptionLegToken(args.symbol, token));
 }
 
-function parseOptionLegToken(symbol: string, token: string) {
+function parseOptionLegToken(
+  symbol: string,
+  token: string,
+): {
+  side: "buy" | "sell";
+  right: "C" | "P";
+  strike: number;
+  expiry: string;
+} {
   const normalizedToken = normalizeRequiredRouteValue(token);
   const match = /^([+-])\.([A-Z0-9.-]+)(\d{6})([CP])(\d+(?:\.\d+)?)$/.exec(
     normalizedToken,
@@ -208,9 +270,13 @@ function parseOptionLegToken(symbol: string, token: string) {
     throw new Error("Leg symbol does not match route symbol.");
   }
 
+  if (right !== "C" && right !== "P") {
+    throw new Error(`Invalid option right: ${right}`);
+  }
+
   return {
-    side: (sideToken === "+" ? "buy" : "sell") as "buy" | "sell",
-    right: right as "C" | "P",
+    side: sideToken === "+" ? "buy" : "sell",
+    right,
     strike: Number(strikeToken),
     expiry: fromCompactExpiry(compactExpiry),
   };
@@ -223,6 +289,10 @@ function toCompactExpiry(value: string) {
   }
 
   const [, year, month, day] = match;
+  if (!year.startsWith("20")) {
+    throw new Error(`Expiry year must be within 2000-2099; received: ${value}`);
+  }
+
   return `${year.slice(2)}${month}${day}`;
 }
 

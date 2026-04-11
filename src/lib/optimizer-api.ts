@@ -1,16 +1,20 @@
-import type { SymbolSearchResult } from "@/modules/market/schemas";
-import type { OptimizerObjective } from "@/modules/optimizer/schemas";
+import { getErrorMessage, parseJsonResponse } from "@/lib/fetch-json";
+import { symbolSearchResponseSchema } from "@/modules/market/schemas";
+import type {
+  OptimizerObjective,
+  OptimizerRunResponse,
+} from "@/modules/optimizer/schemas";
 import { optimizerRunResponseSchema } from "@/modules/optimizer/schemas";
 
-type ApiErrorResponse = {
-  error?: {
-    message?: string;
-  };
-};
-
-type SearchSymbolsResponse = {
-  data: SymbolSearchResult[];
-};
+type RunOptimizerResult =
+  | {
+      ok: false;
+      error: string;
+    }
+  | {
+      ok: true;
+      data: OptimizerRunResponse;
+    };
 
 export async function searchSymbols(query: string) {
   const response = await fetch(
@@ -21,8 +25,12 @@ export async function searchSymbols(query: string) {
     return [];
   }
 
-  const body = (await response.json()) as SearchSymbolsResponse;
-  return body.data;
+  const parsed = await parseJsonResponse(response, symbolSearchResponseSchema);
+  if (!parsed.ok) {
+    return [];
+  }
+
+  return parsed.data.data;
 }
 
 export async function runOptimizer(input: {
@@ -31,7 +39,7 @@ export async function runOptimizer(input: {
   targetDate?: string;
   objective?: OptimizerObjective;
   maxLoss?: number;
-}) {
+}): Promise<RunOptimizerResult> {
   const response = await fetch("/api/optimizer/run", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -40,29 +48,25 @@ export async function runOptimizer(input: {
 
   if (!response.ok) {
     return {
-      ok: false as const,
+      ok: false,
       error:
         (await getErrorMessage(response)) || "Unable to optimize strategies.",
     };
   }
 
-  const parsed = optimizerRunResponseSchema.safeParse(await response.json());
-  if (!parsed.success) {
+  const parsed = await parseJsonResponse(response, optimizerRunResponseSchema);
+  if (!parsed.ok) {
     return {
-      ok: false as const,
-      error: "Received an invalid optimizer response.",
+      ok: false,
+      error:
+        parsed.error === "malformed-json"
+          ? "Received malformed JSON from the optimizer."
+          : "Received an invalid optimizer response.",
     };
   }
 
   return {
-    ok: true as const,
+    ok: true,
     data: parsed.data,
   };
-}
-
-async function getErrorMessage(response: Response) {
-  const body = (await response
-    .json()
-    .catch(() => null)) as ApiErrorResponse | null;
-  return body?.error?.message ?? null;
 }

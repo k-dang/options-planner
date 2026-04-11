@@ -1,18 +1,9 @@
-import type { OptionIndex } from "@/modules/market/schemas";
-import type {
-  BuilderStateInput,
-  StrategyCalcResponse,
+import { getErrorMessage, parseJsonResponse } from "@/lib/fetch-json";
+import { optionIndexResponseSchema } from "@/modules/market/schemas";
+import {
+  type BuilderStateInput,
+  strategyCalcResponseSchema,
 } from "@/modules/strategies/schemas";
-
-type ApiErrorResponse = {
-  error?: {
-    message?: string;
-  };
-};
-
-type OptionIndexResponse = {
-  data: OptionIndex;
-};
 
 export async function calculateStrategy(builderState: BuilderStateInput) {
   const response = await fetch("/api/strategies/calc", {
@@ -27,7 +18,12 @@ export async function calculateStrategy(builderState: BuilderStateInput) {
     );
   }
 
-  return (await response.json()) as StrategyCalcResponse;
+  const parsed = await parseJsonResponse(response, strategyCalcResponseSchema);
+  if (!parsed.ok) {
+    throw new Error("Received an invalid strategy response.");
+  }
+
+  return parsed.data.data;
 }
 
 export async function getOptionsMetadata(symbol: string) {
@@ -41,13 +37,10 @@ export async function getOptionsMetadata(symbol: string) {
     );
   }
 
-  const body = (await response.json()) as OptionIndexResponse;
-  return body.data;
-}
+  const parsed = await parseJsonResponse(response, optionIndexResponseSchema);
+  if (!parsed.ok) {
+    throw new Error("Received an invalid option metadata response.");
+  }
 
-async function getErrorMessage(response: Response) {
-  const body = (await response
-    .json()
-    .catch(() => null)) as ApiErrorResponse | null;
-  return body?.error?.message ?? null;
+  return parsed.data.data;
 }
