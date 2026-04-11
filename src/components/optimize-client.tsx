@@ -1,7 +1,8 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
+import { runOptimizerAction } from "@/app/actions/optimizer";
 import { EmptyState } from "@/components/optimize/empty-state";
 import { LoadingSkeleton } from "@/components/optimize/loading-skeleton";
 import { OptimizerControls } from "@/components/optimize/optimizer-controls";
@@ -9,13 +10,9 @@ import { StrategyCard } from "@/components/optimize/strategy-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import {
-  type RunOptimizationMutationInput,
-  type RunOptimizerMutationResult,
-  useRunOptimizerMutation,
-  useSymbolSearchQuery,
-} from "@/hooks/use-optimizer-queries";
+import { useSymbolSearch } from "@/hooks/use-symbol-search";
 import type { SymbolSearchResult } from "@/modules/market/schemas";
+import type { OptimizerSnapshotResult } from "@/modules/optimizer/load-optimizer-snapshot";
 import type {
   OptimizerObjective,
   OptimizerRunResponse,
@@ -23,6 +20,7 @@ import type {
 
 type OptimizeClientProps = {
   initialSymbol: string;
+  initialResult: OptimizerSnapshotResult | null;
 };
 
 type StrategyCardData = OptimizerRunResponse["data"]["cards"][number];
@@ -77,73 +75,31 @@ function buildOptimizationState(
   };
 }
 
-export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
+export default function OptimizeClient({
+  initialSymbol,
+  initialResult,
+}: OptimizeClientProps) {
   const [symbol, setSymbol] = useState(initialSymbol);
-  const [optimization, setOptimization] = useState(EMPTY_OPTIMIZATION_STATE);
-  const [controls, setControls] = useState(DEFAULT_CONTROLS_STATE);
-  const [status, setStatus] = useState("Awaiting symbol input.");
-  const [error, setError] = useState<string | null>(null);
+  const [optimization, setOptimization] = useState(() =>
+    buildInitialOptimizationState(initialSymbol, initialResult),
+  );
+  const [controls, setControls] = useState(() =>
+    buildInitialControlsState(initialResult),
+  );
+  const [status, setStatus] = useState(() =>
+    buildInitialStatus(initialSymbol, initialResult),
+  );
+  const [error, setError] = useState<string | null>(() =>
+    buildInitialError(initialResult),
+  );
   const [searchEnabled, setSearchEnabled] = useState(true);
+  const [isPending, startRequestTransition] = useTransition();
   const requestSequence = useRef(0);
   const normalizedSymbol = symbol.trim().toUpperCase();
   const debouncedSymbol = useDebouncedValue(normalizedSymbol, 150);
-  const searchQuery = useSymbolSearchQuery(debouncedSymbol, searchEnabled);
-  const optimizeMutation = useRunOptimizerMutation({
-    controls: {
-      targetPrice: controls.targetPrice,
-      selectedExpiration: controls.selectedExpiration,
-      objective: controls.objective,
-      budget: controls.budget,
-    },
-    mutation: {
-      onMutate: ({ symbolToRun }: RunOptimizationMutationInput) => {
-        const sequence = requestSequence.current + 1;
-        requestSequence.current = sequence;
-        setError(null);
-        setStatus(`Scanning strategies for ${symbolToRun}...`);
-        return { sequence };
-      },
-      onSuccess: (
-        { symbolToRun, optimizerResponse }: RunOptimizerMutationResult,
-        _variables,
-        context,
-      ) => {
-        if (context?.sequence !== requestSequence.current) {
-          return;
-        }
-
-        if (!optimizerResponse.ok) {
-          clearOptimization();
-          showNoStrategies(optimizerResponse.error);
-          return;
-        }
-
-        const optimized = optimizerResponse.data;
-
-        if (!optimized.data.selectedExpiry) {
-          setOptimization(buildOptimizationState(symbolToRun, optimized, []));
-          showNoStrategies("No expirations available for that symbol.");
-          return;
-        }
-
-        updateOptimizationResult(symbolToRun, optimized);
-      },
-      onError: (caughtError, _variables, context) => {
-        if (context?.sequence !== requestSequence.current) {
-          return;
-        }
-
-        clearOptimization();
-        showNoStrategies(
-          caughtError instanceof Error
-            ? caughtError.message
-            : "Unable to load strategy graphs.",
-        );
-      },
-    },
-  });
-  const searchResults = searchQuery.data ?? [];
-  const loading = optimizeMutation.isPending;
+  const searchQuery = useSymbolSearch(debouncedSymbol, searchEnabled);
+  const searchResults = searchQuery.results;
+  const loading = isPending;
   const searchLoading =
     searchEnabled && debouncedSymbol.length > 0 && searchQuery.isFetching;
   const showSuggestions =
@@ -200,6 +156,72 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     setStatus("No strategy graphs available.");
   }
 
+  function runOptimization(args: {
+    symbolToRun: string;
+    overrides?: {
+      targetPrice?: number | null;
+      targetDate?: string | null;
+      objective?: OptimizerObjective | null;
+      maxLoss?: number | null;
+    };
+  }) {
+    const sequence = requestSequence.current + 1;
+    requestSequence.current = sequence;
+    setError(null);
+    setStatus(`Scanning strategies for ${args.symbolToRun}...`);
+
+    startRequestTransition(() => {
+      const request = {
+        symbol: args.symbolToRun,
+        targetPrice:
+          args.overrides?.targetPrice ?? controls.targetPrice ?? undefined,
+        targetDate:
+          args.overrides?.targetDate ??
+          controls.selectedExpiration ??
+          undefined,
+        objective: args.overrides?.objective ?? controls.objective,
+        maxLoss: args.overrides?.maxLoss ?? controls.budget ?? undefined,
+      };
+
+      runOptimizerAction(request)
+        .then((optimizerResponse) => {
+          if (sequence !== requestSequence.current) {
+            return;
+          }
+
+          if (!optimizerResponse.ok) {
+            clearOptimization();
+            showNoStrategies(optimizerResponse.error);
+            return;
+          }
+
+          const optimized = { data: optimizerResponse.data };
+
+          if (!optimized.data.selectedExpiry) {
+            setOptimization(
+              buildOptimizationState(args.symbolToRun, optimized, []),
+            );
+            showNoStrategies("No expirations available for that symbol.");
+            return;
+          }
+
+          updateOptimizationResult(args.symbolToRun, optimized);
+        })
+        .catch((caughtError: unknown) => {
+          if (sequence !== requestSequence.current) {
+            return;
+          }
+
+          clearOptimization();
+          showNoStrategies(
+            caughtError instanceof Error
+              ? caughtError.message
+              : "Unable to load strategy graphs.",
+          );
+        });
+    });
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!normalizedSymbol) {
@@ -207,11 +229,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     }
 
     setSearchEnabled(false);
-    try {
-      await optimizeMutation.mutateAsync({ symbolToRun: normalizedSymbol });
-    } catch {
-      setSearchEnabled(true);
-    }
+    runOptimization({ symbolToRun: normalizedSymbol });
   }
 
   function handleSentimentChange(key: string, price: number) {
@@ -232,7 +250,7 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
     setSearchEnabled(false);
     setSymbol(result.symbol);
     resetControls();
-    optimizeMutation.mutate({
+    runOptimization({
       symbolToRun: result.symbol,
       overrides: {
         targetPrice: null,
@@ -414,4 +432,58 @@ export default function OptimizeClient({ initialSymbol }: OptimizeClientProps) {
       </main>
     </div>
   );
+}
+
+function buildInitialOptimizationState(
+  initialSymbol: string,
+  initialResult: OptimizerSnapshotResult | null,
+): OptimizationState {
+  if (!initialResult?.ok) {
+    return EMPTY_OPTIMIZATION_STATE;
+  }
+
+  return buildOptimizationState(initialSymbol, { data: initialResult.data });
+}
+
+function buildInitialStatus(
+  initialSymbol: string,
+  initialResult: OptimizerSnapshotResult | null,
+) {
+  if (!initialSymbol) {
+    return "Awaiting symbol input.";
+  }
+
+  if (!initialResult) {
+    return "Awaiting symbol input.";
+  }
+
+  if (!initialResult.ok) {
+    return "No strategy graphs available.";
+  }
+
+  return initialResult.data.cards.length > 0
+    ? `${initialResult.data.cards.length} strategies optimized for ${initialSymbol}.`
+    : "No strategy graphs available.";
+}
+
+function buildInitialError(initialResult: OptimizerSnapshotResult | null) {
+  if (!initialResult || initialResult.ok) {
+    return null;
+  }
+
+  return initialResult.error;
+}
+
+function buildInitialControlsState(
+  initialResult: OptimizerSnapshotResult | null,
+): OptimizerControlsState {
+  if (!initialResult?.ok) {
+    return DEFAULT_CONTROLS_STATE;
+  }
+
+  return {
+    ...DEFAULT_CONTROLS_STATE,
+    selectedExpiration: initialResult.data.selectedExpiry,
+    targetPrice: initialResult.data.quote.last,
+  };
 }

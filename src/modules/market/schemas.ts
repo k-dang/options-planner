@@ -63,6 +63,10 @@ export const optionIndexResponseSchema = z.strictObject({
   data: optionIndexSchema,
 });
 
+export const quoteResponseSchema = z.strictObject({
+  data: underlyingQuoteSchema,
+});
+
 export const symbolsQuerySchema = z.object({
   q: z.string().optional().default(""),
 });
@@ -78,3 +82,4 @@ export type OptionChainContract = z.infer<typeof optionChainContractSchema>;
 export type OptionChain = z.infer<typeof optionChainSchema>;
 export type OptionIndex = z.infer<typeof optionIndexSchema>;
 export type OptionIndexResponse = z.infer<typeof optionIndexResponseSchema>;
+export type QuoteResponse = z.infer<typeof quoteResponseSchema>;

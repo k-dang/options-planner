@@ -5,12 +5,12 @@ import type {
 } from "@/modules/strategies/schemas";
 
 export function parsePositiveIntegerInput(value: string) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) {
+  const normalized = value.trim();
+  if (!isCompletePositiveIntegerInput(normalized)) {
     return null;
   }
 
-  return Math.trunc(parsed);
+  return Number(normalized);
 }
 
 export function parsePositiveNumberInput(value: string) {

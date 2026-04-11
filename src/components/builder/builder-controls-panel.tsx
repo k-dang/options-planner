@@ -59,8 +59,7 @@ export function BuilderControlsPanel(args: {
             }}
           />
           <p className="text-xs text-muted-foreground">
-            Changes recalculate automatically through the shared strategy calc
-            route.
+            Changes recalculate automatically on the server.
           </p>
         </div>
 

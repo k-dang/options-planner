@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { strategyTemplateSchema } from "@/modules/strategies/catalog";
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -142,7 +143,14 @@ export const strategyCalcResponseSchema = z.strictObject({
   }),
 });
 
+export const strategyTemplatesResponseSchema = z.strictObject({
+  data: z.array(strategyTemplateSchema),
+});
+
 export type BuilderLegInput = z.infer<typeof builderLegInputSchema>;
 export type BuilderStateInput = z.infer<typeof builderStateSchema>;
 export type StrategyCalcRequest = z.infer<typeof strategyCalcRequestSchema>;
 export type StrategyCalcResponse = z.infer<typeof strategyCalcResponseSchema>;
+export type StrategyTemplatesResponse = z.infer<
+  typeof strategyTemplatesResponseSchema
+>;

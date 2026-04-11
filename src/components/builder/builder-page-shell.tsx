@@ -35,8 +35,7 @@ export function BuilderPageShell(args: {
                 {args.templateName ?? "Custom Strategy"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {args.symbol} with live recalculation from the shared calc
-                contract.
+                {args.symbol} with live recalculation from the server.
               </p>
             </div>
             <div className="font-mono text-xs text-muted-foreground">
