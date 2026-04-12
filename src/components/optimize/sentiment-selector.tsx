@@ -9,9 +9,10 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { OptimizerSentimentKey } from "@/lib/optimizer-sentiments";
 
 type SentimentOption = {
-  key: string;
+  key: OptimizerSentimentKey;
   label: string;
   multiplier: number;
   icon: LucideIcon;
@@ -71,8 +72,8 @@ export const SENTIMENTS = [
 
 type SentimentSelectorProps = {
   quotePrice: number;
-  sentiment: string | null;
-  onSentimentChange: (key: string, targetPrice: number) => void;
+  sentiment: OptimizerSentimentKey | null;
+  onSentimentChange: (key: OptimizerSentimentKey, targetPrice: number) => void;
 };
 
 export function SentimentSelector({

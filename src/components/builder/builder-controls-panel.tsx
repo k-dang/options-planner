@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  formatCommittedIntegerInput,
-  isCompletePositiveIntegerInput,
-} from "@/components/builder/builder-helpers";
+import { formatCommittedIntegerInput } from "@/components/builder/builder-helpers";
 import { BuilderLegCard } from "@/components/builder/builder-leg-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -44,11 +41,7 @@ export function BuilderControlsPanel(args: {
             min={1}
             value={horizonDaysInput}
             onChange={(event) => {
-              const nextValue = event.target.value;
-              setHorizonDaysInput(nextValue);
-              if (isCompletePositiveIntegerInput(nextValue)) {
-                args.onHorizonDaysChange(nextValue);
-              }
+              setHorizonDaysInput(event.target.value);
             }}
             onBlur={(event) => {
               const nextValue = event.target.value;

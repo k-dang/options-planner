@@ -155,6 +155,6 @@ export function getV1StrategyTemplateById(id: string) {
   return V1_STRATEGY_TEMPLATES.find((template) => template.id === id);
 }
 
-export function getV1StrategyTemplateByName(name: StrategyTemplate["name"]) {
+export function getV1StrategyTemplateByName(name: string) {
   return V1_STRATEGY_TEMPLATES.find((template) => template.name === name);
 }

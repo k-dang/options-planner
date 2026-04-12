@@ -1,14 +1,16 @@
+import { useEffect, useState } from "react";
 import { ExpirationPicker } from "@/components/optimize/expiration-picker";
 import { ObjectiveSlider } from "@/components/optimize/objective-slider";
 import { SentimentSelector } from "@/components/optimize/sentiment-selector";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { OptimizerSentimentKey } from "@/lib/optimizer-sentiments";
 import type { OptimizerObjective } from "@/modules/optimizer/schemas";
 
 export type OptimizerControlsProps = {
   quotePrice: number;
-  sentiment: string | null;
-  onSentimentChange: (key: string, targetPrice: number) => void;
+  sentiment: OptimizerSentimentKey | null;
+  onSentimentChange: (key: OptimizerSentimentKey, targetPrice: number) => void;
   targetPrice: number;
   onTargetPriceChange: (price: number) => void;
   budget: number | null;
@@ -34,6 +36,21 @@ export function OptimizerControls({
   objective,
   onObjectiveChange,
 }: OptimizerControlsProps) {
+  const [targetPriceInput, setTargetPriceInput] = useState(
+    targetPrice.toFixed(2),
+  );
+  const [budgetInput, setBudgetInput] = useState(
+    budget == null ? "" : `${budget}`,
+  );
+
+  useEffect(() => {
+    setTargetPriceInput(targetPrice.toFixed(2));
+  }, [targetPrice]);
+
+  useEffect(() => {
+    setBudgetInput(budget == null ? "" : `${budget}`);
+  }, [budget]);
+
   const hasQuotePrice = Boolean(quotePrice);
   const pctChange = hasQuotePrice
     ? ((targetPrice - quotePrice) / quotePrice) * 100
@@ -66,12 +83,18 @@ export function OptimizerControls({
             id="target-price"
             type="number"
             hideNumberSpinner
-            value={targetPrice.toFixed(2)}
+            value={targetPriceInput}
             onChange={(e) => {
+              setTargetPriceInput(e.target.value);
+            }}
+            onBlur={(e) => {
               const val = Number.parseFloat(e.target.value);
               if (!Number.isNaN(val) && val > 0) {
                 onTargetPriceChange(val);
+                return;
               }
+
+              setTargetPriceInput(targetPrice.toFixed(2));
             }}
             className="w-24 border-white/[0.08] bg-[oklch(0.12_0.008_260)] px-2.5 py-1.5 font-mono focus-visible:border-primary/30 focus-visible:ring-0"
           />
@@ -93,18 +116,25 @@ export function OptimizerControls({
             id="budget"
             type="text"
             inputMode="decimal"
-            value={budget == null ? "" : budget}
+            value={budgetInput}
             placeholder="None"
             onChange={(e) => {
+              setBudgetInput(e.target.value);
+            }}
+            onBlur={(e) => {
               const raw = e.target.value.trim();
               if (!raw) {
                 onBudgetChange(null);
                 return;
               }
+
               const val = Number.parseFloat(raw);
               if (!Number.isNaN(val) && val > 0) {
                 onBudgetChange(val);
+                return;
               }
+
+              setBudgetInput(budget == null ? "" : `${budget}`);
             }}
             className="w-24 border-white/[0.08] bg-[oklch(0.12_0.008_260)] px-2.5 py-1.5 font-mono placeholder:text-muted-foreground/30 focus-visible:border-primary/30 focus-visible:ring-0"
           />

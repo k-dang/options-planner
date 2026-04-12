@@ -49,7 +49,7 @@ type BuilderOptionLeg = BuilderStateInput["legs"][number] & {
 };
 
 export function serializeBuilderStateForUrl(args: {
-  strategyName: StrategyTemplate["name"];
+  strategyName: string;
   builderState: BuilderStateInput;
 }) {
   try {

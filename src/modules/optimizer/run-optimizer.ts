@@ -1,3 +1,7 @@
+import {
+  OPTIMIZER_SENTIMENTS,
+  type OptimizerSentimentKey,
+} from "@/lib/optimizer-sentiments";
 import { ServiceError } from "@/modules/errors";
 import { getMarketDataProvider } from "@/modules/market";
 import type { UnderlyingQuote } from "@/modules/market/schemas";
@@ -12,10 +16,9 @@ import type { OptimizerObjective, OptimizerRequest } from "./schemas";
 type RunOptimizerParams = {
   symbol: string;
   targetPrice?: number;
-  targetDate?: string;
-  objective?: OptimizerObjective;
-  maxLoss?: number;
 };
+
+const DEFAULT_OBJECTIVE: OptimizerObjective = "balanced";
 
 export async function runOptimizerForSymbol(params: RunOptimizerParams) {
   const { symbol } = params;
@@ -29,62 +32,61 @@ export async function runOptimizerForSymbol(params: RunOptimizerParams) {
     throw new ServiceError("not-found", `No quote for symbol: ${symbol}`);
   }
 
-  const selectedExpiry = params.targetDate ?? expirations[0] ?? null;
+  const selectedExpiry = expirations[0] ?? null;
   if (!selectedExpiry) {
+    const cardsByExpiry = {};
+
     return {
       quote,
       expirations,
       selectedExpiry: null,
       cards: [],
+      cardsByExpiry,
     };
   }
 
   const optimizerChainsByExpiry = await loadChainsByExpiry({
     provider,
     symbol,
-    expiries: [selectedExpiry],
+    expiries: expirations,
   });
-
-  const candidates = runOptimizer({
-    request: buildDefaultOptimizerRequest(
-      symbol,
-      quote,
-      selectedExpiry,
-      params,
-    ),
-    quote,
-    chainsByExpiry: optimizerChainsByExpiry,
-  });
-
-  const bestByStrategy = new Map<string, (typeof candidates)[number]>();
-  for (const candidate of candidates) {
-    if (!bestByStrategy.has(candidate.strategyName)) {
-      bestByStrategy.set(candidate.strategyName, candidate);
-    }
-  }
-  const bestCandidatesByStrategy = Array.from(bestByStrategy.values());
-
-  const analyticsChainsByExpiry = await loadChainsByExpiry({
-    provider,
-    symbol,
-    expiries: bestCandidatesByStrategy.flatMap((candidate) =>
-      getOptionExpiries(candidate.builderState.legs),
-    ),
-    initialChainsByExpiry: optimizerChainsByExpiry,
-  });
+  const cardsByExpiry = Object.fromEntries(
+    expirations.map((expiry) => [
+      expiry,
+      {
+        default: buildCardsByObjectiveForExpiry({
+          symbol,
+          quote,
+          expiry,
+          targetPrice: params.targetPrice,
+          chainsByExpiry: optimizerChainsByExpiry,
+        }),
+        bySentiment: Object.fromEntries(
+          OPTIMIZER_SENTIMENTS.map((sentiment) => [
+            sentiment.key,
+            buildCardsByObjectiveForExpiry({
+              symbol,
+              quote,
+              expiry,
+              targetPrice:
+                Math.round(quote.last * sentiment.multiplier * 100) / 100,
+              chainsByExpiry: optimizerChainsByExpiry,
+            }),
+          ]),
+        ) as Record<
+          OptimizerSentimentKey,
+          ReturnType<typeof buildCardsByObjectiveForExpiry>
+        >,
+      },
+    ]),
+  );
 
   return {
     quote,
     expirations,
     selectedExpiry,
-    cards: bestCandidatesByStrategy.map((candidate) => ({
-      candidate,
-      detail: calculateStrategyAnalytics({
-        builderState: candidate.builderState,
-        quote,
-        chainsByExpiry: analyticsChainsByExpiry,
-      }),
-    })),
+    cards: cardsByExpiry[selectedExpiry].default[DEFAULT_OBJECTIVE],
+    cardsByExpiry,
   };
 }
 
@@ -92,14 +94,13 @@ function buildDefaultOptimizerRequest(
   symbol: string,
   quote: UnderlyingQuote,
   targetDate: string,
-  overrides?: Partial<RunOptimizerParams>,
+  overrides?: { targetPrice?: number; objective?: OptimizerObjective },
 ): OptimizerRequest {
   return {
     symbol,
     targetPrice: overrides?.targetPrice ?? quote.last,
     targetDate,
     objective: overrides?.objective ?? "balanced",
-    maxLoss: overrides?.maxLoss,
     maxLegs: 2,
     strikeWindow: 2,
     horizonDays: 30,
@@ -107,5 +108,130 @@ function buildDefaultOptimizerRequest(
     commissions: { perContract: 0.65, perLegFee: 0.1 },
     ivOverrides: { byExpiry: {} },
     grid: { pricePoints: 7, datePoints: 3, priceRangePct: 0.25 },
+  };
+}
+
+function selectBestCandidatesByStrategy(
+  candidates: ReturnType<typeof runOptimizer>,
+) {
+  const bestByStrategy = new Map<string, (typeof candidates)[number]>();
+
+  for (const candidate of candidates) {
+    if (!bestByStrategy.has(candidate.strategyName)) {
+      bestByStrategy.set(candidate.strategyName, candidate);
+    }
+  }
+
+  return Array.from(bestByStrategy.values());
+}
+
+function buildOptimizerCards(
+  candidates: ReturnType<typeof runOptimizer>,
+  quote: UnderlyingQuote,
+  chainsByExpiry: Awaited<ReturnType<typeof loadChainsByExpiry>>,
+) {
+  return candidates.map((candidate) => ({
+    candidate,
+    detail: calculateStrategyAnalytics({
+      builderState: candidate.builderState,
+      quote,
+      chainsByExpiry,
+    }),
+  }));
+}
+
+function buildCardsByObjectiveForExpiry(args: {
+  symbol: string;
+  quote: UnderlyingQuote;
+  expiry: string;
+  targetPrice?: number;
+  chainsByExpiry: Awaited<ReturnType<typeof loadChainsByExpiry>>;
+}) {
+  const expectedProfitCandidates = selectBestCandidatesByStrategy(
+    runOptimizer({
+      request: buildDefaultOptimizerRequest(
+        args.symbol,
+        args.quote,
+        args.expiry,
+        {
+          targetPrice: args.targetPrice,
+          objective: "expectedProfit",
+        },
+      ),
+      quote: args.quote,
+      chainsByExpiry: {
+        [args.expiry]: args.chainsByExpiry[args.expiry],
+      },
+    }),
+  );
+  const balancedCandidates = selectBestCandidatesByStrategy(
+    runOptimizer({
+      request: buildDefaultOptimizerRequest(
+        args.symbol,
+        args.quote,
+        args.expiry,
+        {
+          targetPrice: args.targetPrice,
+          objective: DEFAULT_OBJECTIVE,
+        },
+      ),
+      quote: args.quote,
+      chainsByExpiry: {
+        [args.expiry]: args.chainsByExpiry[args.expiry],
+      },
+    }),
+  );
+  const chanceOfProfitCandidates = selectBestCandidatesByStrategy(
+    runOptimizer({
+      request: buildDefaultOptimizerRequest(
+        args.symbol,
+        args.quote,
+        args.expiry,
+        {
+          targetPrice: args.targetPrice,
+          objective: "chanceOfProfit",
+        },
+      ),
+      quote: args.quote,
+      chainsByExpiry: {
+        [args.expiry]: args.chainsByExpiry[args.expiry],
+      },
+    }),
+  );
+
+  const requiredExpiries = [
+    ...expectedProfitCandidates.flatMap((candidate) =>
+      getOptionExpiries(candidate.builderState.legs),
+    ),
+    ...balancedCandidates.flatMap((candidate) =>
+      getOptionExpiries(candidate.builderState.legs),
+    ),
+    ...chanceOfProfitCandidates.flatMap((candidate) =>
+      getOptionExpiries(candidate.builderState.legs),
+    ),
+  ];
+  const analyticsChainsByExpiry = Object.fromEntries(
+    [...new Set(requiredExpiries)].map((expiry) => [
+      expiry,
+      args.chainsByExpiry[expiry],
+    ]),
+  );
+
+  return {
+    expectedProfit: buildOptimizerCards(
+      expectedProfitCandidates,
+      args.quote,
+      analyticsChainsByExpiry,
+    ),
+    balanced: buildOptimizerCards(
+      balancedCandidates,
+      args.quote,
+      analyticsChainsByExpiry,
+    ),
+    chanceOfProfit: buildOptimizerCards(
+      chanceOfProfitCandidates,
+      args.quote,
+      analyticsChainsByExpiry,
+    ),
   };
 }

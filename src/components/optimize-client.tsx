@@ -1,8 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
-import { useRef, useState, useTransition } from "react";
-import { runOptimizerAction } from "@/app/actions/optimizer";
+import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { EmptyState } from "@/components/optimize/empty-state";
 import { LoadingSkeleton } from "@/components/optimize/loading-skeleton";
 import { OptimizerControls } from "@/components/optimize/optimizer-controls";
@@ -11,26 +11,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useSymbolSearch } from "@/hooks/use-symbol-search";
+import { buildOptimizerHref } from "@/lib/optimizer-search-params";
+import {
+  getSentimentTargetPrice,
+  type OptimizerSentimentKey,
+} from "@/lib/optimizer-sentiments";
 import type { SymbolSearchResult } from "@/modules/market/schemas";
+import { computeOptimizerCards } from "@/modules/optimizer/compute-optimizer-cards";
 import type { OptimizerSnapshotResult } from "@/modules/optimizer/load-optimizer-snapshot";
-import type {
-  OptimizerObjective,
-  OptimizerRunResponse,
-} from "@/modules/optimizer/schemas";
+import type { OptimizerObjective } from "@/modules/optimizer/schemas";
 
 type OptimizeClientProps = {
-  initialSymbol: string;
+  initialRequest: { symbol: string } | null;
   initialResult: OptimizerSnapshotResult | null;
 };
 
-type StrategyCardData = OptimizerRunResponse["data"]["cards"][number];
-
 type OptimizerControlsState = {
-  sentiment: string | null;
+  sentiment: OptimizerSentimentKey | null;
   targetPrice: number | null;
-  budget: number | null;
-  selectedExpiration: string | null;
-  objective: OptimizerObjective;
 };
 
 type OptimizationState = {
@@ -38,63 +36,49 @@ type OptimizationState = {
   quoteName: string | null;
   quotePrice: number | null;
   expirations: string[];
-  cards: StrategyCardData[];
 };
 
 const DEFAULT_OBJECTIVE: OptimizerObjective = "balanced";
-
-const DEFAULT_CONTROLS_STATE: OptimizerControlsState = {
-  sentiment: null,
-  targetPrice: null,
-  budget: null,
-  selectedExpiration: null,
-  objective: DEFAULT_OBJECTIVE,
-};
 
 const EMPTY_OPTIMIZATION_STATE: OptimizationState = {
   activeSymbol: null,
   quoteName: null,
   quotePrice: null,
   expirations: [],
-  cards: [],
 };
 
-function buildOptimizationState(
-  activeSymbol: string,
-  optimized: OptimizerRunResponse,
-  cards = optimized.data.cards,
-): OptimizationState {
-  const { quote, expirations } = optimized.data;
-
-  return {
-    activeSymbol,
-    quoteName: quote.name,
-    quotePrice: quote.last,
-    expirations,
-    cards,
-  };
-}
-
 export default function OptimizeClient({
-  initialSymbol,
+  initialRequest,
   initialResult,
 }: OptimizeClientProps) {
+  const router = useRouter();
+  const initialSymbol = initialRequest?.symbol ?? "";
+  const optimization = buildInitialOptimizationState(
+    initialSymbol,
+    initialResult,
+  );
+  const controls = buildInitialControlsState(initialRequest, initialResult);
+  const error = buildInitialError(initialResult);
   const [symbol, setSymbol] = useState(initialSymbol);
-  const [optimization, setOptimization] = useState(() =>
-    buildInitialOptimizationState(initialSymbol, initialResult),
+  const [searchEnabled, setSearchEnabled] = useState(
+    initialSymbol.length === 0,
   );
-  const [controls, setControls] = useState(() =>
-    buildInitialControlsState(initialResult),
+  const [selectedObjective, setSelectedObjective] = useState(DEFAULT_OBJECTIVE);
+  const [selectedExpiration, setSelectedExpiration] = useState<string | null>(
+    initialResult?.ok ? (initialResult.data.expirations[0] ?? null) : null,
   );
-  const [status, setStatus] = useState(() =>
-    buildInitialStatus(initialSymbol, initialResult),
+  const [budget, setBudget] = useState<number | null>(null);
+  const [selectedSentiment, setSelectedSentiment] =
+    useState<OptimizerSentimentKey | null>(controls.sentiment);
+  const [targetPrice, setTargetPrice] = useState(
+    controls.targetPrice ?? optimization.quotePrice ?? 0,
   );
-  const [error, setError] = useState<string | null>(() =>
-    buildInitialError(initialResult),
-  );
-  const [searchEnabled, setSearchEnabled] = useState(true);
-  const [isPending, startRequestTransition] = useTransition();
-  const requestSequence = useRef(0);
+  const deferredTargetPrice = useDeferredValue(targetPrice);
+  const deferredSelectedExpiration = useDeferredValue(selectedExpiration);
+  const deferredSelectedObjective = useDeferredValue(selectedObjective);
+  const deferredBudget = useDeferredValue(budget);
+  const deferredSelectedSentiment = useDeferredValue(selectedSentiment);
+  const [isPending, startNavigationTransition] = useTransition();
   const normalizedSymbol = symbol.trim().toUpperCase();
   const debouncedSymbol = useDebouncedValue(normalizedSymbol, 150);
   const searchQuery = useSymbolSearch(debouncedSymbol, searchEnabled);
@@ -111,114 +95,48 @@ export default function OptimizeClient({
   const controlsVisible =
     optimization.quotePrice !== null && optimization.expirations.length > 0;
   const controlsQuotePrice = optimization.quotePrice ?? 0;
+  const cards = useMemo(
+    () =>
+      getVisibleCards({
+        initialResult,
+        symbol: initialSymbol,
+        selectedExpiration: deferredSelectedExpiration,
+        objective: deferredSelectedObjective,
+        budget: deferredBudget,
+        selectedSentiment: deferredSelectedSentiment,
+        targetPrice: deferredTargetPrice,
+      }),
+    [
+      deferredBudget,
+      deferredSelectedExpiration,
+      deferredSelectedObjective,
+      deferredSelectedSentiment,
+      deferredTargetPrice,
+      initialResult,
+      initialSymbol,
+    ],
+  );
+  const status = buildStatus(initialSymbol, initialResult, cards.length);
+  const recomputing =
+    targetPrice !== deferredTargetPrice ||
+    selectedExpiration !== deferredSelectedExpiration ||
+    selectedObjective !== deferredSelectedObjective ||
+    budget !== deferredBudget ||
+    selectedSentiment !== deferredSelectedSentiment;
 
-  function resetControls() {
-    setControls(DEFAULT_CONTROLS_STATE);
-  }
-
-  function updateControls(patch: Partial<OptimizerControlsState>) {
-    setControls((current) => ({
-      ...current,
-      ...patch,
-    }));
-  }
-
-  function clearOptimization() {
-    setOptimization((current) => ({
-      ...EMPTY_OPTIMIZATION_STATE,
-      activeSymbol: current.activeSymbol,
-    }));
-  }
-
-  function updateOptimizationResult(
-    symbolToRun: string,
-    optimized: OptimizerRunResponse,
+  function navigateToOptimizer(
+    symbol: string,
+    historyMode: "push" | "replace",
   ) {
-    const { quote, selectedExpiry, cards } = optimized.data;
+    const href = buildOptimizerHref("/", { symbol });
 
-    setOptimization(buildOptimizationState(symbolToRun, optimized));
+    startNavigationTransition(() => {
+      if (historyMode === "push") {
+        router.push(href);
+        return;
+      }
 
-    setControls((current) => ({
-      ...current,
-      targetPrice: current.targetPrice ?? quote.last,
-      selectedExpiration: current.selectedExpiration ?? selectedExpiry,
-    }));
-
-    setStatus(
-      cards.length > 0
-        ? `${cards.length} strategies optimized for ${symbolToRun}.`
-        : `No strategy graphs available for ${symbolToRun}.`,
-    );
-  }
-
-  function showNoStrategies(errorMessage: string) {
-    setError(errorMessage);
-    setStatus("No strategy graphs available.");
-  }
-
-  function runOptimization(args: {
-    symbolToRun: string;
-    overrides?: {
-      targetPrice?: number | null;
-      targetDate?: string | null;
-      objective?: OptimizerObjective | null;
-      maxLoss?: number | null;
-    };
-  }) {
-    const sequence = requestSequence.current + 1;
-    requestSequence.current = sequence;
-    setError(null);
-    setStatus(`Scanning strategies for ${args.symbolToRun}...`);
-
-    startRequestTransition(() => {
-      const request = {
-        symbol: args.symbolToRun,
-        targetPrice:
-          args.overrides?.targetPrice ?? controls.targetPrice ?? undefined,
-        targetDate:
-          args.overrides?.targetDate ??
-          controls.selectedExpiration ??
-          undefined,
-        objective: args.overrides?.objective ?? controls.objective,
-        maxLoss: args.overrides?.maxLoss ?? controls.budget ?? undefined,
-      };
-
-      runOptimizerAction(request)
-        .then((optimizerResponse) => {
-          if (sequence !== requestSequence.current) {
-            return;
-          }
-
-          if (!optimizerResponse.ok) {
-            clearOptimization();
-            showNoStrategies(optimizerResponse.error);
-            return;
-          }
-
-          const optimized = { data: optimizerResponse.data };
-
-          if (!optimized.data.selectedExpiry) {
-            setOptimization(
-              buildOptimizationState(args.symbolToRun, optimized, []),
-            );
-            showNoStrategies("No expirations available for that symbol.");
-            return;
-          }
-
-          updateOptimizationResult(args.symbolToRun, optimized);
-        })
-        .catch((caughtError: unknown) => {
-          if (sequence !== requestSequence.current) {
-            return;
-          }
-
-          clearOptimization();
-          showNoStrategies(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Unable to load strategy graphs.",
-          );
-        });
+      router.replace(href);
     });
   }
 
@@ -229,41 +147,29 @@ export default function OptimizeClient({
     }
 
     setSearchEnabled(false);
-    runOptimization({ symbolToRun: normalizedSymbol });
+    navigateToOptimizer(normalizedSymbol, "push");
   }
 
-  function handleSentimentChange(key: string, price: number) {
-    updateControls({
-      sentiment: key,
-      targetPrice: price,
-    });
+  function handleSentimentChange(key: OptimizerSentimentKey, price: number) {
+    setSelectedSentiment(key);
+    setTargetPrice(price);
   }
 
   function handleTargetPriceChange(price: number) {
-    updateControls({
-      sentiment: null,
-      targetPrice: price,
-    });
+    setSelectedSentiment(
+      findSentimentForTargetPrice(controlsQuotePrice, price),
+    );
+    setTargetPrice(price);
   }
 
   function handleSymbolSelect(result: SymbolSearchResult) {
     setSearchEnabled(false);
     setSymbol(result.symbol);
-    resetControls();
-    runOptimization({
-      symbolToRun: result.symbol,
-      overrides: {
-        targetPrice: null,
-        targetDate: null,
-        objective: DEFAULT_OBJECTIVE,
-        maxLoss: null,
-      },
-    });
+    navigateToOptimizer(result.symbol, "push");
   }
 
   return (
     <div className="grain grid-bg relative min-h-screen overflow-hidden">
-      {/* Atmospheric gradient orbs */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-[300px] -top-[200px] h-[600px] w-[600px] rounded-full bg-[oklch(0.65_0.18_160_/_0.06)] blur-[120px]" />
         <div className="absolute -right-[200px] top-[100px] h-[500px] w-[500px] rounded-full bg-[oklch(0.55_0.15_200_/_0.04)] blur-[100px]" />
@@ -271,7 +177,6 @@ export default function OptimizeClient({
       </div>
 
       <main className="relative z-10 mx-auto flex max-w-6xl flex-col px-5 py-10 sm:px-8 lg:px-10">
-        {/* Command bar search */}
         <div
           className="animate-fade-up relative z-30 mb-10"
           style={{ animationDelay: "100ms" }}
@@ -323,7 +228,6 @@ export default function OptimizeClient({
               )}
             </div>
 
-            {/* Suggestions dropdown */}
             {showSuggestions ? (
               <div className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-xl border border-white/[0.08] bg-[oklch(0.13_0.008_260)] p-1.5 shadow-[0_16px_48px_oklch(0_0_0_/_0.4)]">
                 <div className="mb-1.5 px-2.5 pt-1">
@@ -350,7 +254,6 @@ export default function OptimizeClient({
             ) : null}
           </form>
 
-          {/* Status bar */}
           <div className="mt-3 flex items-center gap-2.5 px-1">
             {optimization.activeSymbol ? (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[0.6rem] font-semibold text-primary ring-1 ring-primary/20">
@@ -368,7 +271,9 @@ export default function OptimizeClient({
                 ? "Searching..."
                 : loading
                   ? "Optimizing strategies..."
-                  : status}
+                  : recomputing
+                    ? "Recomputing locally..."
+                    : status}
             </span>
           </div>
 
@@ -379,33 +284,31 @@ export default function OptimizeClient({
           ) : null}
         </div>
 
-        {/* Optimizer controls */}
         {controlsVisible ? (
           <OptimizerControls
             quotePrice={controlsQuotePrice}
-            sentiment={controls.sentiment}
+            sentiment={selectedSentiment}
             onSentimentChange={handleSentimentChange}
-            targetPrice={controls.targetPrice ?? controlsQuotePrice}
+            targetPrice={targetPrice}
             onTargetPriceChange={handleTargetPriceChange}
-            budget={controls.budget}
+            budget={budget}
             onBudgetChange={(budget) => {
-              updateControls({ budget });
+              setBudget(budget);
             }}
             expirations={optimization.expirations}
-            selectedExpiration={controls.selectedExpiration}
+            selectedExpiration={selectedExpiration}
             onExpirationChange={(selectedExpiration) => {
-              updateControls({ selectedExpiration });
+              setSelectedExpiration(selectedExpiration);
             }}
-            objective={controls.objective}
+            objective={selectedObjective}
             onObjectiveChange={(objective) => {
-              updateControls({ objective });
+              setSelectedObjective(objective);
             }}
           />
         ) : null}
 
-        {/* Strategy cards grid */}
         <div className="grid gap-5 lg:grid-cols-2">
-          {optimization.cards.map(({ candidate, detail }, index) => (
+          {cards.map(({ candidate, detail }, index) => (
             <div
               key={candidate.strategyName}
               className="animate-card-in"
@@ -414,7 +317,7 @@ export default function OptimizeClient({
               <StrategyCard candidate={candidate} detail={detail} />
             </div>
           ))}
-          {!loading && optimization.cards.length === 0 && !error ? (
+          {!loading && cards.length === 0 && !error ? (
             <div
               className="animate-fade-up lg:col-span-2"
               style={{ animationDelay: "200ms" }}
@@ -422,7 +325,7 @@ export default function OptimizeClient({
               <EmptyState />
             </div>
           ) : null}
-          {loading && optimization.cards.length === 0 ? (
+          {loading && cards.length === 0 ? (
             <>
               <LoadingSkeleton />
               <LoadingSkeleton delay={150} />
@@ -442,12 +345,72 @@ function buildInitialOptimizationState(
     return EMPTY_OPTIMIZATION_STATE;
   }
 
-  return buildOptimizationState(initialSymbol, { data: initialResult.data });
+  return {
+    activeSymbol: initialSymbol,
+    quoteName: initialResult.data.quote.name,
+    quotePrice: initialResult.data.quote.last,
+    expirations: initialResult.data.expirations,
+  };
 }
 
-function buildInitialStatus(
+function getVisibleCards(args: {
+  initialResult: OptimizerSnapshotResult | null;
+  symbol: string;
+  selectedExpiration: string | null;
+  objective: OptimizerObjective;
+  budget: number | null;
+  selectedSentiment: OptimizerSentimentKey | null;
+  targetPrice: number;
+}) {
+  const {
+    initialResult,
+    symbol,
+    selectedExpiration,
+    objective,
+    budget,
+    selectedSentiment,
+    targetPrice,
+  } = args;
+
+  if (!initialResult?.ok) {
+    return [];
+  }
+
+  const expiry =
+    selectedExpiration &&
+    initialResult.data.expirations.includes(selectedExpiration)
+      ? selectedExpiration
+      : (initialResult.data.expirations[0] ?? null);
+
+  if (!expiry) {
+    return [];
+  }
+
+  const effectiveTargetPrice =
+    selectedSentiment == null
+      ? targetPrice
+      : (getSentimentTargetPrice(
+          initialResult.data.quote.last,
+          selectedSentiment,
+        ) ?? targetPrice);
+  const cards = computeOptimizerCards({
+    dataset: initialResult.data,
+    request: {
+      symbol,
+      targetPrice: effectiveTargetPrice,
+      targetDate: expiry,
+      objective,
+      maxLoss: budget ?? undefined,
+    },
+  });
+
+  return cards;
+}
+
+function buildStatus(
   initialSymbol: string,
   initialResult: OptimizerSnapshotResult | null,
+  visibleCardCount: number,
 ) {
   if (!initialSymbol) {
     return "Awaiting symbol input.";
@@ -461,8 +424,8 @@ function buildInitialStatus(
     return "No strategy graphs available.";
   }
 
-  return initialResult.data.cards.length > 0
-    ? `${initialResult.data.cards.length} strategies optimized for ${initialSymbol}.`
+  return visibleCardCount > 0
+    ? `${visibleCardCount} strategies optimized for ${initialSymbol}.`
     : "No strategy graphs available.";
 }
 
@@ -475,15 +438,41 @@ function buildInitialError(initialResult: OptimizerSnapshotResult | null) {
 }
 
 function buildInitialControlsState(
+  _initialRequest: { symbol: string } | null,
   initialResult: OptimizerSnapshotResult | null,
 ): OptimizerControlsState {
   if (!initialResult?.ok) {
-    return DEFAULT_CONTROLS_STATE;
+    return {
+      sentiment: null,
+      targetPrice: null,
+    };
   }
 
+  const targetPrice = initialResult.data.quote.last;
+
   return {
-    ...DEFAULT_CONTROLS_STATE,
-    selectedExpiration: initialResult.data.selectedExpiry,
-    targetPrice: initialResult.data.quote.last,
+    sentiment: findSentimentForTargetPrice(
+      initialResult.data.quote.last,
+      targetPrice,
+    ),
+    targetPrice,
   };
+}
+
+function findSentimentForTargetPrice(quotePrice: number, targetPrice: number) {
+  const sentimentKeys: OptimizerSentimentKey[] = [
+    "very-bearish",
+    "bearish",
+    "neutral",
+    "directional",
+    "bullish",
+    "very-bullish",
+  ];
+
+  return (
+    sentimentKeys.find((sentiment) => {
+      const candidatePrice = getSentimentTargetPrice(quotePrice, sentiment);
+      return candidatePrice === targetPrice;
+    }) ?? null
+  );
 }

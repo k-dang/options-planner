@@ -5,7 +5,6 @@ import {
   formatCommittedNumberInput,
   formatNumber,
   getStrikeOptions,
-  isCompletePositiveNumberInput,
 } from "@/components/builder/builder-helpers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -134,11 +133,7 @@ function EditableNumberField(args: {
         step={0.01}
         value={draftValue}
         onChange={(event) => {
-          const nextValue = event.target.value;
-          setDraftValue(nextValue);
-          if (isCompletePositiveNumberInput(nextValue)) {
-            args.onChange(nextValue);
-          }
+          setDraftValue(event.target.value);
         }}
         onBlur={(event) => {
           const nextValue = event.target.value;
