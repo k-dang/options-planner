@@ -9,6 +9,7 @@ export default async function BuildStrategyPage({
   searchParams: Promise<{
     exp?: string | string[];
     strike?: string | string[];
+    strike2?: string | string[];
     qty?: string | string[];
   }>;
 }) {
@@ -19,6 +20,7 @@ export default async function BuildStrategyPage({
     symbol: route.symbol,
     expiration: singleValue(query.exp),
     strike: singleValue(query.strike),
+    strike2: singleValue(query.strike2),
     quantity: singleValue(query.qty),
   });
 

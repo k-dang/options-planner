@@ -1,7 +1,8 @@
 export {
+  BUILDER_STRATEGIES,
   createBuilderState,
   getBuilderChain,
-  getBuilderOptionLeg,
+  getBuilderOptionLegs,
   parseBuilderState,
   serializeBuilderState,
 } from "./builder";

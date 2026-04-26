@@ -99,15 +99,8 @@ function payoffAtExpiration(state: StrategyState, underlyingPrice: number) {
     (total, leg) => total + expirationValue(leg, underlyingPrice),
     0,
   );
-  const stockEntryValue = state.legs.reduce(
-    (total, leg) =>
-      leg.kind === "stock"
-        ? total + (leg.side === "long" ? -1 : 1) * leg.entryPrice * leg.quantity
-        : total,
-    0,
-  );
 
-  return terminalValue + entryCashFlow - stockEntryValue;
+  return terminalValue + entryCashFlow;
 }
 
 function payoffAtModelDate(state: StrategyState, underlyingPrice: number) {
@@ -119,15 +112,8 @@ function payoffAtModelDate(state: StrategyState, underlyingPrice: number) {
     (total, leg) => total + modelValue(state, leg, underlyingPrice),
     0,
   );
-  const stockEntryValue = state.legs.reduce(
-    (total, leg) =>
-      leg.kind === "stock"
-        ? total + (leg.side === "long" ? -1 : 1) * leg.entryPrice * leg.quantity
-        : total,
-    0,
-  );
 
-  return currentValue + entryCashFlow - stockEntryValue;
+  return currentValue + entryCashFlow;
 }
 
 function buildPayoffGrid(state: StrategyState) {
@@ -248,6 +234,14 @@ function estimateProbabilityOfProfit(
 
   if (state.strategy === "long-put") {
     return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
+  if (state.strategy === "covered-call") {
+    return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
+  if (state.strategy === "cash-secured-put") {
+    return 1 - probabilityBelow(breakevens[0] ?? state.underlyingPrice);
   }
 
   return null;

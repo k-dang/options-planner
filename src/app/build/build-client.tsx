@@ -29,11 +29,16 @@ import {
 } from "@/components/ui/select";
 import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
+  BUILDER_STRATEGIES,
   createBuilderState,
   evaluateStrategy,
   getBuilderChain,
-  getBuilderOptionLeg,
+  getBuilderOptionLegs,
+  type OptionExpiration,
+  type OptionLeg,
+  type OptionQuote,
   type StrategyState,
+  type StrategyTemplateId,
   serializeBuilderState,
 } from "@/lib/options";
 
@@ -46,14 +51,18 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
   const [state, setState] = useState(initialState);
   const [symbolDraft, setSymbolDraft] = useState(initialState.symbol);
   const chain = useMemo(() => getBuilderChain(state), [state]);
-  const leg = getBuilderOptionLeg(state);
+  const optionLegs = getBuilderOptionLegs(state);
+  const primaryLeg = optionLegs[0];
+  const secondaryLeg = optionLegs[1];
   const expiration =
     chain.expirations.find(
-      (candidate) => candidate.expiration === leg.expiration,
+      (candidate) => candidate.expiration === primaryLeg?.expiration,
     ) ?? chain.expirations[0];
-  const quotes =
-    state.strategy === "long-put" ? expiration?.puts : expiration?.calls;
-  const selectedQuote = quotes?.find((quote) => quote.strike === leg.strike);
+  const primaryQuotes = quotesForLeg(expiration, primaryLeg);
+  const secondaryQuotes = quotesForLeg(expiration, secondaryLeg);
+  const selectedQuote = primaryQuotes?.find(
+    (quote) => quote.strike === primaryLeg?.strike,
+  );
   const evaluation = useMemo(() => evaluateStrategy(state), [state]);
 
   function commitState(next: StrategyState) {
@@ -64,9 +73,10 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
   function updateFromInputs(input: Parameters<typeof createBuilderState>[0]) {
     const next = createBuilderState({
       symbol: state.symbol,
-      expiration: leg.expiration,
-      strike: leg.strike,
-      quantity: leg.quantity,
+      expiration: primaryLeg?.expiration,
+      strike: primaryLeg?.strike,
+      strike2: secondaryLeg?.strike,
+      quantity: primaryLeg?.quantity,
       ...input,
       strategy: state.strategy,
     });
@@ -111,15 +121,41 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                     </div>
                   </Field>
 
-                  <InfoPanel label="Strategy">
-                    {state.strategy.replaceAll("-", " ")}
-                  </InfoPanel>
+                  <Field>
+                    <FieldLabel htmlFor="strategy">Strategy</FieldLabel>
+                    <Select
+                      id="strategy"
+                      value={state.strategy}
+                      onValueChange={(value) => {
+                        if (isBuilderStrategy(value)) {
+                          commitState(
+                            createBuilderState({
+                              symbol: state.symbol,
+                              strategy: value,
+                              quantity: primaryLeg?.quantity,
+                            }),
+                          );
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUILDER_STRATEGIES.map((strategy) => (
+                          <SelectItem key={strategy} value={strategy}>
+                            {strategyLabel(strategy)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
                   <Field>
                     <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
                     <Select
                       id="expiration"
-                      value={leg.expiration}
+                      value={primaryLeg?.expiration}
                       onValueChange={(value) => {
                         if (value !== null) {
                           updateFromInputs({ expiration: value });
@@ -143,29 +179,23 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                     </Select>
                   </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="strike">Strike</FieldLabel>
-                    <Select
-                      id="strike"
-                      value={leg.strike}
-                      onValueChange={(value) => {
-                        if (value !== null) {
-                          updateFromInputs({ strike: Number(value) });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {quotes?.map((quote) => (
-                          <SelectItem key={quote.strike} value={quote.strike}>
-                            {formatCurrency(quote.strike)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
+                  <StrikeSelect
+                    id="strike"
+                    label={secondaryLeg ? "Long strike" : "Strike"}
+                    quotes={primaryQuotes}
+                    value={primaryLeg?.strike}
+                    onChange={(strike) => updateFromInputs({ strike })}
+                  />
+
+                  {secondaryLeg ? (
+                    <StrikeSelect
+                      id="strike2"
+                      label="Short strike"
+                      quotes={secondaryQuotes}
+                      value={secondaryLeg.strike}
+                      onChange={(strike2) => updateFromInputs({ strike2 })}
+                    />
+                  ) : null}
 
                   <InfoPanel label="Option price">
                     {selectedQuote ? formatCurrency(selectedQuote.mid) : "n/a"}
@@ -178,7 +208,7 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                       min="1"
                       step="1"
                       type="number"
-                      value={leg.quantity}
+                      value={primaryLeg?.quantity ?? 1}
                       onChange={(event) => {
                         const quantity = Number(event.target.value);
 
@@ -213,7 +243,7 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                   value={formatCurrency(evaluation.capitalRequired)}
                 />
                 <Metric
-                  label="Estimated PoP"
+                  label="Estimated Probability of Profit"
                   value={formatPercent(evaluation.probabilityOfProfit)}
                 />
               </CardContent>
@@ -335,12 +365,13 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                     label="Vega / vol point"
                     value={formatCurrency(evaluation.greeks.vega)}
                   />
-                  <SummaryRow label="Expiration" value={leg.expiration} />
+                  <SummaryRow
+                    label="Expiration"
+                    value={primaryLeg?.expiration ?? "n/a"}
+                  />
                   <SummaryRow
                     label="Position"
-                    value={`${leg.quantity} long ${leg.optionType} @ ${formatCurrency(
-                      leg.strike,
-                    )}`}
+                    value={optionLegs.map(describeLeg).join(" / ")}
                   />
                 </dl>
               </CardContent>
@@ -398,6 +429,67 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
         </section>
       </div>
     </main>
+  );
+}
+
+function quotesForLeg(
+  expiration: OptionExpiration,
+  leg?: OptionLeg,
+): OptionQuote[] {
+  if (!leg) {
+    return [];
+  }
+
+  return leg.optionType === "put" ? expiration.puts : expiration.calls;
+}
+
+function isBuilderStrategy(value: string | null): value is StrategyTemplateId {
+  return (
+    value !== null && BUILDER_STRATEGIES.includes(value as StrategyTemplateId)
+  );
+}
+
+function strategyLabel(strategy: StrategyTemplateId) {
+  return strategy.replaceAll("-", " ");
+}
+
+function StrikeSelect({
+  id,
+  label,
+  quotes,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  quotes?: OptionQuote[];
+  value?: number;
+  onChange: (strike: number) => void;
+}) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Select
+        id={id}
+        value={value === undefined ? undefined : String(value)}
+        onValueChange={(nextValue) => {
+          if (nextValue !== null) {
+            onChange(Number(nextValue));
+          }
+        }}
+      >
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {quotes?.map((quote) => (
+            <SelectItem key={quote.strike} value={String(quote.strike)}>
+              {formatCurrency(quote.strike)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
   );
 }
 
