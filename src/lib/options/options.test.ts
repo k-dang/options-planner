@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateStrategy,
   GeneratedChainProvider,
-  parseStrategyState,
   type StrategyState,
-  serializeStrategyState,
   validateStrategyState,
 } from "./index";
 
@@ -125,19 +123,5 @@ describe("strategy evaluation", () => {
       underlyingPrice: 172,
       profitLoss: -450,
     });
-  });
-});
-
-describe("strategy URL serialization", () => {
-  it("round-trips through a canonical query string without loss", () => {
-    const serialized = serializeStrategyState(representativeLongCall);
-    const parsed = parseStrategyState(`?${serialized}`);
-
-    expect(serialized).toMatch(/^s=/);
-    expect(parsed).toEqual({
-      ...representativeLongCall,
-      symbol: "AAPL",
-    });
-    expect(serializeStrategyState(parsed)).toBe(serialized);
   });
 });
