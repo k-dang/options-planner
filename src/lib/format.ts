@@ -15,3 +15,14 @@ export function formatDecimal(value: number) {
     maximumFractionDigits: 2,
   }).format(value);
 }
+
+export function formatPercent(value: number | null) {
+  if (value === null) {
+    return "n/a";
+  }
+
+  return new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 1,
+    style: "percent",
+  }).format(value);
+}

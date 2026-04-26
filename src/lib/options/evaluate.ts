@@ -1,4 +1,9 @@
-import { blackScholes, intrinsicValue, scaleGreeks } from "./pricing";
+import {
+  blackScholes,
+  intrinsicValue,
+  normalCdf,
+  scaleGreeks,
+} from "./pricing";
 import { validateStrategyState } from "./strategy";
 import {
   CONTRACT_MULTIPLIER,
@@ -60,6 +65,31 @@ function expirationValue(leg: PositionLeg, underlyingPrice: number) {
   );
 }
 
+function modelValue(
+  state: StrategyState,
+  leg: PositionLeg,
+  underlyingPrice: number,
+) {
+  if (leg.kind === "stock") {
+    return (leg.side === "long" ? 1 : -1) * underlyingPrice * leg.quantity;
+  }
+
+  const priced = blackScholes({
+    optionType: leg.optionType,
+    spot: underlyingPrice,
+    strike: leg.strike,
+    yearsToExpiration: yearsBetween(state.asOf, leg.expiration),
+    volatility: leg.impliedVolatility,
+  });
+
+  return (
+    (leg.side === "long" ? 1 : -1) *
+    priced.price *
+    CONTRACT_MULTIPLIER *
+    leg.quantity
+  );
+}
+
 function payoffAtExpiration(state: StrategyState, underlyingPrice: number) {
   const entryCashFlow = state.legs.reduce(
     (total, leg) => total + legEntryCashFlow(leg),
@@ -80,6 +110,26 @@ function payoffAtExpiration(state: StrategyState, underlyingPrice: number) {
   return terminalValue + entryCashFlow - stockEntryValue;
 }
 
+function payoffAtModelDate(state: StrategyState, underlyingPrice: number) {
+  const entryCashFlow = state.legs.reduce(
+    (total, leg) => total + legEntryCashFlow(leg),
+    0,
+  );
+  const currentValue = state.legs.reduce(
+    (total, leg) => total + modelValue(state, leg, underlyingPrice),
+    0,
+  );
+  const stockEntryValue = state.legs.reduce(
+    (total, leg) =>
+      leg.kind === "stock"
+        ? total + (leg.side === "long" ? -1 : 1) * leg.entryPrice * leg.quantity
+        : total,
+    0,
+  );
+
+  return currentValue + entryCashFlow - stockEntryValue;
+}
+
 function buildPayoffGrid(state: StrategyState) {
   const low = state.underlyingPrice * 0.5;
   const high = state.underlyingPrice * 1.5;
@@ -90,6 +140,12 @@ function buildPayoffGrid(state: StrategyState) {
 
     return {
       underlyingPrice,
+      expirationProfitLoss: Number(
+        payoffAtExpiration(state, underlyingPrice).toFixed(2),
+      ),
+      modelProfitLoss: Number(
+        payoffAtModelDate(state, underlyingPrice).toFixed(2),
+      ),
       profitLoss: Number(payoffAtExpiration(state, underlyingPrice).toFixed(2)),
     };
   });
@@ -169,6 +225,34 @@ function estimateCapitalRequired(state: StrategyState, netPremium: number) {
   return Math.max(stockCost + longOptionCost - Math.max(netPremium, 0), 0);
 }
 
+function estimateProbabilityOfProfit(
+  state: StrategyState,
+  breakevens: number[],
+) {
+  const firstOption = state.legs.find((leg) => leg.kind === "option");
+
+  if (firstOption?.kind !== "option" || breakevens.length === 0) {
+    return null;
+  }
+
+  const time = yearsBetween(state.asOf, firstOption.expiration);
+  const volatility = Math.max(firstOption.impliedVolatility, 0.01);
+  const drift = -0.5 * volatility * volatility * time;
+  const denominator = volatility * Math.sqrt(time);
+  const probabilityBelow = (price: number) =>
+    normalCdf((Math.log(price / state.underlyingPrice) - drift) / denominator);
+
+  if (state.strategy === "long-call") {
+    return 1 - probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
+  if (state.strategy === "long-put") {
+    return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
+  return null;
+}
+
 export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
   const validation = validateStrategyState(state);
   if (!validation.valid) {
@@ -217,6 +301,7 @@ export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
   );
   const payoff = buildPayoffGrid(state);
   const values = payoff.map((point) => point.profitLoss);
+  const breakevens = findBreakevens(payoff);
 
   return {
     state,
@@ -224,7 +309,8 @@ export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
     capitalRequired: estimateCapitalRequired(state, netPremium),
     maxProfit: estimateBoundedValue(values, "max"),
     maxLoss: estimateBoundedValue(values, "min"),
-    breakevens: findBreakevens(payoff),
+    breakevens,
+    probabilityOfProfit: estimateProbabilityOfProfit(state, breakevens),
     legs,
     greeks: legs.reduce(
       (total, leg) => addGreeks(total, leg.greeks),

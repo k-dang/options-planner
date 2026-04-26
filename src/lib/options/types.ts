@@ -89,6 +89,8 @@ export type LegEvaluation = {
 
 export type PayoffPoint = {
   underlyingPrice: number;
+  expirationProfitLoss: number;
+  modelProfitLoss: number;
   profitLoss: number;
 };
 
@@ -99,6 +101,7 @@ export type StrategyEvaluation = {
   maxProfit: number | null;
   maxLoss: number | null;
   breakevens: number[];
+  probabilityOfProfit: number | null;
   legs: LegEvaluation[];
   greeks: LegGreeks;
   payoff: PayoffPoint[];

@@ -3,8 +3,21 @@
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useMemo, useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency, formatDecimal } from "@/lib/format";
+import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
   createBuilderState,
   evaluateStrategy,
@@ -199,6 +212,91 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                   label="Capital usage"
                   value={formatCurrency(evaluation.capitalRequired)}
                 />
+                <Metric
+                  label="Estimated PoP"
+                  value={formatPercent(evaluation.probabilityOfProfit)}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Payoff analysis</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                <ChartContainer
+                  className="aspect-[2.4/1] min-h-80"
+                  config={{
+                    expirationProfitLoss: {
+                      label: "Expiration P/L",
+                      color: "var(--chart-1)",
+                    },
+                    modelProfitLoss: {
+                      label: "Model P/L today",
+                      color: "var(--chart-2)",
+                    },
+                  }}
+                >
+                  <LineChart
+                    accessibilityLayer
+                    data={evaluation.payoff}
+                    margin={{ left: 16, right: 16, top: 12, bottom: 8 }}
+                  >
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="underlyingPrice"
+                      tickFormatter={(value) => `$${value}`}
+                      type="number"
+                      domain={["dataMin", "dataMax"]}
+                    />
+                    <YAxis
+                      tickFormatter={(value) => formatCurrency(Number(value))}
+                      width={76}
+                    />
+                    <ReferenceLine y={0} stroke="var(--muted-foreground)" />
+                    <ReferenceLine
+                      x={state.underlyingPrice}
+                      stroke="var(--muted-foreground)"
+                      strokeDasharray="4 4"
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(_, payload) => {
+                            const price = payload[0]?.payload?.underlyingPrice;
+
+                            return price
+                              ? `Underlying ${formatCurrency(price)}`
+                              : "Underlying";
+                          }}
+                        />
+                      }
+                    />
+                    <Line
+                      dataKey="expirationProfitLoss"
+                      dot={false}
+                      name="Expiration P/L"
+                      stroke="var(--color-expirationProfitLoss)"
+                      strokeWidth={2}
+                      type="monotone"
+                    />
+                    <Line
+                      dataKey="modelProfitLoss"
+                      dot={false}
+                      name="Model P/L today"
+                      stroke="var(--color-modelProfitLoss)"
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      type="monotone"
+                    />
+                  </LineChart>
+                </ChartContainer>
+                <p className="text-muted-foreground text-sm">
+                  Expiration P/L uses intrinsic value at the selected expiry.
+                  Model P/L today and estimated probability of profit are
+                  Black-Scholes estimates using the leg IV, current quote date,
+                  and a fixed risk-free rate.
+                </p>
               </CardContent>
             </Card>
 
@@ -225,6 +323,18 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                     label="Delta"
                     value={formatDecimal(evaluation.greeks.delta)}
                   />
+                  <SummaryRow
+                    label="Gamma"
+                    value={formatDecimal(evaluation.greeks.gamma)}
+                  />
+                  <SummaryRow
+                    label="Theta / day"
+                    value={formatCurrency(evaluation.greeks.theta)}
+                  />
+                  <SummaryRow
+                    label="Vega / vol point"
+                    value={formatCurrency(evaluation.greeks.vega)}
+                  />
                   <SummaryRow label="Expiration" value={leg.expiration} />
                   <SummaryRow
                     label="Position"
@@ -235,11 +345,72 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                 </dl>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Leg Greeks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b text-muted-foreground">
+                      <tr>
+                        <th className="py-2 pr-4 font-medium">Leg</th>
+                        <th className="py-2 pr-4 font-medium">Delta</th>
+                        <th className="py-2 pr-4 font-medium">Gamma</th>
+                        <th className="py-2 pr-4 font-medium">Theta</th>
+                        <th className="py-2 pr-4 font-medium">Vega</th>
+                        <th className="py-2 font-medium">Rho</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evaluation.legs.map((evaluatedLeg, index) => (
+                        <tr
+                          className="border-b last:border-b-0"
+                          key={`${evaluatedLeg.leg.kind}-${index}`}
+                        >
+                          <td className="py-3 pr-4 font-medium">
+                            {describeLeg(evaluatedLeg.leg)}
+                          </td>
+                          <td className="py-3 pr-4">
+                            {formatDecimal(evaluatedLeg.greeks.delta)}
+                          </td>
+                          <td className="py-3 pr-4">
+                            {formatDecimal(evaluatedLeg.greeks.gamma)}
+                          </td>
+                          <td className="py-3 pr-4">
+                            {formatCurrency(evaluatedLeg.greeks.theta)}
+                          </td>
+                          <td className="py-3 pr-4">
+                            {formatCurrency(evaluatedLeg.greeks.vega)}
+                          </td>
+                          <td className="py-3">
+                            {formatCurrency(evaluatedLeg.greeks.rho)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </section>
         </section>
       </div>
     </main>
   );
+}
+
+function describeLeg(leg: StrategyState["legs"][number]) {
+  if (leg.kind === "stock") {
+    return `${leg.quantity} ${leg.side} shares @ ${formatCurrency(
+      leg.entryPrice,
+    )}`;
+  }
+
+  return `${leg.quantity} ${leg.side} ${leg.optionType} ${formatCurrency(
+    leg.strike,
+  )} ${leg.expiration}`;
 }
 
 function InfoPanel({

@@ -20,7 +20,7 @@ function normalPdf(value: number) {
   return Math.exp(-0.5 * value * value) / SQRT_2PI;
 }
 
-function normalCdf(value: number) {
+export function normalCdf(value: number) {
   const sign = value < 0 ? -1 : 1;
   const x = Math.abs(value) / Math.sqrt(2);
   const t = 1 / (1 + 0.3275911 * x);
