@@ -1,7 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import type React from "react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatCurrency, formatDecimal } from "@/lib/format";
 import {
   createBuilderState,
@@ -50,160 +62,179 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f1ea] text-[#1f2933]">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header className="border-[#1f2933]/15 border-b pb-5">
-          <p className="font-medium text-[#58616f] text-sm">Options Planner</p>
+        <header className="border-b pb-5">
+          <p className="font-medium text-muted-foreground text-sm">
+            Options Planner
+          </p>
           <h1 className="font-semibold text-3xl tracking-normal">
             Strategy builder
           </h1>
         </header>
 
         <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
-          <aside className="rounded-lg border border-[#d4c8b8] bg-white p-4 shadow-sm">
-            <div className="grid gap-4">
-              <label className="grid gap-2 font-medium text-sm">
-                Symbol
-                <div className="flex gap-2">
-                  <input
-                    className="min-w-0 flex-1 rounded-md border border-[#c7bbaa] px-3 py-2 uppercase"
-                    value={symbolDraft}
-                    onChange={(event) => setSymbolDraft(event.target.value)}
-                  />
-                  <button
-                    className="rounded-md bg-[#266867] px-3 py-2 font-medium text-sm text-white"
-                    type="button"
-                    onClick={() => updateFromInputs({ symbol: symbolDraft })}
-                  >
-                    Load
-                  </button>
-                </div>
-              </label>
+          <aside>
+            <Card className="h-fit" size="sm">
+              <CardContent>
+                <FieldGroup className="gap-4">
+                  <Field>
+                    <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
+                    <div className="flex gap-2">
+                      <Input
+                        className="uppercase"
+                        id="symbol"
+                        value={symbolDraft}
+                        onChange={(event) => setSymbolDraft(event.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          updateFromInputs({ symbol: symbolDraft })
+                        }
+                      >
+                        Load
+                      </Button>
+                    </div>
+                  </Field>
 
-              <div className="rounded-md bg-[#f7f3ec] p-3">
-                <p className="font-medium text-[#58616f] text-sm">Strategy</p>
-                <p className="mt-1 font-semibold capitalize">
-                  {state.strategy.replaceAll("-", " ")}
-                </p>
-              </div>
+                  <InfoPanel label="Strategy">
+                    {state.strategy.replaceAll("-", " ")}
+                  </InfoPanel>
 
-              <label className="grid gap-2 font-medium text-sm">
-                Expiration
-                <select
-                  className="rounded-md border border-[#c7bbaa] px-3 py-2"
-                  value={leg.expiration}
-                  onChange={(event) =>
-                    updateFromInputs({ expiration: event.target.value })
-                  }
-                >
-                  {chain.expirations.map((candidate) => (
-                    <option
-                      key={candidate.expiration}
-                      value={candidate.expiration}
+                  <Field>
+                    <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
+                    <Select
+                      id="expiration"
+                      value={leg.expiration}
+                      onValueChange={(value) => {
+                        if (value !== null) {
+                          updateFromInputs({ expiration: value });
+                        }
+                      }}
                     >
-                      {candidate.expiration} ({candidate.daysToExpiration}d)
-                    </option>
-                  ))}
-                </select>
-              </label>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {chain.expirations.map((candidate) => (
+                          <SelectItem
+                            key={candidate.expiration}
+                            value={candidate.expiration}
+                          >
+                            {candidate.expiration} ({candidate.daysToExpiration}
+                            d)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-              <label className="grid gap-2 font-medium text-sm">
-                Strike
-                <select
-                  className="rounded-md border border-[#c7bbaa] px-3 py-2"
-                  value={leg.strike}
-                  onChange={(event) =>
-                    updateFromInputs({ strike: Number(event.target.value) })
-                  }
-                >
-                  {quotes?.map((quote) => (
-                    <option key={quote.strike} value={quote.strike}>
-                      {formatCurrency(quote.strike)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <Field>
+                    <FieldLabel htmlFor="strike">Strike</FieldLabel>
+                    <Select
+                      id="strike"
+                      value={leg.strike}
+                      onValueChange={(value) => {
+                        if (value !== null) {
+                          updateFromInputs({ strike: Number(value) });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {quotes?.map((quote) => (
+                          <SelectItem key={quote.strike} value={quote.strike}>
+                            {formatCurrency(quote.strike)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-              <div className="rounded-md bg-[#f7f3ec] p-3">
-                <p className="font-medium text-[#58616f] text-sm">
-                  Option price
-                </p>
-                <p className="mt-1 font-semibold">
-                  {selectedQuote ? formatCurrency(selectedQuote.mid) : "n/a"}
-                </p>
-              </div>
+                  <InfoPanel label="Option price">
+                    {selectedQuote ? formatCurrency(selectedQuote.mid) : "n/a"}
+                  </InfoPanel>
 
-              <div className="grid gap-3">
-                <label className="grid gap-2 font-medium text-sm">
-                  Contracts
-                  <input
-                    className="rounded-md border border-[#c7bbaa] px-3 py-2"
-                    min="1"
-                    step="1"
-                    type="number"
-                    value={leg.quantity}
-                    onChange={(event) => {
-                      const quantity = Number(event.target.value);
+                  <Field>
+                    <FieldLabel htmlFor="contracts">Contracts</FieldLabel>
+                    <Input
+                      id="contracts"
+                      min="1"
+                      step="1"
+                      type="number"
+                      value={leg.quantity}
+                      onChange={(event) => {
+                        const quantity = Number(event.target.value);
 
-                      if (Number.isFinite(quantity) && quantity >= 1) {
-                        updateFromInputs({ quantity: Math.floor(quantity) });
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
+                        if (Number.isFinite(quantity) && quantity >= 1) {
+                          updateFromInputs({ quantity: Math.floor(quantity) });
+                        }
+                      }}
+                    />
+                  </Field>
+                </FieldGroup>
+              </CardContent>
+            </Card>
           </aside>
 
           <section className="grid gap-5">
-            <div className="grid gap-4 rounded-lg border border-[#d4c8b8] bg-white p-5 shadow-sm md:grid-cols-4">
-              <Metric
-                label="Underlying"
-                value={formatCurrency(state.underlyingPrice)}
-              />
-              <Metric
-                label="Max profit"
-                value={formatCurrency(evaluation.maxProfit)}
-              />
-              <Metric
-                label="Max loss"
-                value={formatCurrency(evaluation.maxLoss)}
-              />
-              <Metric
-                label="Capital usage"
-                value={formatCurrency(evaluation.capitalRequired)}
-              />
-            </div>
+            <Card>
+              <CardContent className="grid gap-4 md:grid-cols-4">
+                <Metric
+                  label="Underlying"
+                  value={formatCurrency(state.underlyingPrice)}
+                />
+                <Metric
+                  label="Max profit"
+                  value={formatCurrency(evaluation.maxProfit)}
+                />
+                <Metric
+                  label="Max loss"
+                  value={formatCurrency(evaluation.maxLoss)}
+                />
+                <Metric
+                  label="Capital usage"
+                  value={formatCurrency(evaluation.capitalRequired)}
+                />
+              </CardContent>
+            </Card>
 
-            <div className="rounded-lg border border-[#d4c8b8] bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-xl">Trade summary</h2>
-              <dl className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                <SummaryRow label="Symbol" value={state.symbol} />
-                <SummaryRow
-                  label="Breakeven"
-                  value={
-                    evaluation.breakevens.length
-                      ? evaluation.breakevens.map(formatCurrency).join(", ")
-                      : "None in modeled range"
-                  }
-                />
-                <SummaryRow
-                  label="Net debit"
-                  value={formatCurrency(Math.abs(evaluation.netPremium))}
-                />
-                <SummaryRow
-                  label="Delta"
-                  value={formatDecimal(evaluation.greeks.delta)}
-                />
-                <SummaryRow label="Expiration" value={leg.expiration} />
-                <SummaryRow
-                  label="Position"
-                  value={`${leg.quantity} long ${leg.optionType} @ ${formatCurrency(
-                    leg.strike,
-                  )}`}
-                />
-              </dl>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Trade summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="grid gap-3 text-sm md:grid-cols-2">
+                  <SummaryRow label="Symbol" value={state.symbol} />
+                  <SummaryRow
+                    label="Breakeven"
+                    value={
+                      evaluation.breakevens.length
+                        ? evaluation.breakevens.map(formatCurrency).join(", ")
+                        : "None in modeled range"
+                    }
+                  />
+                  <SummaryRow
+                    label="Net debit"
+                    value={formatCurrency(Math.abs(evaluation.netPremium))}
+                  />
+                  <SummaryRow
+                    label="Delta"
+                    value={formatDecimal(evaluation.greeks.delta)}
+                  />
+                  <SummaryRow label="Expiration" value={leg.expiration} />
+                  <SummaryRow
+                    label="Position"
+                    value={`${leg.quantity} long ${leg.optionType} @ ${formatCurrency(
+                      leg.strike,
+                    )}`}
+                  />
+                </dl>
+              </CardContent>
+            </Card>
           </section>
         </section>
       </div>
@@ -211,10 +242,25 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
   );
 }
 
+function InfoPanel({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-3xl bg-muted p-3">
+      <p className="font-medium text-muted-foreground text-sm">{label}</p>
+      <p className="mt-1 font-semibold capitalize">{children}</p>
+    </div>
+  );
+}
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="font-medium text-[#58616f] text-sm">{label}</p>
+      <p className="font-medium text-muted-foreground text-sm">{label}</p>
       <p className="mt-1 font-semibold text-2xl">{value}</p>
     </div>
   );
@@ -222,8 +268,8 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md bg-[#f7f3ec] p-3">
-      <dt className="font-medium text-[#58616f]">{label}</dt>
+    <div className="rounded-3xl bg-muted p-3">
+      <dt className="font-medium text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-semibold">{value}</dd>
     </div>
   );
