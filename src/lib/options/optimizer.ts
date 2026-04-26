@@ -1,0 +1,291 @@
+import {
+  createBuilderState,
+  getBuilderChain,
+  serializeBuilderState,
+} from "./builder";
+import { evaluateStrategy } from "./evaluate";
+import { validateStrategyState } from "./strategy";
+import type {
+  StrategyEvaluation,
+  StrategyState,
+  StrategyTemplateId,
+} from "./types";
+
+export type OptimizerThesis = "bullish" | "bearish" | "income";
+
+export type OptimizerInputs = {
+  symbol: string;
+  thesis: OptimizerThesis;
+  minDaysToExpiration: number;
+  maxDaysToExpiration: number;
+  maxCapitalRequired: number;
+  minProbabilityOfProfit?: number;
+};
+
+export type OptimizerCandidate = {
+  id: string;
+  state: StrategyState;
+  evaluation: StrategyEvaluation;
+  summary: {
+    strategyLabel: string;
+    expiration: string;
+    strikes: number[];
+    netPremium: number;
+    capitalRequired: number;
+    maxProfit: number | null;
+    maxLoss: number | null;
+    probabilityOfProfit: number | null;
+    delta: number;
+    score: number;
+    builderHref: string;
+  };
+};
+
+export type OptimizerResultRow = {
+  id: string;
+  strategy: string;
+  expiration: string;
+  strikes: string;
+  capitalRequired: number;
+  maxProfit: number | null;
+  maxLoss: number | null;
+  probabilityOfProfit: number | null;
+  delta: number;
+  builderHref: string;
+};
+
+const THESIS_STRATEGIES: Record<OptimizerThesis, StrategyTemplateId[]> = {
+  bullish: ["long-call", "bull-call-spread", "cash-secured-put"],
+  bearish: ["long-put", "bear-put-spread"],
+  income: ["covered-call", "cash-secured-put"],
+};
+
+function strategyLabel(strategy: StrategyTemplateId) {
+  return strategy.replaceAll("-", " ");
+}
+
+function optionLegs(state: StrategyState) {
+  return state.legs.filter((leg) => leg.kind === "option");
+}
+
+function candidateId(state: StrategyState) {
+  return [
+    state.strategy,
+    state.symbol,
+    ...optionLegs(state).map((leg) => `${leg.expiration}-${leg.strike}`),
+  ].join(":");
+}
+
+function firstExpiration(state: StrategyState) {
+  return optionLegs(state)[0]?.expiration ?? "n/a";
+}
+
+function daysBetween(asOfIso: string, expirationIso: string) {
+  const start = new Date(asOfIso);
+  const end = new Date(`${expirationIso}T20:00:00.000Z`);
+
+  return Math.max(
+    Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)),
+    0,
+  );
+}
+
+function candidateScore(
+  thesis: OptimizerThesis,
+  evaluation: StrategyEvaluation,
+) {
+  const maxLoss = evaluation.maxLoss ?? -evaluation.capitalRequired;
+  const risk = Math.max(Math.abs(maxLoss), evaluation.capitalRequired, 1);
+  const returnScore = (evaluation.maxProfit ?? 0) / risk;
+  const probability = evaluation.probabilityOfProfit ?? 0.35;
+  const delta = evaluation.greeks.delta;
+
+  if (thesis === "bullish") {
+    return returnScore + probability + Math.max(delta, 0) / 100;
+  }
+
+  if (thesis === "bearish") {
+    return returnScore + probability + Math.max(-delta, 0) / 100;
+  }
+
+  return probability + Math.max(evaluation.netPremium, 0) / risk;
+}
+
+function passesFilters(
+  inputs: OptimizerInputs,
+  state: StrategyState,
+  evaluation: StrategyEvaluation,
+) {
+  const expiration = firstExpiration(state);
+  const days = daysBetween(state.asOf, expiration);
+
+  if (days < inputs.minDaysToExpiration || days > inputs.maxDaysToExpiration) {
+    return false;
+  }
+
+  if (evaluation.capitalRequired > inputs.maxCapitalRequired) {
+    return false;
+  }
+
+  if (
+    inputs.minProbabilityOfProfit !== undefined &&
+    evaluation.probabilityOfProfit !== null &&
+    evaluation.probabilityOfProfit < inputs.minProbabilityOfProfit
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function makeCandidate(
+  inputs: OptimizerInputs,
+  state: StrategyState,
+): OptimizerCandidate | null {
+  const validation = validateStrategyState(state);
+
+  if (!validation.valid) {
+    return null;
+  }
+
+  const evaluation = evaluateStrategy(state);
+
+  if (!passesFilters(inputs, state, evaluation)) {
+    return null;
+  }
+
+  const legs = optionLegs(state);
+  const score = candidateScore(inputs.thesis, evaluation);
+
+  return {
+    id: candidateId(state),
+    state,
+    evaluation,
+    summary: {
+      strategyLabel: strategyLabel(state.strategy),
+      expiration: firstExpiration(state),
+      strikes: legs.map((leg) => leg.strike),
+      netPremium: evaluation.netPremium,
+      capitalRequired: evaluation.capitalRequired,
+      maxProfit: evaluation.maxProfit,
+      maxLoss: evaluation.maxLoss,
+      probabilityOfProfit: evaluation.probabilityOfProfit,
+      delta: evaluation.greeks.delta,
+      score,
+      builderHref: serializeBuilderState(state),
+    },
+  };
+}
+
+type CandidateInput = {
+  strikeOffset: number;
+  strike2Offset?: number;
+};
+
+function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
+  if (strategy === "bull-call-spread") {
+    return [
+      { strikeOffset: -1, strike2Offset: 1 },
+      { strikeOffset: 0, strike2Offset: 2 },
+    ];
+  }
+
+  if (strategy === "bear-put-spread") {
+    return [
+      { strikeOffset: 1, strike2Offset: -1 },
+      { strikeOffset: 0, strike2Offset: -2 },
+    ];
+  }
+
+  if (strategy === "covered-call") {
+    return [{ strikeOffset: 1 }, { strikeOffset: 2 }, { strikeOffset: 3 }];
+  }
+
+  if (strategy === "cash-secured-put") {
+    return [{ strikeOffset: -1 }, { strikeOffset: -2 }, { strikeOffset: -3 }];
+  }
+
+  return [{ strikeOffset: -1 }, { strikeOffset: 0 }, { strikeOffset: 1 }];
+}
+
+function strikeAt(strikes: number[], underlyingPrice: number, offset: number) {
+  const sorted = [...strikes].sort((left, right) => left - right);
+  const atTheMoneyIndex = sorted.reduce((nearestIndex, strike, index) => {
+    const nearest = sorted[nearestIndex] ?? strike;
+
+    return Math.abs(strike - underlyingPrice) <
+      Math.abs(nearest - underlyingPrice)
+      ? index
+      : nearestIndex;
+  }, 0);
+  const nextIndex = Math.min(
+    Math.max(atTheMoneyIndex + offset, 0),
+    sorted.length - 1,
+  );
+
+  return sorted[nextIndex] ?? underlyingPrice;
+}
+
+export function optimizeStrategies(
+  inputs: OptimizerInputs,
+): OptimizerCandidate[] {
+  const symbol = inputs.symbol.trim().toUpperCase() || "AAPL";
+  const baseState = createBuilderState({ symbol });
+  const chain = getBuilderChain(baseState);
+  const strategies = THESIS_STRATEGIES[inputs.thesis];
+  const candidates = new Map<string, OptimizerCandidate>();
+
+  for (const expiration of chain.expirations) {
+    const expirationIso = expiration.expiration;
+    const strikes = expiration.calls.map((quote) => quote.strike);
+
+    for (const strategy of strategies) {
+      for (const input of candidateInputs(strategy)) {
+        const strike = strikeAt(
+          strikes,
+          chain.underlying.price,
+          input.strikeOffset,
+        );
+        const strike2 =
+          input.strike2Offset === undefined
+            ? undefined
+            : strikeAt(strikes, chain.underlying.price, input.strike2Offset);
+        const state = createBuilderState({
+          symbol,
+          strategy,
+          expiration: expirationIso,
+          strike,
+          strike2,
+        });
+        const candidate = makeCandidate(inputs, state);
+
+        if (candidate) {
+          candidates.set(candidate.id, candidate);
+        }
+      }
+    }
+  }
+
+  return [...candidates.values()]
+    .sort((left, right) => right.summary.score - left.summary.score)
+    .slice(0, 24);
+}
+
+export function toOptimizerResultRows(
+  candidates: OptimizerCandidate[],
+): OptimizerResultRow[] {
+  return candidates.map((candidate) => ({
+    id: candidate.id,
+    strategy: candidate.summary.strategyLabel,
+    expiration: candidate.summary.expiration,
+    strikes: candidate.summary.strikes
+      .map((strike) => `$${strike}`)
+      .join(" / "),
+    capitalRequired: candidate.summary.capitalRequired,
+    maxProfit: candidate.summary.maxProfit,
+    maxLoss: candidate.summary.maxLoss,
+    probabilityOfProfit: candidate.summary.probabilityOfProfit,
+    delta: candidate.summary.delta,
+    builderHref: candidate.summary.builderHref,
+  }));
+}

@@ -10,17 +10,26 @@ export default function Home() {
           Model a trade idea from a generated options chain.
         </h1>
         <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-          Start with a long call or long put, adjust the core contract inputs,
-          and share the exact strategy state through the URL.
+          Build supported options strategies manually or scan generated
+          candidates across strategy families with risk and expiration filters.
         </p>
-        <Button
-          className="mt-8"
-          nativeButton={false}
-          size="lg"
-          render={<Link href="/build/long-call/AAPL" />}
-        >
-          Open builder
-        </Button>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Button
+            nativeButton={false}
+            size="lg"
+            render={<Link href="/build/long-call/AAPL" />}
+          >
+            Open builder
+          </Button>
+          <Button
+            nativeButton={false}
+            size="lg"
+            variant="outline"
+            render={<Link href="/optimize" />}
+          >
+            Open optimizer
+          </Button>
+        </div>
       </section>
     </main>
   );

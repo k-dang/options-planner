@@ -70,8 +70,8 @@ describe("strategy evaluation", () => {
     expect(evaluation.payoff[20]?.expirationProfitLoss).toBe(-420);
   });
 
-  it("leaves probability of profit unset for strategies without supported estimate semantics", () => {
-    const evaluation = evaluateStrategy({
+  it("computes probability estimates for vertical debit spreads", () => {
+    const bullCallSpread = evaluateStrategy({
       version: 1,
       strategy: "bull-call-spread",
       symbol: "SPY",
@@ -100,8 +100,42 @@ describe("strategy evaluation", () => {
         },
       ],
     });
+    const bearPutSpread = evaluateStrategy({
+      version: 1,
+      strategy: "bear-put-spread",
+      symbol: "SPY",
+      underlyingPrice: 512,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "put",
+          side: "long",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 515,
+          premium: 9,
+          impliedVolatility: 0.22,
+        },
+        {
+          kind: "option",
+          optionType: "put",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 505,
+          premium: 4,
+          impliedVolatility: 0.22,
+        },
+      ],
+    });
 
-    expect(evaluation.probabilityOfProfit).toBeNull();
+    expect(bullCallSpread.breakevens[0]).toBeCloseTo(515, 1);
+    expect(bullCallSpread.probabilityOfProfit).toBeGreaterThan(0.3);
+    expect(bullCallSpread.probabilityOfProfit).toBeLessThan(0.6);
+    expect(bearPutSpread.breakevens[0]).toBeCloseTo(510, 1);
+    expect(bearPutSpread.probabilityOfProfit).toBeGreaterThan(0.3);
+    expect(bearPutSpread.probabilityOfProfit).toBeLessThan(0.6);
   });
 
   it("computes representative covered-call and cash-secured put capital semantics", () => {

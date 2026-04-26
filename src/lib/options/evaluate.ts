@@ -137,38 +137,53 @@ function buildPayoffGrid(state: StrategyState) {
   });
 }
 
-function findBreakevens(payoff: StrategyEvaluation["payoff"]) {
-  const breakevens: number[] = [];
+function exactBreakevens(state: StrategyState, netPremium: number) {
+  const optionLegs = state.legs.filter((leg) => leg.kind === "option");
+  const firstOption = optionLegs[0];
+  const stockLeg = state.legs.find((leg) => leg.kind === "stock");
 
-  for (let index = 1; index < payoff.length; index += 1) {
-    const previous = payoff[index - 1];
-    const current = payoff[index];
-
-    if (!previous || !current) {
-      continue;
-    }
-
-    if (current.profitLoss === 0) {
-      breakevens.push(current.underlyingPrice);
-      continue;
-    }
-
-    if (Math.sign(previous.profitLoss) !== Math.sign(current.profitLoss)) {
-      const ratio =
-        Math.abs(previous.profitLoss) /
-        (Math.abs(previous.profitLoss) + Math.abs(current.profitLoss));
-      breakevens.push(
-        Number(
-          (
-            previous.underlyingPrice +
-            (current.underlyingPrice - previous.underlyingPrice) * ratio
-          ).toFixed(2),
-        ),
-      );
-    }
+  if (!firstOption) {
+    return [];
   }
 
-  return breakevens;
+  const quantity = Math.max(firstOption.quantity, 1);
+  const premiumPerShare = Math.abs(netPremium) / CONTRACT_MULTIPLIER / quantity;
+  const creditPerShare =
+    Math.max(netPremium, 0) / CONTRACT_MULTIPLIER / quantity;
+
+  if (state.strategy === "long-call") {
+    return [Number((firstOption.strike + premiumPerShare).toFixed(2))];
+  }
+
+  if (state.strategy === "long-put") {
+    return [Number((firstOption.strike - premiumPerShare).toFixed(2))];
+  }
+
+  if (state.strategy === "covered-call" && stockLeg?.kind === "stock") {
+    return [Number((stockLeg.entryPrice - creditPerShare).toFixed(2))];
+  }
+
+  if (state.strategy === "cash-secured-put") {
+    return [Number((firstOption.strike - creditPerShare).toFixed(2))];
+  }
+
+  if (state.strategy === "bull-call-spread") {
+    const longCall = optionLegs.find((leg) => leg.side === "long");
+
+    return longCall
+      ? [Number((longCall.strike + premiumPerShare).toFixed(2))]
+      : [];
+  }
+
+  if (state.strategy === "bear-put-spread") {
+    const longPut = optionLegs.find((leg) => leg.side === "long");
+
+    return longPut
+      ? [Number((longPut.strike - premiumPerShare).toFixed(2))]
+      : [];
+  }
+
+  return [];
 }
 
 function estimateBoundedValue(values: number[], direction: "max" | "min") {
@@ -244,6 +259,14 @@ function estimateProbabilityOfProfit(
     return 1 - probabilityBelow(breakevens[0] ?? state.underlyingPrice);
   }
 
+  if (state.strategy === "bull-call-spread") {
+    return 1 - probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
+  if (state.strategy === "bear-put-spread") {
+    return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
   return null;
 }
 
@@ -295,7 +318,7 @@ export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
   );
   const payoff = buildPayoffGrid(state);
   const values = payoff.map((point) => point.profitLoss);
-  const breakevens = findBreakevens(payoff);
+  const breakevens = exactBreakevens(state, netPremium);
 
   return {
     state,
