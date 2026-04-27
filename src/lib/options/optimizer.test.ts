@@ -143,6 +143,41 @@ describe("optimizer", () => {
     ).toBe(true);
   });
 
+  it("supports target probability ranking", () => {
+    const targetProbabilityOfProfit = 0.6;
+    const results = optimizeStrategies({
+      ...baseInputs,
+      rankingMode: "target-probability",
+      targetProbabilityOfProfit,
+    });
+    const distances = results.map((candidate) =>
+      Math.abs(
+        (candidate.summary.probabilityOfProfit ?? 0.35) -
+          targetProbabilityOfProfit,
+      ),
+    );
+    const sortedDistances = [...distances].sort((left, right) => left - right);
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(distances.slice(0, 3)).toEqual(sortedDistances.slice(0, 3));
+  });
+
+  it("supports delta range ranking", () => {
+    const targetDelta = 35;
+    const results = optimizeStrategies({
+      ...baseInputs,
+      rankingMode: "delta-range",
+      targetDelta,
+    });
+    const distances = results.map((candidate) =>
+      Math.abs(candidate.summary.delta - targetDelta),
+    );
+    const sortedDistances = [...distances].sort((left, right) => left - right);
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(distances.slice(0, 3)).toEqual(sortedDistances.slice(0, 3));
+  });
+
   it("centers candidate strikes around the target underlying", () => {
     const targetUnderlyingPrice = 205;
     const results = optimizeStrategies({

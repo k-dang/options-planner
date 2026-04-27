@@ -98,11 +98,11 @@ describe("builder strategy state", () => {
       kind: "option",
       expiration: "2026-05-24",
       strike: 520,
-      premium: 11.35,
+      premium: 9,
       quantity: 2,
     });
-    expect(evaluation.netPremium).toBe(-2270);
-    expect(evaluation.capitalRequired).toBe(2270);
+    expect(evaluation.netPremium).toBeCloseTo(-1800, 2);
+    expect(evaluation.capitalRequired).toBeCloseTo(1800, 2);
   });
 
   it("restores the same builder state from explicit route and query params", () => {

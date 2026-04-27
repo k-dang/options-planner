@@ -163,12 +163,19 @@ export default function OptimizePage() {
                 }}
               >
                 <option value="target-profit">Target profit</option>
+                <option value="target-probability">Target probability</option>
+                <option value="delta-range">Delta range</option>
                 <option value="max-profit">Max profit</option>
                 <option value="return-on-capital">Return on capital</option>
                 <option value="downside-buffer">Downside buffer</option>
               </select>
             </Field>
           </div>
+          <p className="text-muted-foreground text-sm">
+            Results use deterministic generated US equity chains, Black-Scholes
+            estimates, standard 100-share contracts, and no saved server-side
+            state. Probability and delta rankings are model estimates.
+          </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -332,7 +339,9 @@ function isRankingMode(value: string | null): value is OptimizerRankingMode {
     value === "max-profit" ||
     value === "return-on-capital" ||
     value === "downside-buffer" ||
-    value === "target-profit"
+    value === "target-profit" ||
+    value === "target-probability" ||
+    value === "delta-range"
   );
 }
 

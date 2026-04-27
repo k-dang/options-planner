@@ -324,8 +324,10 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                 <p className="text-muted-foreground text-sm">
                   Expiration P/L uses intrinsic value at the selected expiry.
                   Model P/L today and estimated probability of profit are
-                  Black-Scholes estimates using the leg IV, current quote date,
-                  and a fixed risk-free rate.
+                  Black-Scholes estimates using generated bid/ask mids, leg IV,
+                  the current quote date, no dividends, and a fixed risk-free
+                  rate. Sample chains are deterministic planning inputs, not
+                  live market data.
                 </p>
               </CardContent>
             </Card>
@@ -513,7 +515,7 @@ function InfoPanel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-3xl bg-muted p-3">
+    <div className="rounded-lg bg-muted p-3">
       <p className="font-medium text-muted-foreground text-sm">{label}</p>
       <p className="mt-1 font-semibold capitalize">{children}</p>
     </div>
@@ -531,7 +533,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-3xl bg-muted p-3">
+    <div className="rounded-lg bg-muted p-3">
       <dt className="font-medium text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-semibold">{value}</dd>
     </div>

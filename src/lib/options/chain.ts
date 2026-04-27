@@ -18,6 +18,16 @@ const SYMBOL_BASE_PRICES: Record<string, number> = {
   SPY: 512,
   TSLA: 178,
 };
+const SYMBOL_BASE_IV: Record<string, number> = {
+  AAPL: 0.24,
+  AMZN: 0.29,
+  GOOGL: 0.27,
+  META: 0.32,
+  MSFT: 0.23,
+  NVDA: 0.46,
+  SPY: 0.18,
+  TSLA: 0.55,
+};
 
 function stableSymbolPrice(symbol: string) {
   const normalized = symbol.toUpperCase();
@@ -56,8 +66,8 @@ function buildStrikeLadder(price: number) {
   const step = strikeStep(price);
   const anchor = Math.round(price / step) * step;
 
-  return Array.from({ length: 17 }, (_, index) =>
-    Number((anchor + (index - 8) * step).toFixed(2)),
+  return Array.from({ length: 25 }, (_, index) =>
+    Number((anchor + (index - 12) * step).toFixed(2)),
   ).filter((strike) => strike > 0);
 }
 
@@ -67,11 +77,19 @@ function buildQuote(
   daysToExpiration: number,
   strike: number,
   underlyingPrice: number,
+  baseVolatility: number,
 ): OptionQuote {
   const moneyness = Math.abs(Math.log(strike / underlyingPrice));
   const termBump = Math.sqrt(daysToExpiration / 365) * 0.04;
+  const skewBump =
+    optionType === "put"
+      ? Math.max(underlyingPrice / strike - 1, 0) * 0.18
+      : Math.max(strike / underlyingPrice - 1, 0) * 0.08;
   const impliedVolatility = Number(
-    (0.22 + moneyness * 0.6 + termBump).toFixed(4),
+    Math.min(
+      0.95,
+      baseVolatility + moneyness * 0.48 + termBump + skewBump,
+    ).toFixed(4),
   );
   const priced = blackScholes({
     optionType,
@@ -100,22 +118,39 @@ export class GeneratedChainProvider implements ChainProvider {
   getChain(symbol: string, asOf = DEFAULT_AS_OF): OptionChainSnapshot {
     const normalizedSymbol = symbol.trim().toUpperCase();
     const price = stableSymbolPrice(normalizedSymbol);
+    const baseVolatility = SYMBOL_BASE_IV[normalizedSymbol] ?? 0.3;
     const expirationDays = [7, 14, 21, 30, 45, 60, 90, 120];
     const strikes = buildStrikeLadder(price);
-    const expirations: OptionExpiration[] = expirationDays.map((days) => {
-      const expiration = isoDateAfter(asOf, days);
+    const expirations: OptionExpiration[] = expirationDays.map(
+      (daysToExpiration) => {
+        const expiration = isoDateAfter(asOf, daysToExpiration);
 
-      return {
-        expiration,
-        daysToExpiration: days,
-        calls: strikes.map((strike) =>
-          buildQuote("call", expiration, days, strike, price),
-        ),
-        puts: strikes.map((strike) =>
-          buildQuote("put", expiration, days, strike, price),
-        ),
-      };
-    });
+        return {
+          expiration,
+          daysToExpiration,
+          calls: strikes.map((strike) =>
+            buildQuote(
+              "call",
+              expiration,
+              daysToExpiration,
+              strike,
+              price,
+              baseVolatility,
+            ),
+          ),
+          puts: strikes.map((strike) =>
+            buildQuote(
+              "put",
+              expiration,
+              daysToExpiration,
+              strike,
+              price,
+              baseVolatility,
+            ),
+          ),
+        };
+      },
+    );
 
     return {
       underlying: {

@@ -16,7 +16,9 @@ export type OptimizerRankingMode =
   | "max-profit"
   | "return-on-capital"
   | "downside-buffer"
-  | "target-profit";
+  | "target-profit"
+  | "target-probability"
+  | "delta-range";
 
 export type OptimizerInputs = {
   symbol: string;
@@ -27,6 +29,8 @@ export type OptimizerInputs = {
   maxCapitalRequired: number;
   minProbabilityOfProfit?: number;
   targetUnderlyingPrice?: number;
+  targetProbabilityOfProfit?: number;
+  targetDelta?: number;
 };
 
 export type OptimizerCandidate = {
@@ -131,6 +135,18 @@ function candidateScore(
     );
   }
 
+  if (mode === "target-probability") {
+    const targetProbability = inputs.targetProbabilityOfProfit ?? 0.65;
+
+    return -Math.abs(probability - targetProbability);
+  }
+
+  if (mode === "delta-range") {
+    const targetDelta = inputs.targetDelta ?? defaultTargetDelta(inputs.thesis);
+
+    return -Math.abs(delta - targetDelta);
+  }
+
   if (inputs.thesis === "bullish") {
     return returnScore + probability + Math.max(delta, 0) / 100;
   }
@@ -140,6 +156,18 @@ function candidateScore(
   }
 
   return probability + Math.max(evaluation.netPremium, 0) / risk;
+}
+
+function defaultTargetDelta(thesis: OptimizerThesis) {
+  if (thesis === "bearish") {
+    return -35;
+  }
+
+  if (thesis === "income") {
+    return 25;
+  }
+
+  return 45;
 }
 
 function downsideBuffer(evaluation: StrategyEvaluation) {
@@ -374,9 +402,32 @@ export function optimizeStrategies(
     }
   }
 
-  return [...candidates.values()]
-    .sort((left, right) => right.summary.score - left.summary.score)
-    .slice(0, 24);
+  const ranked = [...candidates.values()].sort(
+    (left, right) => right.summary.score - left.summary.score,
+  );
+  const selected = new Map<string, OptimizerCandidate>();
+
+  for (const strategy of strategies) {
+    const bestForStrategy = ranked.find(
+      (candidate) => candidate.state.strategy === strategy,
+    );
+
+    if (bestForStrategy) {
+      selected.set(bestForStrategy.id, bestForStrategy);
+    }
+  }
+
+  for (const candidate of ranked) {
+    if (selected.size >= 24) {
+      break;
+    }
+
+    selected.set(candidate.id, candidate);
+  }
+
+  return [...selected.values()].sort(
+    (left, right) => right.summary.score - left.summary.score,
+  );
 }
 
 export function toOptimizerResultRows(
