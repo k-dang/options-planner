@@ -11,6 +11,7 @@ export { evaluateStrategy } from "./evaluate";
 export {
   type OptimizerCandidate,
   type OptimizerInputs,
+  type OptimizerRankingMode,
   type OptimizerResultRow,
   type OptimizerThesis,
   optimizeStrategies,

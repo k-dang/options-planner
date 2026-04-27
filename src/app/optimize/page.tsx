@@ -19,6 +19,7 @@ import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
   type OptimizerCandidate,
   type OptimizerInputs,
+  type OptimizerRankingMode,
   type OptimizerThesis,
   optimizeStrategies,
 } from "@/lib/options";
@@ -26,6 +27,7 @@ import {
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
   thesis: "bullish",
+  rankingMode: "target-profit",
   minDaysToExpiration: 20,
   maxDaysToExpiration: 70,
   maxCapitalRequired: Number.POSITIVE_INFINITY,
@@ -124,6 +126,49 @@ export default function OptimizePage() {
               </Button>
             ))}
           </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="target-underlying">
+                Target underlying
+              </FieldLabel>
+              <Input
+                id="target-underlying"
+                min="1"
+                step="1"
+                type="number"
+                value={
+                  inputs.targetUnderlyingPrice ??
+                  Math.round(
+                    (strategyCards[0]?.state.underlyingPrice ?? 0) * 1.08,
+                  )
+                }
+                onChange={(event) =>
+                  updateInputs({
+                    targetUnderlyingPrice: Number(event.target.value),
+                  })
+                }
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="ranking-mode">Rank by</FieldLabel>
+              <select
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+                id="ranking-mode"
+                value={inputs.rankingMode}
+                onChange={(event) => {
+                  if (isRankingMode(event.target.value)) {
+                    updateInputs({ rankingMode: event.target.value });
+                  }
+                }}
+              >
+                <option value="target-profit">Target profit</option>
+                <option value="max-profit">Max profit</option>
+                <option value="return-on-capital">Return on capital</option>
+                <option value="downside-buffer">Downside buffer</option>
+              </select>
+            </Field>
+          </div>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -177,6 +222,10 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
             </p>
             <p className="font-semibold">
               {formatCurrency(candidate.summary.maxProfit)} Profit
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {formatCurrency(candidate.summary.targetProfitLoss)} at{" "}
+              {formatCurrency(candidate.summary.targetUnderlyingPrice)}
             </p>
           </div>
           <div className="text-right">
@@ -242,6 +291,11 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
               stroke="var(--muted-foreground)"
               strokeDasharray="3 3"
             />
+            <ReferenceLine
+              x={candidate.summary.targetUnderlyingPrice}
+              stroke="var(--destructive)"
+              strokeDasharray="4 2"
+            />
             <Area
               dataKey="expirationProfitLoss"
               fill={`url(#${candidate.id}-pnl)`}
@@ -271,6 +325,15 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
 
 function isThesis(value: string | null): value is OptimizerThesis {
   return value === "bullish" || value === "bearish" || value === "income";
+}
+
+function isRankingMode(value: string | null): value is OptimizerRankingMode {
+  return (
+    value === "max-profit" ||
+    value === "return-on-capital" ||
+    value === "downside-buffer" ||
+    value === "target-profit"
+  );
 }
 
 function titleCase(value: string) {

@@ -12,14 +12,21 @@ import type {
 } from "./types";
 
 export type OptimizerThesis = "bullish" | "bearish" | "income";
+export type OptimizerRankingMode =
+  | "max-profit"
+  | "return-on-capital"
+  | "downside-buffer"
+  | "target-profit";
 
 export type OptimizerInputs = {
   symbol: string;
   thesis: OptimizerThesis;
+  rankingMode?: OptimizerRankingMode;
   minDaysToExpiration: number;
   maxDaysToExpiration: number;
   maxCapitalRequired: number;
   minProbabilityOfProfit?: number;
+  targetUnderlyingPrice?: number;
 };
 
 export type OptimizerCandidate = {
@@ -36,6 +43,8 @@ export type OptimizerCandidate = {
     maxLoss: number | null;
     probabilityOfProfit: number | null;
     delta: number;
+    targetUnderlyingPrice: number;
+    targetProfitLoss: number;
     score: number;
     builderHref: string;
   };
@@ -51,6 +60,8 @@ export type OptimizerResultRow = {
   maxLoss: number | null;
   probabilityOfProfit: number | null;
   delta: number;
+  targetUnderlyingPrice: number;
+  targetProfitLoss: number;
   builderHref: string;
 };
 
@@ -91,7 +102,7 @@ function daysBetween(asOfIso: string, expirationIso: string) {
 }
 
 function candidateScore(
-  thesis: OptimizerThesis,
+  inputs: OptimizerInputs,
   evaluation: StrategyEvaluation,
 ) {
   const maxLoss = evaluation.maxLoss ?? -evaluation.capitalRequired;
@@ -99,16 +110,49 @@ function candidateScore(
   const returnScore = (evaluation.maxProfit ?? 0) / risk;
   const probability = evaluation.probabilityOfProfit ?? 0.35;
   const delta = evaluation.greeks.delta;
+  const mode = inputs.rankingMode ?? "return-on-capital";
 
-  if (thesis === "bullish") {
+  if (mode === "max-profit") {
+    return evaluation.maxProfit ?? Number.NEGATIVE_INFINITY;
+  }
+
+  if (mode === "return-on-capital") {
+    return returnScore;
+  }
+
+  if (mode === "downside-buffer") {
+    return downsideBuffer(evaluation);
+  }
+
+  if (mode === "target-profit") {
+    return targetProfitLoss(
+      evaluation,
+      targetUnderlyingPrice(inputs, evaluation.state.underlyingPrice),
+    );
+  }
+
+  if (inputs.thesis === "bullish") {
     return returnScore + probability + Math.max(delta, 0) / 100;
   }
 
-  if (thesis === "bearish") {
+  if (inputs.thesis === "bearish") {
     return returnScore + probability + Math.max(-delta, 0) / 100;
   }
 
   return probability + Math.max(evaluation.netPremium, 0) / risk;
+}
+
+function downsideBuffer(evaluation: StrategyEvaluation) {
+  const breakeven = evaluation.breakevens[0];
+
+  if (breakeven === undefined || evaluation.state.underlyingPrice <= 0) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  return (
+    (evaluation.state.underlyingPrice - breakeven) /
+    evaluation.state.underlyingPrice
+  );
 }
 
 function passesFilters(
@@ -138,6 +182,69 @@ function passesFilters(
   return true;
 }
 
+function targetUnderlyingPrice(
+  inputs: OptimizerInputs,
+  underlyingPrice: number,
+) {
+  if (
+    inputs.targetUnderlyingPrice !== undefined &&
+    Number.isFinite(inputs.targetUnderlyingPrice) &&
+    inputs.targetUnderlyingPrice > 0
+  ) {
+    return inputs.targetUnderlyingPrice;
+  }
+
+  if (inputs.thesis === "bearish") {
+    return Number((underlyingPrice * 0.92).toFixed(2));
+  }
+
+  if (inputs.thesis === "income") {
+    return Number(underlyingPrice.toFixed(2));
+  }
+
+  return Number((underlyingPrice * 1.08).toFixed(2));
+}
+
+function targetProfitLoss(evaluation: StrategyEvaluation, targetPrice: number) {
+  const payoff = evaluation.payoff;
+  const first = payoff[0];
+  const last = payoff[payoff.length - 1];
+
+  if (!first || !last) {
+    return 0;
+  }
+
+  if (targetPrice <= first.underlyingPrice) {
+    return first.expirationProfitLoss;
+  }
+
+  if (targetPrice >= last.underlyingPrice) {
+    return last.expirationProfitLoss;
+  }
+
+  for (let index = 1; index < payoff.length; index += 1) {
+    const right = payoff[index];
+    const left = payoff[index - 1];
+
+    if (!left || !right || targetPrice > right.underlyingPrice) {
+      continue;
+    }
+
+    const width = right.underlyingPrice - left.underlyingPrice;
+    const weight =
+      width === 0 ? 0 : (targetPrice - left.underlyingPrice) / width;
+
+    return Number(
+      (
+        left.expirationProfitLoss +
+        (right.expirationProfitLoss - left.expirationProfitLoss) * weight
+      ).toFixed(2),
+    );
+  }
+
+  return last.expirationProfitLoss;
+}
+
 function makeCandidate(
   inputs: OptimizerInputs,
   state: StrategyState,
@@ -155,7 +262,9 @@ function makeCandidate(
   }
 
   const legs = optionLegs(state);
-  const score = candidateScore(inputs.thesis, evaluation);
+  const targetPrice = targetUnderlyingPrice(inputs, state.underlyingPrice);
+  const targetProfit = targetProfitLoss(evaluation, targetPrice);
+  const score = candidateScore(inputs, evaluation);
 
   return {
     id: candidateId(state),
@@ -171,6 +280,8 @@ function makeCandidate(
       maxLoss: evaluation.maxLoss,
       probabilityOfProfit: evaluation.probabilityOfProfit,
       delta: evaluation.greeks.delta,
+      targetUnderlyingPrice: targetPrice,
+      targetProfitLoss: targetProfit,
       score,
       builderHref: serializeBuilderState(state),
     },
@@ -232,6 +343,7 @@ export function optimizeStrategies(
   const symbol = inputs.symbol.trim().toUpperCase() || "AAPL";
   const baseState = createBuilderState({ symbol });
   const chain = getBuilderChain(baseState);
+  const targetPrice = targetUnderlyingPrice(inputs, chain.underlying.price);
   const strategies = THESIS_STRATEGIES[inputs.thesis];
   const candidates = new Map<string, OptimizerCandidate>();
 
@@ -241,15 +353,11 @@ export function optimizeStrategies(
 
     for (const strategy of strategies) {
       for (const input of candidateInputs(strategy)) {
-        const strike = strikeAt(
-          strikes,
-          chain.underlying.price,
-          input.strikeOffset,
-        );
+        const strike = strikeAt(strikes, targetPrice, input.strikeOffset);
         const strike2 =
           input.strike2Offset === undefined
             ? undefined
-            : strikeAt(strikes, chain.underlying.price, input.strike2Offset);
+            : strikeAt(strikes, targetPrice, input.strike2Offset);
         const state = createBuilderState({
           symbol,
           strategy,
@@ -286,6 +394,8 @@ export function toOptimizerResultRows(
     maxLoss: candidate.summary.maxLoss,
     probabilityOfProfit: candidate.summary.probabilityOfProfit,
     delta: candidate.summary.delta,
+    targetUnderlyingPrice: candidate.summary.targetUnderlyingPrice,
+    targetProfitLoss: candidate.summary.targetProfitLoss,
     builderHref: candidate.summary.builderHref,
   }));
 }
