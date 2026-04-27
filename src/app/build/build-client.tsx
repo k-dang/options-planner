@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/select";
 import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
-  BUILDER_STRATEGIES,
   createBuilderState,
   evaluateStrategy,
   getBuilderChain,
@@ -39,7 +38,6 @@ import {
   type OptionLeg,
   type OptionQuote,
   type StrategyState,
-  type StrategyTemplateId,
   serializeBuilderState,
 } from "@/lib/options";
 
@@ -126,36 +124,6 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                         Load
                       </Button>
                     </div>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="strategy">Strategy</FieldLabel>
-                    <Select
-                      id="strategy"
-                      value={state.strategy}
-                      onValueChange={(value) => {
-                        if (isBuilderStrategy(value)) {
-                          commitState(
-                            createBuilderState({
-                              symbol: state.symbol,
-                              strategy: value,
-                              quantity: primaryLeg?.quantity,
-                            }),
-                          );
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BUILDER_STRATEGIES.map((strategy) => (
-                          <SelectItem key={strategy} value={strategy}>
-                            {strategyLabel(strategy)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </Field>
 
                   <Field>
@@ -445,16 +413,6 @@ function quotesForLeg(
   }
 
   return leg.optionType === "put" ? expiration.puts : expiration.calls;
-}
-
-function isBuilderStrategy(value: string | null): value is StrategyTemplateId {
-  return (
-    value !== null && BUILDER_STRATEGIES.includes(value as StrategyTemplateId)
-  );
-}
-
-function strategyLabel(strategy: StrategyTemplateId) {
-  return strategy.replaceAll("-", " ");
 }
 
 function strikeInput(index: number, strike: number) {
