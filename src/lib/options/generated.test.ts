@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { GeneratedChainProvider } from "./index";
 
 describe("GeneratedChainProvider", () => {
-  it("creates deterministic weekly and monthly-looking chains with sane quotes", () => {
-    const chain = new GeneratedChainProvider().getChain(
-      "aapl",
-      new Date("2026-04-24T16:00:00.000Z"),
-    );
+  it("creates deterministic weekly and monthly-looking chains with sane quotes", async () => {
+    const chain = await new GeneratedChainProvider().getChain({
+      symbol: "aapl",
+      asOf: new Date("2026-04-24T16:00:00.000Z"),
+    });
 
     expect(chain.underlying).toEqual({
       symbol: "AAPL",
@@ -32,11 +32,11 @@ describe("GeneratedChainProvider", () => {
     expect(atTheMoney?.impliedVolatility).toBeGreaterThan(0.24);
   });
 
-  it("calibrates symbol volatility and strike coverage across representative names", () => {
+  it("calibrates symbol volatility and strike coverage across representative names", async () => {
     const provider = new GeneratedChainProvider();
-    const spy = provider.getChain("SPY");
-    const tsla = provider.getChain("TSLA");
-    const nvda = provider.getChain("NVDA");
+    const spy = await provider.getChain({ symbol: "SPY" });
+    const tsla = await provider.getChain({ symbol: "TSLA" });
+    const nvda = await provider.getChain({ symbol: "NVDA" });
 
     const spyAtTheMoney = spy.expirations[2]?.calls.find(
       (quote) => quote.strike === 510,

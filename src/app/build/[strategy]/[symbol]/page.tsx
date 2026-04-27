@@ -1,4 +1,5 @@
 import { parseBuilderState } from "@/lib/options";
+import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { BuilderClient } from "../../build-client";
 
 export default async function BuildStrategyPage({
@@ -17,18 +18,24 @@ export default async function BuildStrategyPage({
 }) {
   const route = await params;
   const query = await searchParams;
-  const initialState = parseBuilderState({
-    strategy: route.strategy,
+  const chain = await getOptionChainProvider().getChain({
     symbol: route.symbol,
-    expiration: singleValue(query.exp),
-    strike: singleValue(query.strike),
-    strike2: singleValue(query.strike2),
-    strike3: singleValue(query.strike3),
-    strike4: singleValue(query.strike4),
-    quantity: singleValue(query.qty),
   });
+  const initialState = parseBuilderState(
+    {
+      strategy: route.strategy,
+      symbol: chain.underlying.symbol,
+      expiration: singleValue(query.exp),
+      strike: singleValue(query.strike),
+      strike2: singleValue(query.strike2),
+      strike3: singleValue(query.strike3),
+      strike4: singleValue(query.strike4),
+      quantity: singleValue(query.qty),
+    },
+    chain,
+  );
 
-  return <BuilderClient initialState={initialState} />;
+  return <BuilderClient initialChain={chain} initialState={initialState} />;
 }
 
 function singleValue(value?: string | string[]) {

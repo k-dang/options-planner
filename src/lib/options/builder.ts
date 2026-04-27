@@ -1,4 +1,8 @@
-import { GeneratedChainProvider } from "./chain";
+import { createGeneratedChain } from "./providers/generated";
+import {
+  fallbackImpliedVolatility,
+  usablePremium,
+} from "./providers/normalize";
 import type {
   OptionChainSnapshot,
   OptionLeg,
@@ -123,10 +127,19 @@ function findSpreadQuote(
 }
 
 function optionLegFromQuote(
+  chain: OptionChainSnapshot,
   quote: OptionQuote,
   side: "long" | "short",
   quantity: number,
 ): OptionLeg {
+  const premium = usablePremium(quote);
+
+  if (premium === null) {
+    throw new Error(
+      `Option quote ${quote.expiration} ${quote.strike} ${quote.optionType} did not include a usable premium.`,
+    );
+  }
+
   return {
     kind: "option",
     optionType: quote.optionType,
@@ -134,8 +147,11 @@ function optionLegFromQuote(
     quantity,
     expiration: quote.expiration,
     strike: quote.strike,
-    premium: quote.mid,
-    impliedVolatility: quote.impliedVolatility,
+    premium,
+    impliedVolatility: fallbackImpliedVolatility({
+      quote,
+      underlyingPrice: chain.underlying.price,
+    }),
   };
 }
 
@@ -148,10 +164,11 @@ export function createBuilderState(input?: {
   strike3?: number;
   strike4?: number;
   quantity?: number;
+  chain?: OptionChainSnapshot;
 }): StrategyState {
   const symbol = (input?.symbol ?? DEFAULT_SYMBOL).trim().toUpperCase();
   const strategy = coerceBuilderStrategy(input?.strategy);
-  const chain = new GeneratedChainProvider().getChain(symbol);
+  const chain = input?.chain ?? createGeneratedChain(symbol);
   const quantity = input?.quantity ?? 1;
   const optionType =
     strategy === "long-put" ||
@@ -231,38 +248,44 @@ export function createBuilderState(input?: {
       quantity: quantity * 100,
       entryPrice: chain.underlying.price,
     });
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
   } else if (strategy === "cash-secured-put" || strategy === "short-put") {
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
   } else if (strategy === "short-call") {
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
   } else if (strategy === "bull-call-spread" && shortQuote) {
-    legs.push(optionLegFromQuote(longQuote, "long", quantity));
-    legs.push(optionLegFromQuote(shortQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "long", quantity));
+    legs.push(optionLegFromQuote(chain, shortQuote, "short", quantity));
   } else if (strategy === "bear-put-spread" && shortQuote) {
-    legs.push(optionLegFromQuote(longQuote, "long", quantity));
-    legs.push(optionLegFromQuote(shortQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "long", quantity));
+    legs.push(optionLegFromQuote(chain, shortQuote, "short", quantity));
   } else if (strategy === "bull-put-spread" && shortQuote) {
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
-    legs.push(optionLegFromQuote(shortQuote, "long", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, shortQuote, "long", quantity));
   } else if (strategy === "bear-call-spread" && shortQuote) {
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
-    legs.push(optionLegFromQuote(shortQuote, "long", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, shortQuote, "long", quantity));
   } else if (strategy === "iron-condor" && ironCondorQuotes) {
-    legs.push(optionLegFromQuote(ironCondorQuotes.longPut, "long", quantity));
-    legs.push(optionLegFromQuote(ironCondorQuotes.shortPut, "short", quantity));
     legs.push(
-      optionLegFromQuote(ironCondorQuotes.shortCall, "short", quantity),
+      optionLegFromQuote(chain, ironCondorQuotes.longPut, "long", quantity),
     );
-    legs.push(optionLegFromQuote(ironCondorQuotes.longCall, "long", quantity));
+    legs.push(
+      optionLegFromQuote(chain, ironCondorQuotes.shortPut, "short", quantity),
+    );
+    legs.push(
+      optionLegFromQuote(chain, ironCondorQuotes.shortCall, "short", quantity),
+    );
+    legs.push(
+      optionLegFromQuote(chain, ironCondorQuotes.longCall, "long", quantity),
+    );
   } else if (strategy === "short-straddle" && straddlePutQuote) {
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
-    legs.push(optionLegFromQuote(straddlePutQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, straddlePutQuote, "short", quantity));
   } else if (strategy === "short-strangle" && shortQuote) {
-    legs.push(optionLegFromQuote(longQuote, "short", quantity));
-    legs.push(optionLegFromQuote(shortQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "short", quantity));
+    legs.push(optionLegFromQuote(chain, shortQuote, "short", quantity));
   } else {
-    legs.push(optionLegFromQuote(longQuote, "long", quantity));
+    legs.push(optionLegFromQuote(chain, longQuote, "long", quantity));
   }
 
   return {
@@ -318,10 +341,7 @@ function buildIronCondorQuotes(
 }
 
 export function getBuilderChain(state: StrategyState): OptionChainSnapshot {
-  return new GeneratedChainProvider().getChain(
-    state.symbol,
-    new Date(state.asOf),
-  );
+  return createGeneratedChain(state.symbol, new Date(state.asOf));
 }
 
 function coerceBuilderStrategy(strategy?: string): StrategyTemplateId {
@@ -340,7 +360,10 @@ function parsePositiveNumber(value?: string) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-export function parseBuilderState(params: BuilderUrlParams): StrategyState {
+export function parseBuilderState(
+  params: BuilderUrlParams,
+  chain?: OptionChainSnapshot,
+): StrategyState {
   return createBuilderState({
     symbol: params.symbol,
     strategy: coerceBuilderStrategy(params.strategy),
@@ -350,6 +373,7 @@ export function parseBuilderState(params: BuilderUrlParams): StrategyState {
     strike3: parsePositiveNumber(params.strike3),
     strike4: parsePositiveNumber(params.strike4),
     quantity: parsePositiveNumber(params.quantity),
+    chain,
   });
 }
 

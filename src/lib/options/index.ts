@@ -6,7 +6,6 @@ export {
   parseBuilderState,
   serializeBuilderState,
 } from "./builder";
-export { GeneratedChainProvider } from "./chain";
 export { evaluateStrategy } from "./evaluate";
 export {
   type OptimizerCandidate,
@@ -18,5 +17,9 @@ export {
   toOptimizerResultRows,
 } from "./optimizer";
 export { blackScholes, intrinsicValue } from "./pricing";
+export {
+  createGeneratedChain,
+  GeneratedChainProvider,
+} from "./providers/generated";
 export { validateStrategyState } from "./strategy";
 export type * from "./types";

@@ -31,8 +31,8 @@ import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
   createBuilderState,
   evaluateStrategy,
-  getBuilderChain,
   getBuilderOptionLegs,
+  type OptionChainSnapshot,
   type OptionExpiration,
   type OptionLeg,
   type OptionQuote,
@@ -41,14 +41,18 @@ import {
 } from "@/lib/options";
 
 type BuilderClientProps = {
+  initialChain: OptionChainSnapshot;
   initialState: StrategyState;
 };
 
-export function BuilderClient({ initialState }: BuilderClientProps) {
+export function BuilderClient({
+  initialChain,
+  initialState,
+}: BuilderClientProps) {
   const router = useRouter();
   const [state, setState] = useState(initialState);
   const [symbolDraft, setSymbolDraft] = useState(initialState.symbol);
-  const chain = useMemo(() => getBuilderChain(state), [state]);
+  const chain = initialChain;
   const optionLegs = getBuilderOptionLegs(state);
   const primaryLeg = optionLegs[0];
   const secondaryLeg = optionLegs[1];
@@ -77,10 +81,19 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
       strike4: optionLegs[3]?.strike,
       quantity: primaryLeg?.quantity,
       ...input,
+      chain,
       strategy: state.strategy,
     });
 
     commitState(next);
+  }
+
+  function loadSymbol() {
+    const symbol = symbolDraft.trim().toUpperCase() || state.symbol;
+
+    router.push(
+      `/build/${encodeURIComponent(state.strategy)}/${encodeURIComponent(symbol)}`,
+    );
   }
 
   return (
@@ -109,12 +122,7 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                         value={symbolDraft}
                         onChange={(event) => setSymbolDraft(event.target.value)}
                       />
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          updateFromInputs({ symbol: symbolDraft })
-                        }
-                      >
+                      <Button type="button" onClick={loadSymbol}>
                         Load
                       </Button>
                     </div>
@@ -162,7 +170,9 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                   ))}
 
                   <InfoPanel label="Option price">
-                    {selectedQuote ? formatCurrency(selectedQuote.mid) : "n/a"}
+                    {selectedQuote && selectedQuote.mid !== null
+                      ? formatCurrency(selectedQuote.mid)
+                      : "n/a"}
                   </InfoPanel>
 
                   <Field>

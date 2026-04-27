@@ -52,15 +52,27 @@ export type UnderlyingQuote = {
   asOf: string;
 };
 
+export type OptionChainProviderId = "generated" | "alpaca" | "polygon";
+
 export type OptionQuote = {
+  provider: OptionChainProviderId;
+  providerSymbol?: string;
   optionType: OptionType;
   expiration: string;
   strike: number;
-  bid: number;
-  ask: number;
-  mid: number;
-  impliedVolatility: number;
-  delta: number;
+  bid: number | null;
+  ask: number | null;
+  mid: number | null;
+  last: number | null;
+  volume: number | null;
+  openInterest: number | null;
+  impliedVolatility: number | null;
+  delta: number | null;
+  gamma: number | null;
+  theta: number | null;
+  vega: number | null;
+  rho: number | null;
+  updatedAt: string | null;
 };
 
 export type OptionExpiration = {
@@ -75,8 +87,18 @@ export type OptionChainSnapshot = {
   expirations: OptionExpiration[];
 };
 
-export type ChainProvider = {
-  getChain(symbol: string, asOf?: Date): OptionChainSnapshot;
+export type OptionChainRequest = {
+  symbol: string;
+  asOf?: Date;
+  expirationGte?: string;
+  expirationLte?: string;
+  strikeGte?: number;
+  strikeLte?: number;
+  feed?: "indicative" | "opra";
+};
+
+export type OptionChainProvider = {
+  getChain(input: OptionChainRequest): Promise<OptionChainSnapshot>;
 };
 
 export type LegGreeks = {

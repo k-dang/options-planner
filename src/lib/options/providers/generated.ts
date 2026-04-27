@@ -1,11 +1,12 @@
-import { blackScholes } from "./pricing";
+import { blackScholes } from "../pricing";
 import type {
-  ChainProvider,
+  OptionChainProvider,
+  OptionChainRequest,
   OptionChainSnapshot,
   OptionExpiration,
   OptionQuote,
   OptionType,
-} from "./types";
+} from "../types";
 
 const DEFAULT_AS_OF = new Date("2026-04-24T16:00:00.000Z");
 const SYMBOL_BASE_PRICES: Record<string, number> = {
@@ -103,62 +104,78 @@ function buildQuote(
   const ask = Math.max(bid + 0.05, roundToNickel(priced.price + spread / 2));
 
   return {
+    provider: "generated",
     optionType,
     expiration,
     strike,
     bid,
     ask,
     mid: roundToNickel((bid + ask) / 2),
+    last: roundToNickel(priced.price),
+    volume: null,
+    openInterest: null,
     impliedVolatility,
     delta: Number(priced.greeks.delta.toFixed(4)),
+    gamma: Number(priced.greeks.gamma.toFixed(4)),
+    theta: Number(priced.greeks.theta.toFixed(4)),
+    vega: Number(priced.greeks.vega.toFixed(4)),
+    rho: Number(priced.greeks.rho.toFixed(4)),
+    updatedAt: null,
   };
 }
 
-export class GeneratedChainProvider implements ChainProvider {
-  getChain(symbol: string, asOf = DEFAULT_AS_OF): OptionChainSnapshot {
-    const normalizedSymbol = symbol.trim().toUpperCase();
-    const price = stableSymbolPrice(normalizedSymbol);
-    const baseVolatility = SYMBOL_BASE_IV[normalizedSymbol] ?? 0.3;
-    const expirationDays = [7, 14, 21, 30, 45, 60, 90, 120];
-    const strikes = buildStrikeLadder(price);
-    const expirations: OptionExpiration[] = expirationDays.map(
-      (daysToExpiration) => {
-        const expiration = isoDateAfter(asOf, daysToExpiration);
+export function createGeneratedChain(
+  symbol: string,
+  asOf = DEFAULT_AS_OF,
+): OptionChainSnapshot {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const price = stableSymbolPrice(normalizedSymbol);
+  const baseVolatility = SYMBOL_BASE_IV[normalizedSymbol] ?? 0.3;
+  const expirationDays = [7, 14, 21, 30, 45, 60, 90, 120];
+  const strikes = buildStrikeLadder(price);
+  const expirations: OptionExpiration[] = expirationDays.map(
+    (daysToExpiration) => {
+      const expiration = isoDateAfter(asOf, daysToExpiration);
 
-        return {
-          expiration,
-          daysToExpiration,
-          calls: strikes.map((strike) =>
-            buildQuote(
-              "call",
-              expiration,
-              daysToExpiration,
-              strike,
-              price,
-              baseVolatility,
-            ),
+      return {
+        expiration,
+        daysToExpiration,
+        calls: strikes.map((strike) =>
+          buildQuote(
+            "call",
+            expiration,
+            daysToExpiration,
+            strike,
+            price,
+            baseVolatility,
           ),
-          puts: strikes.map((strike) =>
-            buildQuote(
-              "put",
-              expiration,
-              daysToExpiration,
-              strike,
-              price,
-              baseVolatility,
-            ),
+        ),
+        puts: strikes.map((strike) =>
+          buildQuote(
+            "put",
+            expiration,
+            daysToExpiration,
+            strike,
+            price,
+            baseVolatility,
           ),
-        };
-      },
-    );
+        ),
+      };
+    },
+  );
 
-    return {
-      underlying: {
-        symbol: normalizedSymbol,
-        price,
-        asOf: asOf.toISOString(),
-      },
-      expirations,
-    };
+  return {
+    underlying: {
+      symbol: normalizedSymbol,
+      price,
+      asOf: asOf.toISOString(),
+    },
+    expirations,
+  };
+}
+
+export class GeneratedChainProvider implements OptionChainProvider {
+  async getChain(input: OptionChainRequest): Promise<OptionChainSnapshot> {
+    return createGeneratedChain(input.symbol, input.asOf);
   }
 }
