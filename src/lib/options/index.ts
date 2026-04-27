@@ -6,7 +6,12 @@ export {
   parseBuilderState,
   serializeBuilderState,
 } from "./builder";
-export { evaluateStrategy } from "./evaluate";
+export {
+  evaluateStrategy,
+  type StrategyEvaluationResult,
+  StrategyValidationError,
+  safeEvaluateStrategy,
+} from "./evaluate";
 export {
   type OptimizerCandidate,
   type OptimizerInputs,
@@ -23,3 +28,4 @@ export {
 } from "./providers/generated";
 export { validateStrategyState } from "./strategy";
 export type * from "./types";
+export { CONTRACT_MULTIPLIER } from "./types";

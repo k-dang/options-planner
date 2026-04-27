@@ -12,7 +12,6 @@ const baseInputs: OptimizerInputs = {
   thesis: "bullish",
   minDaysToExpiration: 20,
   maxDaysToExpiration: 70,
-  maxCapitalRequired: 20_000,
 };
 
 describe("optimizer", () => {
@@ -33,12 +32,11 @@ describe("optimizer", () => {
     ).toBe(true);
   });
 
-  it("filters candidates by expiration window and capital usage", () => {
+  it("filters candidates by expiration window", () => {
     const results = optimizeStrategies({
       ...baseInputs,
       minDaysToExpiration: 40,
       maxDaysToExpiration: 50,
-      maxCapitalRequired: 700,
     });
 
     expect(results.length).toBeGreaterThan(0);
@@ -50,9 +48,7 @@ describe("optimizer", () => {
             new Date(candidate.state.asOf).getTime()) /
           (24 * 60 * 60 * 1000);
 
-        return (
-          days >= 40 && days <= 50 && candidate.summary.capitalRequired <= 700
-        );
+        return days >= 40 && days <= 50;
       }),
     ).toBe(true);
   });
@@ -84,21 +80,6 @@ describe("optimizer", () => {
         (candidate) => candidate.id,
       ),
     ).toEqual(results.map((candidate) => candidate.id));
-  });
-
-  it("supports return on capital ranking", () => {
-    const results = optimizeStrategies({
-      ...baseInputs,
-      rankingMode: "return-on-capital",
-    });
-    const returns = results.map(
-      (candidate) =>
-        (candidate.summary.maxProfit ?? 0) /
-        Math.max(candidate.summary.capitalRequired, 1),
-    );
-    const sortedReturns = [...returns].sort((left, right) => right - left);
-
-    expect(returns).toEqual(sortedReturns);
   });
 
   it("supports downside buffer ranking", () => {

@@ -13,6 +13,28 @@ import {
   type StrategyState,
 } from "./types";
 
+export class StrategyValidationError extends Error {
+  readonly errors: string[];
+
+  constructor(errors: string[]) {
+    super(errors.join(" "));
+    this.name = "StrategyValidationError";
+    this.errors = errors;
+  }
+}
+
+export type StrategyEvaluationResult =
+  | {
+      valid: true;
+      evaluation: StrategyEvaluation;
+      errors: [];
+    }
+  | {
+      valid: false;
+      evaluation: null;
+      errors: string[];
+    };
+
 function signedContracts(leg: PositionLeg) {
   return leg.side === "long" ? leg.quantity : -leg.quantity;
 }
@@ -241,113 +263,49 @@ function exactBreakevens(state: StrategyState, netPremium: number) {
   return [];
 }
 
-function estimateBoundedValue(values: number[], direction: "max" | "min") {
-  const sorted = [...values].sort((left, right) => left - right);
-  const edgeValue = direction === "max" ? sorted[sorted.length - 1] : sorted[0];
-  const nextValue = direction === "max" ? sorted[sorted.length - 2] : sorted[1];
+function upsideSlope(leg: PositionLeg) {
+  if (leg.kind === "stock") {
+    return (leg.side === "long" ? 1 : -1) * leg.quantity;
+  }
 
-  if (edgeValue === undefined || nextValue === undefined) {
+  if (leg.optionType === "put") {
+    return 0;
+  }
+
+  return (leg.side === "long" ? 1 : -1) * CONTRACT_MULTIPLIER * leg.quantity;
+}
+
+function exactExpirationBound(state: StrategyState, direction: "max" | "min") {
+  const rightSlope = state.legs.reduce(
+    (total, leg) => total + upsideSlope(leg),
+    0,
+  );
+
+  if (
+    (direction === "max" && rightSlope > 0) ||
+    (direction === "min" && rightSlope < 0)
+  ) {
     return null;
   }
 
-  return Math.abs(edgeValue - nextValue) < 0.01 ? edgeValue : null;
-}
+  const candidatePrices = new Set<number>([0]);
 
-function estimateCapitalRequired(state: StrategyState, netPremium: number) {
-  const optionLegs = state.legs.filter((leg) => leg.kind === "option");
-
-  if (state.strategy === "cash-secured-put" || state.strategy === "short-put") {
-    const put = state.legs.find((leg) => leg.kind === "option");
-
-    return put?.kind === "option"
-      ? put.strike * CONTRACT_MULTIPLIER * put.quantity -
-          Math.max(netPremium, 0)
-      : 0;
+  for (const leg of state.legs) {
+    if (leg.kind === "option") {
+      candidatePrices.add(leg.strike);
+    }
   }
 
-  if (
-    state.strategy === "bull-call-spread" ||
-    state.strategy === "bear-put-spread" ||
-    state.strategy === "bull-put-spread" ||
-    state.strategy === "bear-call-spread" ||
-    state.strategy === "iron-condor"
-  ) {
-    const width = spreadRiskWidth(optionLegs);
-
-    return Math.max(
-      width * CONTRACT_MULTIPLIER * (optionLegs[0]?.quantity ?? 1) -
-        Math.max(netPremium, 0),
-      0,
-    );
-  }
-
-  if (
-    state.strategy === "short-call" ||
-    state.strategy === "short-straddle" ||
-    state.strategy === "short-strangle"
-  ) {
-    return estimateNakedShortCapital(state, optionLegs, netPremium);
-  }
-
-  const stockCost = state.legs.reduce(
-    (total, leg) =>
-      leg.kind === "stock" && leg.side === "long"
-        ? total + leg.entryPrice * leg.quantity
-        : total,
-    0,
+  const values = [...candidatePrices].map((underlyingPrice) =>
+    Number(payoffAtExpiration(state, underlyingPrice).toFixed(2)),
   );
-  const longOptionCost = state.legs.reduce(
-    (total, leg) =>
-      leg.kind === "option" && leg.side === "long"
-        ? total + leg.premium * CONTRACT_MULTIPLIER * leg.quantity
-        : total,
-    0,
-  );
+  const bound = direction === "max" ? Math.max(...values) : Math.min(...values);
 
-  return Math.max(stockCost + longOptionCost - Math.max(netPremium, 0), 0);
-}
+  if (!Number.isFinite(bound)) {
+    return null;
+  }
 
-function spreadRiskWidth(
-  optionLegs: Extract<PositionLeg, { kind: "option" }>[],
-) {
-  const putStrikes = optionLegs
-    .filter((leg) => leg.optionType === "put")
-    .map((leg) => leg.strike);
-  const callStrikes = optionLegs
-    .filter((leg) => leg.optionType === "call")
-    .map((leg) => leg.strike);
-  const widths = [putStrikes, callStrikes]
-    .filter((strikes) => strikes.length >= 2)
-    .map((strikes) => Math.max(...strikes) - Math.min(...strikes));
-
-  return Math.max(...widths, 0);
-}
-
-function estimateNakedShortCapital(
-  state: StrategyState,
-  optionLegs: Extract<PositionLeg, { kind: "option" }>[],
-  netPremium: number,
-) {
-  const credit = Math.max(netPremium, 0);
-  const requirements = optionLegs
-    .filter((leg) => leg.side === "short")
-    .map((leg) => {
-      const outOfTheMoney =
-        leg.optionType === "call"
-          ? Math.max(leg.strike - state.underlyingPrice, 0)
-          : Math.max(state.underlyingPrice - leg.strike, 0);
-      const base =
-        Math.max(
-          state.underlyingPrice * 0.2 - outOfTheMoney,
-          state.underlyingPrice * 0.1,
-        ) *
-        CONTRACT_MULTIPLIER *
-        leg.quantity;
-
-      return base + credit;
-    });
-
-  return Math.max(...requirements, credit, 0);
+  return bound;
 }
 
 function estimateProbabilityOfProfit(
@@ -416,12 +374,7 @@ function estimateProbabilityOfProfit(
   return null;
 }
 
-export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
-  const validation = validateStrategyState(state);
-  if (!validation.valid) {
-    throw new Error(validation.errors.join(" "));
-  }
-
+function evaluateValidatedStrategy(state: StrategyState): StrategyEvaluation {
   const legs = state.legs.map((leg) => {
     if (leg.kind === "stock") {
       const contracts = leg.side === "long" ? leg.quantity : -leg.quantity;
@@ -463,15 +416,13 @@ export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
     0,
   );
   const payoff = buildPayoffGrid(state);
-  const values = payoff.map((point) => point.profitLoss);
   const breakevens = exactBreakevens(state, netPremium);
 
   return {
     state,
     netPremium,
-    capitalRequired: estimateCapitalRequired(state, netPremium),
-    maxProfit: estimateBoundedValue(values, "max"),
-    maxLoss: estimateBoundedValue(values, "min"),
+    maxProfit: exactExpirationBound(state, "max"),
+    maxLoss: exactExpirationBound(state, "min"),
     breakevens,
     probabilityOfProfit: estimateProbabilityOfProfit(state, breakevens),
     legs,
@@ -481,4 +432,33 @@ export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
     ),
     payoff,
   };
+}
+
+export function safeEvaluateStrategy(
+  state: StrategyState,
+): StrategyEvaluationResult {
+  const validation = validateStrategyState(state);
+  if (!validation.valid) {
+    return {
+      valid: false,
+      evaluation: null,
+      errors: validation.errors,
+    };
+  }
+
+  return {
+    valid: true,
+    evaluation: evaluateValidatedStrategy(state),
+    errors: [],
+  };
+}
+
+export function evaluateStrategy(state: StrategyState): StrategyEvaluation {
+  const result = safeEvaluateStrategy(state);
+
+  if (!result.valid) {
+    throw new StrategyValidationError(result.errors);
+  }
+
+  return result.evaluation;
 }

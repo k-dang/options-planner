@@ -126,7 +126,6 @@ export type PayoffPoint = {
 export type StrategyEvaluation = {
   state: StrategyState;
   netPremium: number;
-  capitalRequired: number;
   maxProfit: number | null;
   maxLoss: number | null;
   breakevens: number[];

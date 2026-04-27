@@ -14,7 +14,6 @@ import type {
 export type OptimizerThesis = "bullish" | "bearish" | "income";
 export type OptimizerRankingMode =
   | "max-profit"
-  | "return-on-capital"
   | "downside-buffer"
   | "target-profit"
   | "target-probability"
@@ -26,7 +25,6 @@ export type OptimizerInputs = {
   rankingMode?: OptimizerRankingMode;
   minDaysToExpiration: number;
   maxDaysToExpiration: number;
-  maxCapitalRequired: number;
   minProbabilityOfProfit?: number;
   targetUnderlyingPrice?: number;
   targetProbabilityOfProfit?: number;
@@ -42,7 +40,6 @@ export type OptimizerCandidate = {
     expiration: string;
     strikes: number[];
     netPremium: number;
-    capitalRequired: number;
     maxProfit: number | null;
     maxLoss: number | null;
     probabilityOfProfit: number | null;
@@ -59,7 +56,6 @@ export type OptimizerResultRow = {
   strategy: string;
   expiration: string;
   strikes: string;
-  capitalRequired: number;
   maxProfit: number | null;
   maxLoss: number | null;
   probabilityOfProfit: number | null;
@@ -121,19 +117,14 @@ function candidateScore(
   inputs: OptimizerInputs,
   evaluation: StrategyEvaluation,
 ) {
-  const maxLoss = evaluation.maxLoss ?? -evaluation.capitalRequired;
-  const risk = Math.max(Math.abs(maxLoss), evaluation.capitalRequired, 1);
-  const returnScore = (evaluation.maxProfit ?? 0) / risk;
+  const risk = Math.max(Math.abs(evaluation.maxLoss ?? 0), 1);
+  const riskAdjustedScore = (evaluation.maxProfit ?? 0) / risk;
   const probability = evaluation.probabilityOfProfit ?? 0.35;
   const delta = evaluation.greeks.delta;
-  const mode = inputs.rankingMode ?? "return-on-capital";
+  const mode = inputs.rankingMode ?? "target-profit";
 
   if (mode === "max-profit") {
     return evaluation.maxProfit ?? Number.NEGATIVE_INFINITY;
-  }
-
-  if (mode === "return-on-capital") {
-    return returnScore;
   }
 
   if (mode === "downside-buffer") {
@@ -160,11 +151,11 @@ function candidateScore(
   }
 
   if (inputs.thesis === "bullish") {
-    return returnScore + probability + Math.max(delta, 0) / 100;
+    return riskAdjustedScore + probability + Math.max(delta, 0) / 100;
   }
 
   if (inputs.thesis === "bearish") {
-    return returnScore + probability + Math.max(-delta, 0) / 100;
+    return riskAdjustedScore + probability + Math.max(-delta, 0) / 100;
   }
 
   return probability + Math.max(evaluation.netPremium, 0) / risk;
@@ -204,10 +195,6 @@ function passesFilters(
   const days = daysBetween(state.asOf, expiration);
 
   if (days < inputs.minDaysToExpiration || days > inputs.maxDaysToExpiration) {
-    return false;
-  }
-
-  if (evaluation.capitalRequired > inputs.maxCapitalRequired) {
     return false;
   }
 
@@ -315,7 +302,6 @@ function makeCandidate(
       expiration: firstExpiration(state),
       strikes: legs.map((leg) => leg.strike),
       netPremium: evaluation.netPremium,
-      capitalRequired: evaluation.capitalRequired,
       maxProfit: evaluation.maxProfit,
       maxLoss: evaluation.maxLoss,
       probabilityOfProfit: evaluation.probabilityOfProfit,
@@ -504,7 +490,6 @@ export function toOptimizerResultRows(
     strikes: candidate.summary.strikes
       .map((strike) => `$${strike}`)
       .join(" / "),
-    capitalRequired: candidate.summary.capitalRequired,
     maxProfit: candidate.summary.maxProfit,
     maxLoss: candidate.summary.maxLoss,
     probabilityOfProfit: candidate.summary.probabilityOfProfit,

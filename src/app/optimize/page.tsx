@@ -21,8 +21,10 @@ import {
   type OptimizerInputs,
   type OptimizerRankingMode,
   type OptimizerThesis,
+  type OptionLeg,
   optimizeStrategies,
 } from "@/lib/options";
+import { cn } from "@/lib/utils";
 
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
@@ -30,7 +32,6 @@ const DEFAULT_INPUTS: OptimizerInputs = {
   rankingMode: "target-profit",
   minDaysToExpiration: 20,
   maxDaysToExpiration: 70,
-  maxCapitalRequired: Number.POSITIVE_INFINITY,
   minProbabilityOfProfit: 0,
 };
 
@@ -163,7 +164,6 @@ export default function OptimizePage() {
                 <option value="target-probability">Target probability</option>
                 <option value="delta-range">Delta range</option>
                 <option value="max-profit">Max profit</option>
-                <option value="return-on-capital">Return on capital</option>
                 <option value="downside-buffer">Downside buffer</option>
               </select>
             </Field>
@@ -194,18 +194,13 @@ export default function OptimizePage() {
 
 function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
   const maxProfit = candidate.summary.maxProfit ?? 0;
-  const capital = Math.max(candidate.summary.capitalRequired, 1);
-  const returnOnRisk = maxProfit / capital;
+  const maxLoss = candidate.summary.maxLoss;
+  const risk = Math.max(Math.abs(maxLoss ?? 0), 1);
+  const returnOnRisk = maxProfit / risk;
   const optionLegs = candidate.state.legs.filter(
     (leg) => leg.kind === "option",
   );
   const title = titleCase(candidate.summary.strategyLabel);
-  const subtitle = optionLegs
-    .map(
-      (leg) =>
-        `${leg.side === "long" ? "Buy" : "Sell"} ${leg.strike}${leg.optionType[0]?.toUpperCase()}`,
-    )
-    .join(", ");
   const profitColor =
     returnOnRisk >= 0.25 ? "text-primary" : "text-destructive";
 
@@ -213,7 +208,14 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
     <Card className="overflow-hidden rounded-lg shadow-sm">
       <CardHeader className="pb-2 text-center">
         <CardTitle className="text-xl">{title}</CardTitle>
-        <p className="text-muted-foreground text-sm">{subtitle}</p>
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {optionLegs.map((leg, index) => (
+            <LegBadge
+              key={`${leg.optionType}-${leg.side}-${leg.strike}-${index}`}
+              leg={leg}
+            />
+          ))}
+        </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         <div className="grid grid-cols-2 gap-3">
@@ -240,7 +242,10 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
               Chance
             </p>
             <p className="font-semibold">
-              {formatCurrency(candidate.summary.capitalRequired)} Risk
+              {maxLoss === null
+                ? "Undefined"
+                : formatCurrency(Math.abs(maxLoss))}{" "}
+              Risk
             </p>
           </div>
         </div>
@@ -334,7 +339,6 @@ function isThesis(value: string | null): value is OptimizerThesis {
 function isRankingMode(value: string | null): value is OptimizerRankingMode {
   return (
     value === "max-profit" ||
-    value === "return-on-capital" ||
     value === "downside-buffer" ||
     value === "target-profit" ||
     value === "target-probability" ||
@@ -344,4 +348,24 @@ function isRankingMode(value: string | null): value is OptimizerRankingMode {
 
 function titleCase(value: string) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function LegBadge({ leg }: { leg: OptionLeg }) {
+  const action = leg.side === "long" ? "Buy" : "Sell";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-md border px-2 py-1 font-medium text-xs",
+        leg.side === "long"
+          ? "border-primary/25 bg-primary/10 text-primary"
+          : "border-destructive/25 bg-destructive/10 text-destructive",
+      )}
+    >
+      <span className="font-semibold uppercase">{action}</span>
+      <span>
+        {formatCurrency(leg.strike)} {leg.optionType}
+      </span>
+    </span>
+  );
 }

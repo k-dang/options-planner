@@ -20,7 +20,7 @@ describe("builder strategy state", () => {
       side: "long",
       quantity: 1,
     });
-    expect(evaluateStrategy(state).capitalRequired).toBeGreaterThan(0);
+    expect(evaluateStrategy(state).netPremium).toBeLessThan(0);
   });
 
   it("can switch the supported builder template", () => {
@@ -55,7 +55,7 @@ describe("builder strategy state", () => {
       side: "short",
       strike: 175,
     });
-    expect(evaluateStrategy(state).capitalRequired).toBeGreaterThan(16_000);
+    expect(evaluateStrategy(state).maxProfit).toBeGreaterThan(0);
   });
 
   it("models cash-secured puts as short puts with strike-backed capital", () => {
@@ -73,7 +73,7 @@ describe("builder strategy state", () => {
       strike: 170,
     });
     expect(evaluation.netPremium).toBeGreaterThan(0);
-    expect(evaluation.capitalRequired).toBeLessThan(17_000);
+    expect(evaluation.maxProfit).toBeGreaterThan(0);
   });
 
   it("applies editable option inputs to the evaluated strategy", () => {
@@ -94,7 +94,7 @@ describe("builder strategy state", () => {
       quantity: 2,
     });
     expect(evaluation.netPremium).toBeCloseTo(-1800, 2);
-    expect(evaluation.capitalRequired).toBeCloseTo(1800, 2);
+    expect(evaluation.maxLoss).toBeCloseTo(-1800, 2);
   });
 
   it("restores the same builder state from explicit route and query params", () => {

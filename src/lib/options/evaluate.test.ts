@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { evaluateStrategy, type StrategyState } from "./index";
+import {
+  evaluateStrategy,
+  type StrategyState,
+  StrategyValidationError,
+  safeEvaluateStrategy,
+} from "./index";
 
 const representativeLongCall: StrategyState = {
   version: 1,
@@ -22,11 +27,54 @@ const representativeLongCall: StrategyState = {
 };
 
 describe("strategy evaluation", () => {
+  it("returns validation errors without throwing for expected invalid states", () => {
+    const invalidSpread: StrategyState = {
+      version: 1,
+      strategy: "bull-call-spread",
+      symbol: "AAPL",
+      underlyingPrice: 172,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "call",
+          side: "long",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 190,
+          premium: 4,
+          impliedVolatility: 0.28,
+        },
+        {
+          kind: "option",
+          optionType: "call",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 180,
+          premium: 8,
+          impliedVolatility: 0.28,
+        },
+      ],
+    };
+    const result = safeEvaluateStrategy(invalidSpread);
+
+    expect(result).toMatchObject({
+      valid: false,
+      evaluation: null,
+      errors: [
+        "bull-call-spread long call strike must be below short call strike.",
+      ],
+    });
+    expect(() => evaluateStrategy(invalidSpread)).toThrow(
+      StrategyValidationError,
+    );
+  });
+
   it("computes deterministic long-call economics and payoff", () => {
     const evaluation = evaluateStrategy(representativeLongCall);
 
     expect(evaluation.netPremium).toBe(-650);
-    expect(evaluation.capitalRequired).toBe(650);
     expect(evaluation.maxLoss).toBe(-650);
     expect(evaluation.maxProfit).toBeNull();
     expect(evaluation.breakevens[0]).toBeCloseTo(176.5, 1);
@@ -138,7 +186,7 @@ describe("strategy evaluation", () => {
     expect(bearPutSpread.probabilityOfProfit).toBeLessThan(0.6);
   });
 
-  it("computes representative covered-call and cash-secured put capital semantics", () => {
+  it("computes representative covered-call and cash-secured put economics", () => {
     const coveredCall = evaluateStrategy({
       version: 1,
       strategy: "covered-call",
@@ -185,11 +233,56 @@ describe("strategy evaluation", () => {
     });
 
     expect(coveredCall.netPremium).toBe(500);
-    expect(coveredCall.capitalRequired).toBe(16_700);
     expect(coveredCall.maxProfit).toBe(800);
     expect(cashSecuredPut.netPremium).toBe(600);
-    expect(cashSecuredPut.capitalRequired).toBe(16_400);
     expect(cashSecuredPut.maxProfit).toBe(600);
+  });
+
+  it("caps naked short option max profit at the premium credit", () => {
+    const shortPut = evaluateStrategy({
+      version: 1,
+      strategy: "short-put",
+      symbol: "AAPL",
+      underlyingPrice: 100,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "put",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 200,
+          premium: 6,
+          impliedVolatility: 0.28,
+        },
+      ],
+    });
+    const shortCall = evaluateStrategy({
+      version: 1,
+      strategy: "short-call",
+      symbol: "AAPL",
+      underlyingPrice: 100,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "call",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 200,
+          premium: 6,
+          impliedVolatility: 0.28,
+        },
+      ],
+    });
+
+    expect(shortPut.netPremium).toBe(600);
+    expect(shortPut.maxProfit).toBe(600);
+    expect(shortCall.netPremium).toBe(600);
+    expect(shortCall.maxProfit).toBe(600);
+    expect(shortCall.maxLoss).toBeNull();
   });
 
   it("computes credit spread and short volatility breakevens", () => {
@@ -253,7 +346,6 @@ describe("strategy evaluation", () => {
     });
 
     expect(bullPutSpread.netPremium).toBe(400);
-    expect(bullPutSpread.capitalRequired).toBe(600);
     expect(bullPutSpread.maxProfit).toBe(400);
     expect(bullPutSpread.breakevens).toEqual([166]);
     expect(shortStrangle.netPremium).toBe(800);
