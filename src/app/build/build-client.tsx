@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useMemo, useState } from "react";
@@ -87,18 +86,13 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header className="flex items-start justify-between border-b pb-5">
-          <div>
-            <p className="font-medium text-muted-foreground text-sm">
-              Options Planner
-            </p>
-            <h1 className="font-semibold text-3xl tracking-normal">
-              Strategy builder
-            </h1>
-          </div>
-          <Link className="text-sm" href="/optimize">
-            Optimizer
-          </Link>
+        <header className="border-b pb-5">
+          <p className="font-medium text-muted-foreground text-sm">
+            Options Planner
+          </p>
+          <h1 className="font-semibold text-3xl tracking-normal">
+            Strategy builder
+          </h1>
         </header>
 
         <section className="grid gap-5 lg:grid-cols-[360px_1fr]">

@@ -60,16 +60,13 @@ export default function OptimizePage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="font-medium text-muted-foreground text-sm">
-              Options Planner
-            </p>
-            <h1 className="font-semibold text-3xl tracking-normal">
-              Strategy optimizer
-            </h1>
-          </div>
-          <Link href="/build">Builder</Link>
+        <header>
+          <p className="font-medium text-muted-foreground text-sm">
+            Options Planner
+          </p>
+          <h1 className="font-semibold text-3xl tracking-normal">
+            Strategy optimizer
+          </h1>
         </header>
 
         <section className="mx-auto grid w-full max-w-4xl gap-4">
