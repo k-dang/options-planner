@@ -5,10 +5,17 @@ export type PositionSide = "long" | "short";
 export type StrategyTemplateId =
   | "long-call"
   | "long-put"
+  | "short-call"
+  | "short-put"
   | "covered-call"
   | "cash-secured-put"
   | "bull-call-spread"
-  | "bear-put-spread";
+  | "bear-put-spread"
+  | "bull-put-spread"
+  | "bear-call-spread"
+  | "iron-condor"
+  | "short-straddle"
+  | "short-strangle";
 
 export type StockLeg = {
   kind: "stock";

@@ -70,9 +70,21 @@ export type OptimizerResultRow = {
 };
 
 const THESIS_STRATEGIES: Record<OptimizerThesis, StrategyTemplateId[]> = {
-  bullish: ["long-call", "bull-call-spread", "cash-secured-put"],
-  bearish: ["long-put", "bear-put-spread"],
-  income: ["covered-call", "cash-secured-put"],
+  bullish: [
+    "long-call",
+    "bull-call-spread",
+    "short-put",
+    "bull-put-spread",
+    "cash-secured-put",
+  ],
+  bearish: ["long-put", "bear-put-spread", "short-call", "bear-call-spread"],
+  income: [
+    "covered-call",
+    "cash-secured-put",
+    "iron-condor",
+    "short-straddle",
+    "short-strangle",
+  ],
 };
 
 function strategyLabel(strategy: StrategyTemplateId) {
@@ -319,6 +331,8 @@ function makeCandidate(
 type CandidateInput = {
   strikeOffset: number;
   strike2Offset?: number;
+  strike3Offset?: number;
+  strike4Offset?: number;
 };
 
 function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
@@ -336,12 +350,54 @@ function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
     ];
   }
 
+  if (strategy === "bull-put-spread") {
+    return [
+      { strikeOffset: -1, strike2Offset: -3 },
+      { strikeOffset: 0, strike2Offset: -2 },
+    ];
+  }
+
+  if (strategy === "bear-call-spread") {
+    return [
+      { strikeOffset: 1, strike2Offset: 3 },
+      { strikeOffset: 0, strike2Offset: 2 },
+    ];
+  }
+
+  if (strategy === "iron-condor") {
+    return [
+      {
+        strikeOffset: -3,
+        strike2Offset: -1,
+        strike3Offset: 1,
+        strike4Offset: 3,
+      },
+      {
+        strikeOffset: -4,
+        strike2Offset: -2,
+        strike3Offset: 2,
+        strike4Offset: 4,
+      },
+    ];
+  }
+
   if (strategy === "covered-call") {
     return [{ strikeOffset: 1 }, { strikeOffset: 2 }, { strikeOffset: 3 }];
   }
 
-  if (strategy === "cash-secured-put") {
+  if (strategy === "cash-secured-put" || strategy === "short-put") {
     return [{ strikeOffset: -1 }, { strikeOffset: -2 }, { strikeOffset: -3 }];
+  }
+
+  if (strategy === "short-call") {
+    return [{ strikeOffset: 1 }, { strikeOffset: 2 }, { strikeOffset: 3 }];
+  }
+
+  if (strategy === "short-strangle") {
+    return [
+      { strikeOffset: -2, strike2Offset: 2 },
+      { strikeOffset: -3, strike2Offset: 3 },
+    ];
   }
 
   return [{ strikeOffset: -1 }, { strikeOffset: 0 }, { strikeOffset: 1 }];
@@ -392,6 +448,14 @@ export function optimizeStrategies(
           expiration: expirationIso,
           strike,
           strike2,
+          strike3:
+            input.strike3Offset === undefined
+              ? undefined
+              : strikeAt(strikes, targetPrice, input.strike3Offset),
+          strike4:
+            input.strike4Offset === undefined
+              ? undefined
+              : strikeAt(strikes, targetPrice, input.strike4Offset),
         });
         const candidate = makeCandidate(inputs, state);
 

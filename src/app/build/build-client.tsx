@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useMemo, useState } from "react";
@@ -59,7 +60,6 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
       (candidate) => candidate.expiration === primaryLeg?.expiration,
     ) ?? chain.expirations[0];
   const primaryQuotes = quotesForLeg(expiration, primaryLeg);
-  const secondaryQuotes = quotesForLeg(expiration, secondaryLeg);
   const selectedQuote = primaryQuotes?.find(
     (quote) => quote.strike === primaryLeg?.strike,
   );
@@ -76,6 +76,8 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
       expiration: primaryLeg?.expiration,
       strike: primaryLeg?.strike,
       strike2: secondaryLeg?.strike,
+      strike3: optionLegs[2]?.strike,
+      strike4: optionLegs[3]?.strike,
       quantity: primaryLeg?.quantity,
       ...input,
       strategy: state.strategy,
@@ -87,13 +89,18 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header className="border-b pb-5">
-          <p className="font-medium text-muted-foreground text-sm">
-            Options Planner
-          </p>
-          <h1 className="font-semibold text-3xl tracking-normal">
-            Strategy builder
-          </h1>
+        <header className="flex items-start justify-between border-b pb-5">
+          <div>
+            <p className="font-medium text-muted-foreground text-sm">
+              Options Planner
+            </p>
+            <h1 className="font-semibold text-3xl tracking-normal">
+              Strategy builder
+            </h1>
+          </div>
+          <Link className="text-sm" href="/optimize">
+            Optimizer
+          </Link>
         </header>
 
         <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -179,23 +186,18 @@ export function BuilderClient({ initialState }: BuilderClientProps) {
                     </Select>
                   </Field>
 
-                  <StrikeSelect
-                    id="strike"
-                    label={secondaryLeg ? "Long strike" : "Strike"}
-                    quotes={primaryQuotes}
-                    value={primaryLeg?.strike}
-                    onChange={(strike) => updateFromInputs({ strike })}
-                  />
-
-                  {secondaryLeg ? (
+                  {optionLegs.map((leg, index) => (
                     <StrikeSelect
-                      id="strike2"
-                      label="Short strike"
-                      quotes={secondaryQuotes}
-                      value={secondaryLeg.strike}
-                      onChange={(strike2) => updateFromInputs({ strike2 })}
+                      id={`strike${index + 1}`}
+                      key={`${leg.optionType}-${leg.side}-${index}`}
+                      label={strikeLabel(leg)}
+                      quotes={quotesForLeg(expiration, leg)}
+                      value={leg.strike}
+                      onChange={(strike) =>
+                        updateFromInputs(strikeInput(index, strike))
+                      }
                     />
-                  ) : null}
+                  ))}
 
                   <InfoPanel label="Option price">
                     {selectedQuote ? formatCurrency(selectedQuote.mid) : "n/a"}
@@ -453,6 +455,26 @@ function isBuilderStrategy(value: string | null): value is StrategyTemplateId {
 
 function strategyLabel(strategy: StrategyTemplateId) {
   return strategy.replaceAll("-", " ");
+}
+
+function strikeInput(index: number, strike: number) {
+  if (index === 0) {
+    return { strike };
+  }
+
+  if (index === 1) {
+    return { strike2: strike };
+  }
+
+  if (index === 2) {
+    return { strike3: strike };
+  }
+
+  return { strike4: strike };
+}
+
+function strikeLabel(leg: OptionLeg) {
+  return `${leg.side} ${leg.optionType} strike`;
 }
 
 function StrikeSelect({

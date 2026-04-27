@@ -155,16 +155,20 @@ function exactBreakevens(state: StrategyState, netPremium: number) {
     return [Number((firstOption.strike + premiumPerShare).toFixed(2))];
   }
 
+  if (state.strategy === "short-call") {
+    return [Number((firstOption.strike + creditPerShare).toFixed(2))];
+  }
+
   if (state.strategy === "long-put") {
     return [Number((firstOption.strike - premiumPerShare).toFixed(2))];
   }
 
-  if (state.strategy === "covered-call" && stockLeg?.kind === "stock") {
-    return [Number((stockLeg.entryPrice - creditPerShare).toFixed(2))];
+  if (state.strategy === "short-put" || state.strategy === "cash-secured-put") {
+    return [Number((firstOption.strike - creditPerShare).toFixed(2))];
   }
 
-  if (state.strategy === "cash-secured-put") {
-    return [Number((firstOption.strike - creditPerShare).toFixed(2))];
+  if (state.strategy === "covered-call" && stockLeg?.kind === "stock") {
+    return [Number((stockLeg.entryPrice - creditPerShare).toFixed(2))];
   }
 
   if (state.strategy === "bull-call-spread") {
@@ -180,6 +184,57 @@ function exactBreakevens(state: StrategyState, netPremium: number) {
 
     return longPut
       ? [Number((longPut.strike - premiumPerShare).toFixed(2))]
+      : [];
+  }
+
+  if (state.strategy === "bull-put-spread") {
+    const shortPut = optionLegs.find((leg) => leg.side === "short");
+
+    return shortPut
+      ? [Number((shortPut.strike - creditPerShare).toFixed(2))]
+      : [];
+  }
+
+  if (state.strategy === "bear-call-spread") {
+    const shortCall = optionLegs.find((leg) => leg.side === "short");
+
+    return shortCall
+      ? [Number((shortCall.strike + creditPerShare).toFixed(2))]
+      : [];
+  }
+
+  if (state.strategy === "iron-condor") {
+    const shortPut = optionLegs.find(
+      (leg) => leg.optionType === "put" && leg.side === "short",
+    );
+    const shortCall = optionLegs.find(
+      (leg) => leg.optionType === "call" && leg.side === "short",
+    );
+
+    return shortPut && shortCall
+      ? [
+          Number((shortPut.strike - creditPerShare).toFixed(2)),
+          Number((shortCall.strike + creditPerShare).toFixed(2)),
+        ]
+      : [];
+  }
+
+  if (state.strategy === "short-straddle") {
+    return [
+      Number((firstOption.strike - creditPerShare).toFixed(2)),
+      Number((firstOption.strike + creditPerShare).toFixed(2)),
+    ];
+  }
+
+  if (state.strategy === "short-strangle") {
+    const put = optionLegs.find((leg) => leg.optionType === "put");
+    const call = optionLegs.find((leg) => leg.optionType === "call");
+
+    return put && call
+      ? [
+          Number((put.strike - creditPerShare).toFixed(2)),
+          Number((call.strike + creditPerShare).toFixed(2)),
+        ]
       : [];
   }
 
@@ -199,13 +254,39 @@ function estimateBoundedValue(values: number[], direction: "max" | "min") {
 }
 
 function estimateCapitalRequired(state: StrategyState, netPremium: number) {
-  if (state.strategy === "cash-secured-put") {
+  const optionLegs = state.legs.filter((leg) => leg.kind === "option");
+
+  if (state.strategy === "cash-secured-put" || state.strategy === "short-put") {
     const put = state.legs.find((leg) => leg.kind === "option");
 
     return put?.kind === "option"
       ? put.strike * CONTRACT_MULTIPLIER * put.quantity -
           Math.max(netPremium, 0)
       : 0;
+  }
+
+  if (
+    state.strategy === "bull-call-spread" ||
+    state.strategy === "bear-put-spread" ||
+    state.strategy === "bull-put-spread" ||
+    state.strategy === "bear-call-spread" ||
+    state.strategy === "iron-condor"
+  ) {
+    const width = spreadRiskWidth(optionLegs);
+
+    return Math.max(
+      width * CONTRACT_MULTIPLIER * (optionLegs[0]?.quantity ?? 1) -
+        Math.max(netPremium, 0),
+      0,
+    );
+  }
+
+  if (
+    state.strategy === "short-call" ||
+    state.strategy === "short-straddle" ||
+    state.strategy === "short-strangle"
+  ) {
+    return estimateNakedShortCapital(state, optionLegs, netPremium);
   }
 
   const stockCost = state.legs.reduce(
@@ -224,6 +305,49 @@ function estimateCapitalRequired(state: StrategyState, netPremium: number) {
   );
 
   return Math.max(stockCost + longOptionCost - Math.max(netPremium, 0), 0);
+}
+
+function spreadRiskWidth(
+  optionLegs: Extract<PositionLeg, { kind: "option" }>[],
+) {
+  const putStrikes = optionLegs
+    .filter((leg) => leg.optionType === "put")
+    .map((leg) => leg.strike);
+  const callStrikes = optionLegs
+    .filter((leg) => leg.optionType === "call")
+    .map((leg) => leg.strike);
+  const widths = [putStrikes, callStrikes]
+    .filter((strikes) => strikes.length >= 2)
+    .map((strikes) => Math.max(...strikes) - Math.min(...strikes));
+
+  return Math.max(...widths, 0);
+}
+
+function estimateNakedShortCapital(
+  state: StrategyState,
+  optionLegs: Extract<PositionLeg, { kind: "option" }>[],
+  netPremium: number,
+) {
+  const credit = Math.max(netPremium, 0);
+  const requirements = optionLegs
+    .filter((leg) => leg.side === "short")
+    .map((leg) => {
+      const outOfTheMoney =
+        leg.optionType === "call"
+          ? Math.max(leg.strike - state.underlyingPrice, 0)
+          : Math.max(state.underlyingPrice - leg.strike, 0);
+      const base =
+        Math.max(
+          state.underlyingPrice * 0.2 - outOfTheMoney,
+          state.underlyingPrice * 0.1,
+        ) *
+        CONTRACT_MULTIPLIER *
+        leg.quantity;
+
+      return base + credit;
+    });
+
+  return Math.max(...requirements, credit, 0);
 }
 
 function estimateProbabilityOfProfit(
@@ -251,11 +375,19 @@ function estimateProbabilityOfProfit(
     return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
   }
 
-  if (state.strategy === "covered-call") {
+  if (
+    state.strategy === "covered-call" ||
+    state.strategy === "short-call" ||
+    state.strategy === "bear-call-spread"
+  ) {
     return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
   }
 
-  if (state.strategy === "cash-secured-put") {
+  if (
+    state.strategy === "cash-secured-put" ||
+    state.strategy === "short-put" ||
+    state.strategy === "bull-put-spread"
+  ) {
     return 1 - probabilityBelow(breakevens[0] ?? state.underlyingPrice);
   }
 
@@ -265,6 +397,20 @@ function estimateProbabilityOfProfit(
 
   if (state.strategy === "bear-put-spread") {
     return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
+  }
+
+  if (
+    state.strategy === "iron-condor" ||
+    state.strategy === "short-straddle" ||
+    state.strategy === "short-strangle"
+  ) {
+    const [lower, upper] = breakevens;
+
+    if (lower === undefined || upper === undefined) {
+      return null;
+    }
+
+    return probabilityBelow(upper) - probabilityBelow(lower);
   }
 
   return null;

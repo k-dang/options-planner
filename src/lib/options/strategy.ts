@@ -74,14 +74,26 @@ function validateTemplateShape(state: StrategyState) {
   const stockLegs = state.legs.filter((leg) => leg.kind === "stock");
   const errors: string[] = [];
 
-  if (state.strategy === "long-call" || state.strategy === "long-put") {
+  if (
+    state.strategy === "long-call" ||
+    state.strategy === "long-put" ||
+    state.strategy === "short-call" ||
+    state.strategy === "short-put"
+  ) {
+    const side =
+      state.strategy === "short-call" || state.strategy === "short-put"
+        ? "short"
+        : "long";
+
     if (
       state.legs.length !== 1 ||
       optionLegs.length !== 1 ||
-      optionLegs[0]?.side !== "long" ||
+      optionLegs[0]?.side !== side ||
       optionLegs[0]?.optionType !== optionTypeForSingleLeg(state.strategy)
     ) {
-      errors.push(`${state.strategy} requires one long matching option leg.`);
+      errors.push(
+        `${state.strategy} requires one ${side} matching option leg.`,
+      );
     }
   }
 
@@ -110,24 +122,109 @@ function validateTemplateShape(state: StrategyState) {
   }
 
   if (state.strategy === "bull-call-spread") {
-    validateVerticalSpread(state.strategy, optionLegs, "call", errors);
+    validateVerticalSpread(state.strategy, optionLegs, "call", "debit", errors);
   }
 
   if (state.strategy === "bear-put-spread") {
-    validateVerticalSpread(state.strategy, optionLegs, "put", errors);
+    validateVerticalSpread(state.strategy, optionLegs, "put", "debit", errors);
+  }
+
+  if (state.strategy === "bull-put-spread") {
+    validateVerticalSpread(state.strategy, optionLegs, "put", "credit", errors);
+  }
+
+  if (state.strategy === "bear-call-spread") {
+    validateVerticalSpread(
+      state.strategy,
+      optionLegs,
+      "call",
+      "credit",
+      errors,
+    );
+  }
+
+  if (state.strategy === "short-straddle") {
+    const call = optionLegs.find((leg) => leg.optionType === "call");
+    const put = optionLegs.find((leg) => leg.optionType === "put");
+
+    if (
+      optionLegs.length !== 2 ||
+      !call ||
+      !put ||
+      call.side !== "short" ||
+      put.side !== "short" ||
+      call.expiration !== put.expiration ||
+      call.strike !== put.strike
+    ) {
+      errors.push(
+        "short-straddle requires one short call and one short put at the same strike and expiration.",
+      );
+    }
+  }
+
+  if (state.strategy === "short-strangle") {
+    const call = optionLegs.find((leg) => leg.optionType === "call");
+    const put = optionLegs.find((leg) => leg.optionType === "put");
+
+    if (
+      optionLegs.length !== 2 ||
+      !call ||
+      !put ||
+      call.side !== "short" ||
+      put.side !== "short" ||
+      call.expiration !== put.expiration ||
+      put.strike >= call.strike
+    ) {
+      errors.push(
+        "short-strangle requires one lower-strike short put and one higher-strike short call with the same expiration.",
+      );
+    }
+  }
+
+  if (state.strategy === "iron-condor") {
+    const longPut = optionLegs.find(
+      (leg) => leg.optionType === "put" && leg.side === "long",
+    );
+    const shortPut = optionLegs.find(
+      (leg) => leg.optionType === "put" && leg.side === "short",
+    );
+    const shortCall = optionLegs.find(
+      (leg) => leg.optionType === "call" && leg.side === "short",
+    );
+    const longCall = optionLegs.find(
+      (leg) => leg.optionType === "call" && leg.side === "long",
+    );
+    const expirations = new Set(optionLegs.map((leg) => leg.expiration));
+
+    if (
+      optionLegs.length !== 4 ||
+      !longPut ||
+      !shortPut ||
+      !shortCall ||
+      !longCall ||
+      expirations.size !== 1 ||
+      !(longPut.strike < shortPut.strike) ||
+      !(shortPut.strike < shortCall.strike) ||
+      !(shortCall.strike < longCall.strike)
+    ) {
+      errors.push(
+        "iron-condor requires long put, short put, short call, and long call strikes in ascending order with the same expiration.",
+      );
+    }
   }
 
   return errors;
 }
 
 function optionTypeForSingleLeg(strategy: StrategyTemplateId) {
-  return strategy === "long-call" ? "call" : "put";
+  return strategy === "long-call" || strategy === "short-call" ? "call" : "put";
 }
 
 function validateVerticalSpread(
   strategy: StrategyTemplateId,
   optionLegs: OptionLeg[],
   optionType: "call" | "put",
+  spreadType: "debit" | "credit",
   errors: string[],
 ) {
   const longLeg = optionLegs.find((leg) => leg.side === "long");
@@ -156,5 +253,21 @@ function validateVerticalSpread(
     errors.push(
       "bear-put-spread long put strike must be above short put strike.",
     );
+  }
+
+  if (strategy === "bull-put-spread" && shortLeg.strike <= longLeg.strike) {
+    errors.push(
+      "bull-put-spread short put strike must be above long put strike.",
+    );
+  }
+
+  if (strategy === "bear-call-spread" && shortLeg.strike >= longLeg.strike) {
+    errors.push(
+      "bear-call-spread short call strike must be below long call strike.",
+    );
+  }
+
+  if (spreadType === "credit" && shortLeg.premium <= longLeg.premium) {
+    errors.push(`${strategy} short leg premium must exceed long leg premium.`);
   }
 }

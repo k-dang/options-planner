@@ -191,4 +191,74 @@ describe("strategy evaluation", () => {
     expect(cashSecuredPut.capitalRequired).toBe(16_400);
     expect(cashSecuredPut.maxProfit).toBe(600);
   });
+
+  it("computes credit spread and short volatility breakevens", () => {
+    const bullPutSpread = evaluateStrategy({
+      version: 1,
+      strategy: "bull-put-spread",
+      symbol: "AAPL",
+      underlyingPrice: 172,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "put",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 170,
+          premium: 6,
+          impliedVolatility: 0.28,
+        },
+        {
+          kind: "option",
+          optionType: "put",
+          side: "long",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 160,
+          premium: 2,
+          impliedVolatility: 0.28,
+        },
+      ],
+    });
+    const shortStrangle = evaluateStrategy({
+      version: 1,
+      strategy: "short-strangle",
+      symbol: "AAPL",
+      underlyingPrice: 172,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "put",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 165,
+          premium: 4,
+          impliedVolatility: 0.28,
+        },
+        {
+          kind: "option",
+          optionType: "call",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 180,
+          premium: 4,
+          impliedVolatility: 0.28,
+        },
+      ],
+    });
+
+    expect(bullPutSpread.netPremium).toBe(400);
+    expect(bullPutSpread.capitalRequired).toBe(600);
+    expect(bullPutSpread.maxProfit).toBe(400);
+    expect(bullPutSpread.breakevens).toEqual([166]);
+    expect(shortStrangle.netPremium).toBe(800);
+    expect(shortStrangle.maxLoss).toBeNull();
+    expect(shortStrangle.breakevens).toEqual([157, 188]);
+    expect(shortStrangle.probabilityOfProfit).toBeGreaterThan(0.5);
+  });
 });

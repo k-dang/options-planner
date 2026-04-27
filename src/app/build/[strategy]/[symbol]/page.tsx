@@ -10,6 +10,8 @@ export default async function BuildStrategyPage({
     exp?: string | string[];
     strike?: string | string[];
     strike2?: string | string[];
+    strike3?: string | string[];
+    strike4?: string | string[];
     qty?: string | string[];
   }>;
 }) {
@@ -21,6 +23,8 @@ export default async function BuildStrategyPage({
     expiration: singleValue(query.exp),
     strike: singleValue(query.strike),
     strike2: singleValue(query.strike2),
+    strike3: singleValue(query.strike3),
+    strike4: singleValue(query.strike4),
     quantity: singleValue(query.qty),
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BUILDER_STRATEGIES,
   createBuilderState,
   evaluateStrategy,
   parseBuilderState,
@@ -23,16 +24,7 @@ describe("builder strategy state", () => {
   });
 
   it("can switch the supported builder template", () => {
-    const strategies = [
-      "long-call",
-      "long-put",
-      "covered-call",
-      "cash-secured-put",
-      "bull-call-spread",
-      "bear-put-spread",
-    ] as const;
-
-    for (const strategy of strategies) {
+    for (const strategy of BUILDER_STRATEGIES) {
       const state = createBuilderState({
         symbol: "AAPL",
         strategy,
@@ -124,6 +116,32 @@ describe("builder strategy state", () => {
     expect(restored).toEqual(state);
     expect(serializeBuilderState(restored)).toBe(
       "/build/bear-put-spread/TSLA?exp=2026-05-24&strike=180&qty=3&strike2=170",
+    );
+  });
+
+  it("serializes four-leg iron condors with every editable strike", () => {
+    const state = createBuilderState({
+      symbol: "AAPL",
+      strategy: "iron-condor",
+      strike: 160,
+      strike2: 165,
+      strike3: 180,
+      strike4: 185,
+      quantity: 2,
+    });
+    const restored = parseBuilderState({
+      strategy: "iron-condor",
+      symbol: "AAPL",
+      strike: "160",
+      strike2: "165",
+      strike3: "180",
+      strike4: "185",
+      quantity: "2",
+    });
+
+    expect(restored.legs).toEqual(state.legs);
+    expect(serializeBuilderState(restored)).toBe(
+      "/build/iron-condor/AAPL?exp=2026-05-24&strike=160&qty=2&strike2=165&strike3=180&strike4=185",
     );
   });
 
