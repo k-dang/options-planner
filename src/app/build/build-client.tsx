@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -190,6 +191,14 @@ export function BuilderClient({
                         Load
                       </Button>
                     </div>
+                    <div className="flex items-baseline gap-2 pt-1">
+                      <span className="font-bold tabular-nums">
+                        {formatCurrency(chain.underlying.price)}
+                      </span>
+                      <Badge variant="secondary">
+                        {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
+                      </Badge>
+                    </div>
                   </Field>
 
                   <Field>
@@ -264,11 +273,7 @@ export function BuilderClient({
           {evaluation ? (
             <section className="grid gap-5">
               <Card>
-                <CardContent className="grid gap-4 md:grid-cols-4">
-                  <Metric
-                    label="Underlying"
-                    value={formatCurrency(state.underlyingPrice)}
-                  />
+                <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-5">
                   <Metric
                     label="Max profit"
                     value={formatCurrency(evaluation.maxProfit)}
@@ -278,8 +283,20 @@ export function BuilderClient({
                     value={formatCurrency(evaluation.maxLoss)}
                   />
                   <Metric
-                    label="Estimated Probability of Profit"
+                    label="Prob. of profit"
                     value={formatPercent(evaluation.probabilityOfProfit)}
+                  />
+                  <Metric
+                    label={netPremiumLabel}
+                    value={formatCurrency(Math.abs(evaluation.netPremium))}
+                  />
+                  <Metric
+                    label="Breakeven"
+                    value={
+                      evaluation.breakevens.length
+                        ? evaluation.breakevens.map(formatCurrency).join(", ")
+                        : "None"
+                    }
                   />
                 </CardContent>
               </Card>
