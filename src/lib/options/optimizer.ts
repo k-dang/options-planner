@@ -6,6 +6,7 @@ import {
 import { evaluateStrategy } from "./evaluate";
 import { validateStrategyState } from "./strategy";
 import type {
+  OptionChainSnapshot,
   StrategyEvaluation,
   StrategyState,
   StrategyTemplateId,
@@ -409,10 +410,10 @@ function strikeAt(strikes: number[], underlyingPrice: number, offset: number) {
 
 export function optimizeStrategies(
   inputs: OptimizerInputs,
+  chainInput?: OptionChainSnapshot,
 ): OptimizerCandidate[] {
   const symbol = inputs.symbol.trim().toUpperCase() || "AAPL";
-  const baseState = createBuilderState({ symbol });
-  const chain = getBuilderChain(baseState);
+  const chain = chainInput ?? getBuilderChain(createBuilderState({ symbol }));
   const targetPrice = targetUnderlyingPrice(inputs, chain.underlying.price);
   const strategies = THESIS_STRATEGIES[inputs.thesis];
   const candidates = new Map<string, OptimizerCandidate>();
@@ -442,6 +443,7 @@ export function optimizeStrategies(
             input.strike4Offset === undefined
               ? undefined
               : strikeAt(strikes, targetPrice, input.strike4Offset),
+          chain,
         });
         const candidate = makeCandidate(inputs, state);
 
