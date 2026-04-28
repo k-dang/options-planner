@@ -12,6 +12,8 @@ import {
   YAxis,
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
+import { LegBadge } from "@/components/leg-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
@@ -30,12 +32,9 @@ import {
   type OptimizerInputs,
   type OptimizerThesis,
   type OptionChainSnapshot,
-  type OptionLeg,
   optimizeStrategies,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
-
-const ALL_EXPIRATIONS = "all";
 
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
@@ -52,19 +51,26 @@ export function OptimizeClient({
   initialChain: OptionChainSnapshot;
 }) {
   const router = useRouter();
+  const defaultExpiration =
+    initialChain.expirations.find((e) => e.daysToExpiration >= 30)
+      ?.expiration ?? initialChain.expirations[0]?.expiration;
   const [inputs, setInputs] = useState({
     ...DEFAULT_INPUTS,
     symbol: initialChain.underlying.symbol,
+    expiration: defaultExpiration,
   });
   const [symbolDraft, setSymbolDraft] = useState(
     initialChain.underlying.symbol,
+  );
+  const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(
+    String(Math.round(initialChain.underlying.price * 1.08)),
   );
   const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
   const expirationLabel =
     chain.expirations.find(
       (candidate) => candidate.expiration === inputs.expiration,
-    )?.expiration ?? "All expirations";
+    )?.expiration ?? "";
   const strategyCards = useMemo(() => {
     const byStrategy = new Map<string, OptimizerCandidate>();
 
@@ -112,47 +118,45 @@ export function OptimizeClient({
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header>
-          <p className="font-medium text-muted-foreground text-sm">
+        <header className="pb-2">
+          <p className="font-medium text-muted-foreground text-xs uppercase tracking-widest">
             Options Planner
           </p>
-          <h1 className="font-semibold text-3xl tracking-normal">
+          <h1 className="mt-1 font-semibold text-4xl tracking-tight">
             Strategy optimizer
           </h1>
         </header>
 
-        <section className="mx-auto grid w-full max-w-4xl gap-4">
-          <div className="grid gap-3 md:grid-cols-3">
-            <div className="flex items-end gap-2">
-              <Field className="flex-1">
-                <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
-                <Input
-                  className="h-9 uppercase"
-                  id="symbol"
-                  value={symbolDraft}
-                  onChange={(event) => setSymbolDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      loadSymbol();
-                    }
-                  }}
-                />
-              </Field>
-              <Button type="button" onClick={loadSymbol}>
-                Load
-              </Button>
-            </div>
-            <div className="flex items-end pb-1 text-lg md:col-span-2">
-              <span className="font-semibold">
+        <section className="mx-auto grid w-full gap-5 rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex items-end gap-2">
+            <Field className="flex-1">
+              <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
+              <Input
+                className="h-9 uppercase"
+                id="symbol"
+                value={symbolDraft}
+                onChange={(event) => setSymbolDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    loadSymbol();
+                  }
+                }}
+              />
+            </Field>
+            <Button type="button" onClick={loadSymbol}>
+              Load
+            </Button>
+            <div className="flex items-baseline gap-3 pb-0.5 md:col-span-2 items-center">
+              <span className="text-2xl font-bold tabular-nums">
                 {formatCurrency(chain.underlying.price)}
               </span>
-              <span className="ml-3 text-muted-foreground text-sm">
-                {chain.expirations[0]?.calls[0]?.provider ?? "generated"} quote
-              </span>
+              <Badge variant="secondary">
+                {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
+              </Badge>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 md:grid-cols-6">
+          <div className="flex gap-2">
             {[
               ["bearish", "Bearish"],
               ["income", "Income"],
@@ -184,26 +188,33 @@ export function OptimizeClient({
                 min="1"
                 step="1"
                 type="number"
-                value={
-                  inputs.targetUnderlyingPrice ??
-                  Math.round(chain.underlying.price * 1.08)
-                }
+                value={targetUnderlyingDraft}
                 onChange={(event) =>
-                  updateInputs({
-                    targetUnderlyingPrice: Number(event.target.value),
-                  })
+                  setTargetUnderlyingDraft(event.target.value)
                 }
+                onBlur={() => {
+                  const parsed = Number(targetUnderlyingDraft);
+                  if (parsed > 0) {
+                    updateInputs({ targetUnderlyingPrice: parsed });
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    const parsed = Number(targetUnderlyingDraft);
+                    if (parsed > 0) {
+                      updateInputs({ targetUnderlyingPrice: parsed });
+                    }
+                  }
+                }}
               />
             </Field>
             <Field>
               <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
               <Select
                 id="expiration"
-                value={inputs.expiration ?? ALL_EXPIRATIONS}
+                value={inputs.expiration ?? ""}
                 onValueChange={(value) => {
-                  if (value === ALL_EXPIRATIONS) {
-                    updateInputs({ expiration: undefined });
-                  } else if (value !== null) {
+                  if (value) {
                     updateInputs({ expiration: value });
                   }
                 }}
@@ -212,9 +223,6 @@ export function OptimizeClient({
                   <span className="truncate">{expirationLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ALL_EXPIRATIONS}>
-                    All expirations
-                  </SelectItem>
                   {chain.expirations.map((candidate) => (
                     <SelectItem
                       key={candidate.expiration}
@@ -258,7 +266,7 @@ export function OptimizeClient({
           </p>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {strategyCards.map((candidate) => (
             <StrategyCard candidate={candidate} key={candidate.id} />
           ))}
@@ -363,16 +371,14 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
         </div>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 border-b pb-3">
           <div>
-            <p className="text-sm">
-              <span className={`font-semibold ${profitColor}`}>
-                {formatPercent(returnOnRisk)}
-              </span>{" "}
-              {returnLabel}
+            <p className={cn("text-2xl font-bold tabular-nums", profitColor)}>
+              {formatPercent(returnOnRisk)}
             </p>
-            <p className="font-semibold">
-              {formatCurrency(candidate.summary.maxProfit)} Profit
+            <p className="text-muted-foreground text-xs">{returnLabel}</p>
+            <p className="mt-1.5 font-semibold text-sm">
+              {formatCurrency(candidate.summary.maxProfit)} profit
             </p>
             <p className="text-muted-foreground text-xs">
               {formatCurrency(candidate.summary.targetProfitLoss)} at{" "}
@@ -380,17 +386,15 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm">
-              <span className="font-semibold text-primary">
-                {formatPercent(candidate.summary.probabilityOfProfit)}
-              </span>{" "}
-              Chance
+            <p className="text-2xl font-bold tabular-nums text-primary">
+              {formatPercent(candidate.summary.probabilityOfProfit)}
             </p>
-            <p className="font-semibold">
+            <p className="text-muted-foreground text-xs">Chance</p>
+            <p className="mt-1.5 font-semibold text-sm">
               {maxLoss === null
                 ? "Undefined"
                 : formatCurrency(Math.abs(maxLoss))}{" "}
-              Risk
+              risk
             </p>
           </div>
         </div>
@@ -483,24 +487,4 @@ function isThesis(value: string | null): value is OptimizerThesis {
 
 function titleCase(value: string) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function LegBadge({ leg }: { leg: OptionLeg }) {
-  const action = leg.side === "long" ? "Buy" : "Sell";
-
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md border px-2 py-1 font-medium text-xs",
-        leg.side === "long"
-          ? "border-primary/25 bg-primary/10 text-primary"
-          : "border-destructive/25 bg-destructive/10 text-destructive",
-      )}
-    >
-      <span className="font-semibold uppercase">{action}</span>
-      <span>
-        {formatCurrency(leg.strike)} {leg.optionType}
-      </span>
-    </span>
-  );
 }

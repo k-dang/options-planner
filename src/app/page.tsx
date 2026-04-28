@@ -17,14 +17,6 @@ export default function Home() {
           <Button
             nativeButton={false}
             size="lg"
-            render={<Link href="/build/long-call/AAPL" />}
-          >
-            Open builder
-          </Button>
-          <Button
-            nativeButton={false}
-            size="lg"
-            variant="outline"
             render={<Link href="/optimize" />}
           >
             Open optimizer
