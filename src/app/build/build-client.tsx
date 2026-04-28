@@ -1,6 +1,5 @@
 "use client";
 
-import { Bug, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useMemo, useState } from "react";
@@ -12,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { DebugDrawer } from "@/components/debug-drawer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -468,102 +468,34 @@ export function BuilderClient({
           )}
         </section>
       </div>
-      <Button
-        aria-expanded={debugOpen}
-        aria-label="Open chain debug panel"
-        className="fixed right-5 bottom-5 z-40 shadow-lg"
-        size="icon"
-        type="button"
-        variant="outline"
-        onClick={() => setDebugOpen(true)}
-      >
-        <Bug />
-      </Button>
-      <DebugPanel
-        chain={chain}
-        currentValuesDebugJson={currentValuesDebugJson}
-        initialChainDebugJson={initialChainDebugJson}
+      <DebugDrawer
+        closeLabel="Close chain debug panel"
+        openLabel="Open chain debug panel"
         open={debugOpen}
+        panels={[
+          {
+            title: "Currently used values",
+            value: currentValuesDebugJson,
+          },
+          {
+            title: "Full initialChain payload",
+            value: initialChainDebugJson,
+          },
+        ]}
+        subtitle={`Provider ${
+          chain.expirations[0]?.calls[0]?.provider ?? "n/a"
+        } · ${chain.underlying.symbol} ${formatCurrency(
+          chain.underlying.price,
+        )}`}
+        summary={[
+          { label: "As of", value: chain.underlying.asOf },
+          { label: "Expirations", value: String(chain.expirations.length) },
+        ]}
+        title="Initial chain debug"
         onClose={() => setDebugOpen(false)}
+        onOpen={() => setDebugOpen(true)}
       />
     </main>
-  );
-}
-
-function DebugPanel({
-  chain,
-  currentValuesDebugJson,
-  initialChainDebugJson,
-  open,
-  onClose,
-}: {
-  chain: OptionChainSnapshot;
-  currentValuesDebugJson: string;
-  initialChainDebugJson: string;
-  open: boolean;
-  onClose: () => void;
-}) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <>
-      <button
-        aria-label="Close chain debug panel"
-        className="fixed inset-0 z-40 bg-background/40"
-        type="button"
-        onClick={onClose}
-      />
-      <aside className="fixed top-0 right-0 z-50 flex h-dvh w-full max-w-2xl flex-col border-l bg-background shadow-xl">
-        <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
-          <div>
-            <p className="font-semibold">Initial chain debug</p>
-            <p className="text-muted-foreground text-sm">
-              Provider {chain.expirations[0]?.calls[0]?.provider ?? "n/a"} ·{" "}
-              {chain.underlying.symbol} {formatCurrency(chain.underlying.price)}
-            </p>
-          </div>
-          <Button
-            aria-label="Close chain debug panel"
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-          >
-            <X />
-          </Button>
-        </header>
-        <div className="grid flex-1 gap-4 overflow-auto p-4">
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <SummaryRow label="As of" value={chain.underlying.asOf} />
-            <SummaryRow
-              label="Expirations"
-              value={String(chain.expirations.length)}
-            />
-          </dl>
-          <DebugJson
-            title="Currently used values"
-            value={currentValuesDebugJson}
-          />
-          <DebugJson
-            title="Full initialChain payload"
-            value={initialChainDebugJson}
-          />
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function DebugJson({ title, value }: { title: string; value: string }) {
-  return (
-    <div className="grid gap-2">
-      <h2 className="font-semibold text-sm">{title}</h2>
-      <pre className="max-h-[45dvh] overflow-auto rounded-lg bg-muted p-3 font-mono text-xs leading-relaxed">
-        {value}
-      </pre>
-    </div>
   );
 }
 

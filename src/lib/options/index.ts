@@ -15,7 +15,6 @@ export {
 export {
   type OptimizerCandidate,
   type OptimizerInputs,
-  type OptimizerRankingMode,
   type OptimizerResultRow,
   type OptimizerThesis,
   optimizeStrategies,

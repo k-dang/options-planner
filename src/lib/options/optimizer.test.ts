@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   type OptimizerInputs,
+  type OptionChainSnapshot,
+  type OptionQuote,
   optimizeStrategies,
   parseBuilderState,
   toOptimizerResultRows,
@@ -13,6 +15,52 @@ const baseInputs: OptimizerInputs = {
   minDaysToExpiration: 20,
   maxDaysToExpiration: 70,
 };
+
+function testQuote(
+  optionType: "call" | "put",
+  expiration: string,
+  strike: number,
+): OptionQuote {
+  return {
+    provider: "generated",
+    optionType,
+    expiration,
+    strike,
+    bid: 1,
+    ask: 1.2,
+    mid: 1.1,
+    last: 1.1,
+    volume: null,
+    openInterest: null,
+    impliedVolatility: 0.25,
+    delta: null,
+    gamma: null,
+    theta: null,
+    vega: null,
+    rho: null,
+    updatedAt: null,
+  };
+}
+
+function testChainWithStrikes(strikes: number[]): OptionChainSnapshot {
+  const expiration = "2026-05-22";
+
+  return {
+    underlying: {
+      symbol: "AAPL",
+      price: 265,
+      asOf: "2026-04-27T16:00:00.000Z",
+    },
+    expirations: [
+      {
+        expiration,
+        daysToExpiration: 25,
+        calls: strikes.map((strike) => testQuote("call", expiration, strike)),
+        puts: strikes.map((strike) => testQuote("put", expiration, strike)),
+      },
+    ],
+  };
+}
 
 describe("optimizer", () => {
   it("generates valid candidates across multiple bullish strategy families", () => {
@@ -53,6 +101,27 @@ describe("optimizer", () => {
     ).toBe(true);
   });
 
+  it("filters candidates to a selected expiration", () => {
+    const [candidate] = optimizeStrategies(baseInputs);
+    expect(candidate).toBeDefined();
+
+    if (!candidate) {
+      return;
+    }
+
+    const results = optimizeStrategies({
+      ...baseInputs,
+      expiration: candidate.summary.expiration,
+    });
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(
+      results.every(
+        (result) => result.summary.expiration === candidate.summary.expiration,
+      ),
+    ).toBe(true);
+  });
+
   it("sorts candidates deterministically by optimizer score", () => {
     const results = optimizeStrategies(baseInputs);
     const scores = results.map((candidate) => candidate.summary.score);
@@ -64,106 +133,99 @@ describe("optimizer", () => {
     ).toEqual(results.map((candidate) => candidate.id));
   });
 
-  it("supports max profit ranking deterministically", () => {
-    const results = optimizeStrategies({
+  it("supports return to chance slider ranking endpoints", () => {
+    const returnResults = optimizeStrategies({
       ...baseInputs,
-      rankingMode: "max-profit",
+      returnChanceWeight: 0,
     });
-    const profits = results.map(
-      (candidate) => candidate.summary.maxProfit ?? Number.NEGATIVE_INFINITY,
-    );
-    const sortedProfits = [...profits].sort((left, right) => right - left);
+    const chanceResults = optimizeStrategies({
+      ...baseInputs,
+      returnChanceWeight: 100,
+    });
+    const sortedReturnScores = returnResults
+      .map((candidate) => candidate.summary.score)
+      .sort((left, right) => right - left);
+    const sortedChanceScores = chanceResults
+      .map((candidate) => candidate.summary.score)
+      .sort((left, right) => right - left);
 
-    expect(profits).toEqual(sortedProfits);
-    expect(
-      optimizeStrategies({ ...baseInputs, rankingMode: "max-profit" }).map(
-        (candidate) => candidate.id,
-      ),
-    ).toEqual(results.map((candidate) => candidate.id));
+    expect(returnResults.map((candidate) => candidate.summary.score)).toEqual(
+      sortedReturnScores,
+    );
+    expect(chanceResults.map((candidate) => candidate.summary.score)).toEqual(
+      sortedChanceScores,
+    );
   });
 
-  it("supports downside buffer ranking", () => {
-    const results = optimizeStrategies({
+  it("changes selected legs within strategy families across slider endpoints", () => {
+    const maxReturn = optimizeStrategies({
       ...baseInputs,
-      thesis: "income",
-      rankingMode: "downside-buffer",
+      returnChanceWeight: 0,
     });
-    const buffers = results.map((candidate) => {
-      const breakeven = candidate.evaluation.breakevens[0] ?? 0;
-
-      return (
-        (candidate.state.underlyingPrice - breakeven) /
-        candidate.state.underlyingPrice
-      );
+    const maxChance = optimizeStrategies({
+      ...baseInputs,
+      returnChanceWeight: 100,
     });
-    const sortedBuffers = [...buffers].sort((left, right) => right - left);
+    const maxChanceByStrategy = new Map(
+      maxChance.map((candidate) => [candidate.state.strategy, candidate]),
+    );
+    const changedFamilies = maxReturn.filter((candidate) => {
+      const chanceCandidate = maxChanceByStrategy.get(candidate.state.strategy);
 
-    expect(buffers).toEqual(sortedBuffers);
+      return chanceCandidate && chanceCandidate.id !== candidate.id;
+    });
+
+    expect(changedFamilies.length).toBeGreaterThan(0);
   });
 
-  it("supports target profit ranking", () => {
-    const targetUnderlyingPrice = 235;
-    const results = optimizeStrategies({
-      ...baseInputs,
-      rankingMode: "target-profit",
-      targetUnderlyingPrice,
-    });
-    const targetProfitLosses = results.map(
-      (candidate) => candidate.summary.targetProfitLoss,
-    );
-    const sortedTargetProfitLosses = [...targetProfitLosses].sort(
-      (left, right) => right - left,
+  it("uses target profit as return basis for unlimited-profit strategies", () => {
+    const results = optimizeStrategies(baseInputs);
+    const longCall = results.find(
+      (candidate) => candidate.state.strategy === "long-call",
     );
 
-    expect(targetProfitLosses).toEqual(sortedTargetProfitLosses);
-    expect(
-      results.every(
-        (candidate) =>
-          candidate.summary.targetUnderlyingPrice === targetUnderlyingPrice,
-      ),
-    ).toBe(true);
+    expect(longCall).toBeDefined();
+
+    if (!longCall) {
+      return;
+    }
+
+    expect(longCall.summary.maxProfit).toBeNull();
+    expect(longCall.summary.maxLoss).not.toBeNull();
+    expect(longCall.summary.returnProfitBasisLabel).toBe("target-profit");
+    expect(longCall.summary.returnProfitBasis).toBe(
+      Math.max(longCall.summary.targetProfitLoss, 0),
+    );
+    expect(longCall.summary.returnOnRisk).toBe(
+      longCall.summary.returnProfitBasis /
+        Math.max(Math.abs(longCall.summary.maxLoss ?? 0), 1),
+    );
   });
 
-  it("supports target probability ranking", () => {
-    const targetProbabilityOfProfit = 0.6;
-    const results = optimizeStrategies({
-      ...baseInputs,
-      rankingMode: "target-probability",
-      targetProbabilityOfProfit,
-    });
-    const distances = results.map((candidate) =>
-      Math.abs(
-        (candidate.summary.probabilityOfProfit ?? 0.35) -
-          targetProbabilityOfProfit,
-      ),
+  it("anchors bullish long calls below the target for safer legs", () => {
+    const chain = testChainWithStrikes(
+      Array.from({ length: 17 }, (_, index) => 230 + index * 5),
     );
-    const sortedDistances = [...distances].sort((left, right) => left - right);
-
-    expect(results.length).toBeGreaterThan(0);
-    expect(distances.slice(0, 3)).toEqual(sortedDistances.slice(0, 3));
-  });
-
-  it("supports delta range ranking", () => {
-    const targetDelta = 35;
-    const results = optimizeStrategies({
-      ...baseInputs,
-      rankingMode: "delta-range",
-      targetDelta,
-    });
-    const distances = results.map((candidate) =>
-      Math.abs(candidate.summary.delta - targetDelta),
+    const results = optimizeStrategies(
+      {
+        ...baseInputs,
+        targetUnderlyingPrice: 282,
+        returnChanceWeight: 0,
+      },
+      chain,
     );
-    const sortedDistances = [...distances].sort((left, right) => left - right);
+    const longCall = results.find(
+      (candidate) => candidate.state.strategy === "long-call",
+    );
 
-    expect(results.length).toBeGreaterThan(0);
-    expect(distances.slice(0, 3)).toEqual(sortedDistances.slice(0, 3));
+    expect(longCall).toBeDefined();
+    expect(longCall?.summary.strikes).toEqual([260]);
   });
 
   it("centers candidate strikes around the target underlying", () => {
     const targetUnderlyingPrice = 205;
     const results = optimizeStrategies({
       ...baseInputs,
-      rankingMode: "target-profit",
       targetUnderlyingPrice,
     });
     const strikes = results.flatMap((candidate) => candidate.summary.strikes);

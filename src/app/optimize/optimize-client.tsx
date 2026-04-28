@@ -11,16 +11,23 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { DebugDrawer } from "@/components/debug-drawer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
   type OptimizerCandidate,
   type OptimizerInputs,
-  type OptimizerRankingMode,
   type OptimizerThesis,
   type OptionChainSnapshot,
   type OptionLeg,
@@ -28,10 +35,12 @@ import {
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
+const ALL_EXPIRATIONS = "all";
+
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
   thesis: "bullish",
-  rankingMode: "target-profit",
+  returnChanceWeight: 50,
   minDaysToExpiration: 20,
   maxDaysToExpiration: 70,
   minProbabilityOfProfit: 0,
@@ -50,7 +59,12 @@ export function OptimizeClient({
   const [symbolDraft, setSymbolDraft] = useState(
     initialChain.underlying.symbol,
   );
+  const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
+  const expirationLabel =
+    chain.expirations.find(
+      (candidate) => candidate.expiration === inputs.expiration,
+    )?.expiration ?? "All expirations";
   const strategyCards = useMemo(() => {
     const byStrategy = new Map<string, OptimizerCandidate>();
 
@@ -66,6 +80,24 @@ export function OptimizeClient({
       (left, right) => right.summary.score - left.summary.score,
     );
   }, [inputs, chain]);
+  const optimizerDebugJson = useMemo(
+    () =>
+      JSON.stringify(
+        {
+          inputs,
+          selectedCards: strategyCards.map((candidate) =>
+            optimizerCandidateDebug(candidate),
+          ),
+        },
+        null,
+        2,
+      ),
+    [inputs, strategyCards],
+  );
+  const initialChainDebugJson = useMemo(
+    () => JSON.stringify(initialChain, null, 2),
+    [initialChain],
+  );
 
   function updateInputs(next: Partial<OptimizerInputs>) {
     setInputs((current) => ({ ...current, ...next }));
@@ -142,7 +174,7 @@ export function OptimizeClient({
             ))}
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-3">
             <Field>
               <FieldLabel htmlFor="target-underlying">
                 Target underlying
@@ -164,23 +196,59 @@ export function OptimizeClient({
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="ranking-mode">Rank by</FieldLabel>
-              <select
-                className="h-9 rounded-md border bg-background px-3 text-sm"
-                id="ranking-mode"
-                value={inputs.rankingMode}
-                onChange={(event) => {
-                  if (isRankingMode(event.target.value)) {
-                    updateInputs({ rankingMode: event.target.value });
+              <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
+              <Select
+                id="expiration"
+                value={inputs.expiration ?? ALL_EXPIRATIONS}
+                onValueChange={(value) => {
+                  if (value === ALL_EXPIRATIONS) {
+                    updateInputs({ expiration: undefined });
+                  } else if (value !== null) {
+                    updateInputs({ expiration: value });
                   }
                 }}
               >
-                <option value="target-profit">Target profit</option>
-                <option value="target-probability">Target probability</option>
-                <option value="delta-range">Delta range</option>
-                <option value="max-profit">Max profit</option>
-                <option value="downside-buffer">Downside buffer</option>
-              </select>
+                <SelectTrigger className="w-full">
+                  <span className="truncate">{expirationLabel}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_EXPIRATIONS}>
+                    All expirations
+                  </SelectItem>
+                  {chain.expirations.map((candidate) => (
+                    <SelectItem
+                      key={candidate.expiration}
+                      value={candidate.expiration}
+                    >
+                      {candidate.expiration} ({candidate.daysToExpiration}d)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="return-chance-weight">Rank by</FieldLabel>
+              <div className="grid gap-2 rounded-lg border bg-card px-3 py-2">
+                <Slider
+                  aria-label="Rank by max return or max chance"
+                  id="return-chance-weight"
+                  max={100}
+                  min={0}
+                  step={10}
+                  value={[inputs.returnChanceWeight ?? 50]}
+                  onValueChange={(value) =>
+                    updateInputs({
+                      returnChanceWeight: Array.isArray(value)
+                        ? (value[0] ?? 50)
+                        : value,
+                    })
+                  }
+                />
+                <div className="flex items-center justify-between gap-3 font-medium text-sm">
+                  <span>← Max Return</span>
+                  <span>Max Chance →</span>
+                </div>
+              </div>
             </Field>
           </div>
           <p className="text-muted-foreground text-sm">
@@ -203,21 +271,83 @@ export function OptimizeClient({
           ) : null}
         </section>
       </div>
+      <DebugDrawer
+        closeLabel="Close optimizer debug panel"
+        openLabel="Open optimizer debug panel"
+        open={debugOpen}
+        panels={[
+          {
+            title: "Currently selected optimizer cards",
+            value: optimizerDebugJson,
+          },
+          {
+            title: "Full initialChain payload",
+            value: initialChainDebugJson,
+          },
+        ]}
+        subtitle={`Provider ${
+          chain.expirations[0]?.calls[0]?.provider ?? "n/a"
+        } · ${chain.underlying.symbol} ${formatCurrency(
+          chain.underlying.price,
+        )}`}
+        summary={[
+          { label: "As of", value: chain.underlying.asOf },
+          { label: "Expirations", value: String(chain.expirations.length) },
+        ]}
+        title="Optimizer debug"
+        onClose={() => setDebugOpen(false)}
+        onOpen={() => setDebugOpen(true)}
+      />
     </main>
   );
 }
 
+function optimizerCandidateDebug(candidate: OptimizerCandidate) {
+  return {
+    id: candidate.id,
+    strategy: candidate.state.strategy,
+    symbol: candidate.state.symbol,
+    underlyingPrice: candidate.state.underlyingPrice,
+    expiration: candidate.summary.expiration,
+    strikes: candidate.summary.strikes,
+    score: candidate.summary.score,
+    rankingInputs: {
+      maxProfit: candidate.summary.maxProfit,
+      maxLoss: candidate.summary.maxLoss,
+      returnProfitBasis: candidate.summary.returnProfitBasis,
+      returnProfitBasisLabel: candidate.summary.returnProfitBasisLabel,
+      riskDenominator: candidate.summary.riskDenominator,
+      returnOnRisk: candidate.summary.returnOnRisk,
+      probabilityOfProfit: candidate.summary.probabilityOfProfit,
+    },
+    summary: {
+      netPremium: candidate.summary.netPremium,
+      targetUnderlyingPrice: candidate.summary.targetUnderlyingPrice,
+      targetProfitLoss: candidate.summary.targetProfitLoss,
+      delta: candidate.summary.delta,
+      builderHref: candidate.summary.builderHref,
+    },
+    legs: candidate.state.legs,
+    evaluatedLegs: candidate.evaluation.legs,
+    breakevens: candidate.evaluation.breakevens,
+  };
+}
+
 function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
-  const maxProfit = candidate.summary.maxProfit ?? 0;
   const maxLoss = candidate.summary.maxLoss;
-  const risk = Math.max(Math.abs(maxLoss ?? 0), 1);
-  const returnOnRisk = maxProfit / risk;
+  const returnOnRisk = candidate.summary.returnOnRisk;
   const optionLegs = candidate.state.legs.filter(
     (leg) => leg.kind === "option",
   );
   const title = titleCase(candidate.summary.strategyLabel);
   const profitColor =
-    returnOnRisk >= 0.25 ? "text-primary" : "text-destructive";
+    returnOnRisk !== null && returnOnRisk >= 0.25
+      ? "text-primary"
+      : "text-destructive";
+  const returnLabel =
+    candidate.summary.returnProfitBasisLabel === "target-profit"
+      ? "Target return/risk"
+      : "Return on risk";
 
   return (
     <Card className="overflow-hidden rounded-lg shadow-sm">
@@ -239,7 +369,7 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
               <span className={`font-semibold ${profitColor}`}>
                 {formatPercent(returnOnRisk)}
               </span>{" "}
-              Return on risk
+              {returnLabel}
             </p>
             <p className="font-semibold">
               {formatCurrency(candidate.summary.maxProfit)} Profit
@@ -349,16 +479,6 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
 
 function isThesis(value: string | null): value is OptimizerThesis {
   return value === "bullish" || value === "bearish" || value === "income";
-}
-
-function isRankingMode(value: string | null): value is OptimizerRankingMode {
-  return (
-    value === "max-profit" ||
-    value === "downside-buffer" ||
-    value === "target-profit" ||
-    value === "target-probability" ||
-    value === "delta-range"
-  );
 }
 
 function titleCase(value: string) {

@@ -13,23 +13,16 @@ import type {
 } from "./types";
 
 export type OptimizerThesis = "bullish" | "bearish" | "income";
-export type OptimizerRankingMode =
-  | "max-profit"
-  | "downside-buffer"
-  | "target-profit"
-  | "target-probability"
-  | "delta-range";
 
 export type OptimizerInputs = {
   symbol: string;
   thesis: OptimizerThesis;
-  rankingMode?: OptimizerRankingMode;
   minDaysToExpiration: number;
   maxDaysToExpiration: number;
   minProbabilityOfProfit?: number;
+  expiration?: string;
   targetUnderlyingPrice?: number;
-  targetProbabilityOfProfit?: number;
-  targetDelta?: number;
+  returnChanceWeight?: number;
 };
 
 export type OptimizerCandidate = {
@@ -47,6 +40,10 @@ export type OptimizerCandidate = {
     delta: number;
     targetUnderlyingPrice: number;
     targetProfitLoss: number;
+    returnProfitBasis: number;
+    returnProfitBasisLabel: "max-profit" | "target-profit";
+    riskDenominator: number | null;
+    returnOnRisk: number | null;
     score: number;
     builderHref: string;
   };
@@ -63,6 +60,10 @@ export type OptimizerResultRow = {
   delta: number;
   targetUnderlyingPrice: number;
   targetProfitLoss: number;
+  returnProfitBasis: number;
+  returnProfitBasisLabel: "max-profit" | "target-profit";
+  riskDenominator: number | null;
+  returnOnRisk: number | null;
   builderHref: string;
 };
 
@@ -114,77 +115,64 @@ function daysBetween(asOfIso: string, expirationIso: string) {
   );
 }
 
+function returnMetrics(
+  maxProfit: number | null,
+  maxLoss: number | null,
+  targetProfitLoss: number,
+) {
+  const returnProfitBasis =
+    maxProfit === null ? Math.max(targetProfitLoss, 0) : maxProfit;
+  const riskDenominator =
+    maxLoss === null ? null : Math.max(Math.abs(maxLoss), 1);
+
+  return {
+    returnProfitBasis,
+    returnProfitBasisLabel:
+      maxProfit === null ? ("target-profit" as const) : ("max-profit" as const),
+    riskDenominator,
+    returnOnRisk:
+      riskDenominator === null ? null : returnProfitBasis / riskDenominator,
+  };
+}
+
 function candidateScore(
   inputs: OptimizerInputs,
-  evaluation: StrategyEvaluation,
+  candidate: OptimizerCandidate,
+  familyCandidates: OptimizerCandidate[],
 ) {
-  const risk = Math.max(Math.abs(evaluation.maxLoss ?? 0), 1);
-  const riskAdjustedScore = (evaluation.maxProfit ?? 0) / risk;
-  const probability = evaluation.probabilityOfProfit ?? 0.35;
-  const delta = evaluation.greeks.delta;
-  const mode = inputs.rankingMode ?? "target-profit";
-
-  if (mode === "max-profit") {
-    return evaluation.maxProfit ?? Number.NEGATIVE_INFINITY;
-  }
-
-  if (mode === "downside-buffer") {
-    return downsideBuffer(evaluation);
-  }
-
-  if (mode === "target-profit") {
-    return targetProfitLoss(
-      evaluation,
-      targetUnderlyingPrice(inputs, evaluation.state.underlyingPrice),
-    );
-  }
-
-  if (mode === "target-probability") {
-    const targetProbability = inputs.targetProbabilityOfProfit ?? 0.65;
-
-    return -Math.abs(probability - targetProbability);
-  }
-
-  if (mode === "delta-range") {
-    const targetDelta = inputs.targetDelta ?? defaultTargetDelta(inputs.thesis);
-
-    return -Math.abs(delta - targetDelta);
-  }
-
-  if (inputs.thesis === "bullish") {
-    return riskAdjustedScore + probability + Math.max(delta, 0) / 100;
-  }
-
-  if (inputs.thesis === "bearish") {
-    return riskAdjustedScore + probability + Math.max(-delta, 0) / 100;
-  }
-
-  return probability + Math.max(evaluation.netPremium, 0) / risk;
-}
-
-function defaultTargetDelta(thesis: OptimizerThesis) {
-  if (thesis === "bearish") {
-    return -35;
-  }
-
-  if (thesis === "income") {
-    return 25;
-  }
-
-  return 45;
-}
-
-function downsideBuffer(evaluation: StrategyEvaluation) {
-  const breakeven = evaluation.breakevens[0];
-
-  if (breakeven === undefined || evaluation.state.underlyingPrice <= 0) {
-    return Number.NEGATIVE_INFINITY;
-  }
-
-  return (
-    (evaluation.state.underlyingPrice - breakeven) /
-    evaluation.state.underlyingPrice
+  const chanceWeight = clamp(inputs.returnChanceWeight ?? 50, 0, 100) / 100;
+  const returnWeight = 1 - chanceWeight;
+  const returnScores = familyCandidates.map(
+    (item) => item.summary.returnOnRisk ?? 0,
   );
+  const chanceScores = familyCandidates.map(
+    (item) => item.evaluation.probabilityOfProfit ?? 0.35,
+  );
+  const normalizedReturn = normalizeValue(
+    candidate.summary.returnOnRisk ?? 0,
+    returnScores,
+  );
+  const normalizedChance = normalizeValue(
+    candidate.evaluation.probabilityOfProfit ?? 0.35,
+    chanceScores,
+  );
+
+  return returnWeight * normalizedReturn + chanceWeight * normalizedChance;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeValue(value: number, values: number[]) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+
+  if (max === min) {
+    return 0.5;
+  }
+
+  return (value - min) / (max - min);
 }
 
 function passesFilters(
@@ -195,7 +183,14 @@ function passesFilters(
   const expiration = firstExpiration(state);
   const days = daysBetween(state.asOf, expiration);
 
-  if (days < inputs.minDaysToExpiration || days > inputs.maxDaysToExpiration) {
+  if (inputs.expiration !== undefined && expiration !== inputs.expiration) {
+    return false;
+  }
+
+  if (
+    inputs.expiration === undefined &&
+    (days < inputs.minDaysToExpiration || days > inputs.maxDaysToExpiration)
+  ) {
     return false;
   }
 
@@ -292,7 +287,11 @@ function makeCandidate(
   const legs = optionLegs(state);
   const targetPrice = targetUnderlyingPrice(inputs, state.underlyingPrice);
   const targetProfit = targetProfitLoss(evaluation, targetPrice);
-  const score = candidateScore(inputs, evaluation);
+  const metrics = returnMetrics(
+    evaluation.maxProfit,
+    evaluation.maxLoss,
+    targetProfit,
+  );
 
   return {
     id: candidateId(state),
@@ -309,10 +308,44 @@ function makeCandidate(
       delta: evaluation.greeks.delta,
       targetUnderlyingPrice: targetPrice,
       targetProfitLoss: targetProfit,
-      score,
+      returnProfitBasis: metrics.returnProfitBasis,
+      returnProfitBasisLabel: metrics.returnProfitBasisLabel,
+      riskDenominator: metrics.riskDenominator,
+      returnOnRisk: metrics.returnOnRisk,
+      score: 0,
       builderHref: serializeBuilderState(state),
     },
   };
+}
+
+function rankCandidatesByFamily(
+  inputs: OptimizerInputs,
+  candidates: OptimizerCandidate[],
+) {
+  const byStrategy = new Map<StrategyTemplateId, OptimizerCandidate[]>();
+
+  for (const candidate of candidates) {
+    const familyCandidates = byStrategy.get(candidate.state.strategy) ?? [];
+
+    familyCandidates.push(candidate);
+    byStrategy.set(candidate.state.strategy, familyCandidates);
+  }
+
+  const scored = candidates.map((candidate) => {
+    const familyCandidates = byStrategy.get(candidate.state.strategy) ?? [
+      candidate,
+    ];
+
+    return {
+      ...candidate,
+      summary: {
+        ...candidate.summary,
+        score: candidateScore(inputs, candidate, familyCandidates),
+      },
+    };
+  });
+
+  return scored.sort((left, right) => right.summary.score - left.summary.score);
 }
 
 type CandidateInput = {
@@ -320,13 +353,35 @@ type CandidateInput = {
   strike2Offset?: number;
   strike3Offset?: number;
   strike4Offset?: number;
+  strikeTargetRatio?: number;
+  strike2TargetRatio?: number;
+  strike3TargetRatio?: number;
+  strike4TargetRatio?: number;
 };
 
 function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
+  if (strategy === "long-call") {
+    return [
+      { strikeOffset: 0, strikeTargetRatio: 0.92 },
+      { strikeOffset: 0, strikeTargetRatio: 0.94 },
+      { strikeOffset: 0, strikeTargetRatio: 0.96 },
+    ];
+  }
+
   if (strategy === "bull-call-spread") {
     return [
-      { strikeOffset: -1, strike2Offset: 1 },
-      { strikeOffset: 0, strike2Offset: 2 },
+      {
+        strikeOffset: 0,
+        strike2Offset: 0,
+        strikeTargetRatio: 0.94,
+        strike2TargetRatio: 1.01,
+      },
+      {
+        strikeOffset: 0,
+        strike2Offset: 0,
+        strikeTargetRatio: 0.96,
+        strike2TargetRatio: 1.03,
+      },
     ];
   }
 
@@ -339,8 +394,18 @@ function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
 
   if (strategy === "bull-put-spread") {
     return [
-      { strikeOffset: -1, strike2Offset: -3 },
-      { strikeOffset: 0, strike2Offset: -2 },
+      {
+        strikeOffset: 0,
+        strike2Offset: 0,
+        strikeTargetRatio: 0.95,
+        strike2TargetRatio: 0.92,
+      },
+      {
+        strikeOffset: 0,
+        strike2Offset: 0,
+        strikeTargetRatio: 0.97,
+        strike2TargetRatio: 0.94,
+      },
     ];
   }
 
@@ -373,7 +438,11 @@ function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
   }
 
   if (strategy === "cash-secured-put" || strategy === "short-put") {
-    return [{ strikeOffset: -1 }, { strikeOffset: -2 }, { strikeOffset: -3 }];
+    return [
+      { strikeOffset: 0, strikeTargetRatio: 0.9 },
+      { strikeOffset: 0, strikeTargetRatio: 0.92 },
+      { strikeOffset: 0, strikeTargetRatio: 0.95 },
+    ];
   }
 
   if (strategy === "short-call") {
@@ -408,6 +477,33 @@ function strikeAt(strikes: number[], underlyingPrice: number, offset: number) {
   return sorted[nextIndex] ?? underlyingPrice;
 }
 
+function strikeForInput(
+  strikes: number[],
+  targetPrice: number,
+  input: CandidateInput,
+  offsetKey: keyof Pick<
+    CandidateInput,
+    "strikeOffset" | "strike2Offset" | "strike3Offset" | "strike4Offset"
+  >,
+  ratioKey: keyof Pick<
+    CandidateInput,
+    | "strikeTargetRatio"
+    | "strike2TargetRatio"
+    | "strike3TargetRatio"
+    | "strike4TargetRatio"
+  >,
+) {
+  const offset = input[offsetKey];
+
+  if (offset === undefined) {
+    return undefined;
+  }
+
+  const anchorPrice = targetPrice * (input[ratioKey] ?? 1);
+
+  return strikeAt(strikes, anchorPrice, offset);
+}
+
 export function optimizeStrategies(
   inputs: OptimizerInputs,
   chainInput?: OptionChainSnapshot,
@@ -418,31 +514,54 @@ export function optimizeStrategies(
   const strategies = THESIS_STRATEGIES[inputs.thesis];
   const candidates = new Map<string, OptimizerCandidate>();
 
-  for (const expiration of chain.expirations) {
-    const expirationIso = expiration.expiration;
-    const strikes = expiration.calls.map((quote) => quote.strike);
+  for (const expirationGroup of chain.expirations) {
+    const expirationIso = expirationGroup.expiration;
+
+    if (
+      inputs.expiration !== undefined &&
+      expirationIso !== inputs.expiration
+    ) {
+      continue;
+    }
+
+    const strikes = expirationGroup.calls.map((quote) => quote.strike);
 
     for (const strategy of strategies) {
       for (const input of candidateInputs(strategy)) {
-        const strike = strikeAt(strikes, targetPrice, input.strikeOffset);
-        const strike2 =
-          input.strike2Offset === undefined
-            ? undefined
-            : strikeAt(strikes, targetPrice, input.strike2Offset);
+        const strike = strikeForInput(
+          strikes,
+          targetPrice,
+          input,
+          "strikeOffset",
+          "strikeTargetRatio",
+        );
+        const strike2 = strikeForInput(
+          strikes,
+          targetPrice,
+          input,
+          "strike2Offset",
+          "strike2TargetRatio",
+        );
         const state = createBuilderState({
           symbol,
           strategy,
           expiration: expirationIso,
           strike,
           strike2,
-          strike3:
-            input.strike3Offset === undefined
-              ? undefined
-              : strikeAt(strikes, targetPrice, input.strike3Offset),
-          strike4:
-            input.strike4Offset === undefined
-              ? undefined
-              : strikeAt(strikes, targetPrice, input.strike4Offset),
+          strike3: strikeForInput(
+            strikes,
+            targetPrice,
+            input,
+            "strike3Offset",
+            "strike3TargetRatio",
+          ),
+          strike4: strikeForInput(
+            strikes,
+            targetPrice,
+            input,
+            "strike4Offset",
+            "strike4TargetRatio",
+          ),
           chain,
         });
         const candidate = makeCandidate(inputs, state);
@@ -454,9 +573,7 @@ export function optimizeStrategies(
     }
   }
 
-  const ranked = [...candidates.values()].sort(
-    (left, right) => right.summary.score - left.summary.score,
-  );
+  const ranked = rankCandidatesByFamily(inputs, [...candidates.values()]);
   const selected = new Map<string, OptimizerCandidate>();
 
   for (const strategy of strategies) {
@@ -498,6 +615,10 @@ export function toOptimizerResultRows(
     delta: candidate.summary.delta,
     targetUnderlyingPrice: candidate.summary.targetUnderlyingPrice,
     targetProfitLoss: candidate.summary.targetProfitLoss,
+    returnProfitBasis: candidate.summary.returnProfitBasis,
+    returnProfitBasisLabel: candidate.summary.returnProfitBasisLabel,
+    riskDenominator: candidate.summary.riskDenominator,
+    returnOnRisk: candidate.summary.returnOnRisk,
     builderHref: candidate.summary.builderHref,
   }));
 }
