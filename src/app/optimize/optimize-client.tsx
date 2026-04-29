@@ -117,68 +117,69 @@ export function OptimizeClient({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header className="pb-2">
-          <p className="font-medium text-muted-foreground text-xs uppercase tracking-widest">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
+        {/* Page header */}
+        <header>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
             Options Planner
           </p>
-          <h1 className="mt-1 font-semibold text-4xl tracking-tight">
-            Strategy optimizer
+          <h1 className="mt-1.5 text-3xl font-bold tracking-tight">
+            Strategy Optimizer
           </h1>
         </header>
 
-        <section className="mx-auto grid w-full gap-5 rounded-xl border bg-card p-5 shadow-sm">
-          <div className="flex items-end gap-2">
-            <Field className="flex-1">
+        {/* Filter controls */}
+        <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
+          {/* Row 1: Symbol + price + thesis */}
+          <div className="flex flex-wrap items-end gap-3">
+            <Field className="w-32 shrink-0">
               <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
               <Input
-                className="h-9 uppercase"
+                className="h-9 font-mono uppercase"
                 id="symbol"
                 value={symbolDraft}
                 onChange={(event) => setSymbolDraft(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    loadSymbol();
-                  }
+                  if (event.key === "Enter") loadSymbol();
                 }}
               />
             </Field>
-            <Button type="button" onClick={loadSymbol}>
+            <Button type="button" onClick={loadSymbol} className="mb-0.5">
               Load
             </Button>
-            <div className="flex items-baseline gap-3 pb-0.5 md:col-span-2 items-center">
-              <span className="text-2xl font-bold tabular-nums">
+            <div className="flex items-center gap-2 pb-0.5">
+              <span className="font-mono text-2xl font-bold tabular-nums">
                 {formatCurrency(chain.underlying.price)}
               </span>
-              <Badge variant="secondary">
+              <Badge variant="secondary" className="text-xs">
                 {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
               </Badge>
             </div>
+
+            <div className="ml-auto flex items-center gap-1.5 pb-0.5">
+              {(
+                [
+                  ["bearish", "Bearish"],
+                  ["income", "Income"],
+                  ["bullish", "Bullish"],
+                ] as [OptimizerThesis, string][]
+              ).map(([value, label]) => (
+                <Button
+                  aria-pressed={inputs.thesis === value}
+                  key={value}
+                  type="button"
+                  size="sm"
+                  variant={inputs.thesis === value ? "default" : "outline"}
+                  onClick={() => updateInputs({ thesis: value })}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            {[
-              ["bearish", "Bearish"],
-              ["income", "Income"],
-              ["bullish", "Bullish"],
-            ].map(([value, label]) => (
-              <Button
-                aria-pressed={inputs.thesis === value}
-                key={value}
-                type="button"
-                variant={inputs.thesis === value ? "default" : "outline"}
-                onClick={() => {
-                  if (isThesis(value)) {
-                    updateInputs({ thesis: value });
-                  }
-                }}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
+          {/* Row 2: Target + expiration + ranking */}
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <Field>
               <FieldLabel htmlFor="target-underlying">
                 Target underlying
@@ -188,22 +189,21 @@ export function OptimizeClient({
                 min="1"
                 step="1"
                 type="number"
+                className="font-mono"
                 value={targetUnderlyingDraft}
                 onChange={(event) =>
                   setTargetUnderlyingDraft(event.target.value)
                 }
                 onBlur={() => {
                   const parsed = Number(targetUnderlyingDraft);
-                  if (parsed > 0) {
+                  if (parsed > 0)
                     updateInputs({ targetUnderlyingPrice: parsed });
-                  }
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     const parsed = Number(targetUnderlyingDraft);
-                    if (parsed > 0) {
+                    if (parsed > 0)
                       updateInputs({ targetUnderlyingPrice: parsed });
-                    }
                   }
                 }}
               />
@@ -214,12 +214,10 @@ export function OptimizeClient({
                 id="expiration"
                 value={inputs.expiration ?? ""}
                 onValueChange={(value) => {
-                  if (value) {
-                    updateInputs({ expiration: value });
-                  }
+                  if (value) updateInputs({ expiration: value });
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full font-mono">
                   <span className="truncate">{expirationLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
@@ -228,7 +226,10 @@ export function OptimizeClient({
                       key={candidate.expiration}
                       value={candidate.expiration}
                     >
-                      {candidate.expiration} ({candidate.daysToExpiration}d)
+                      {candidate.expiration}{" "}
+                      <span className="text-muted-foreground">
+                        ({candidate.daysToExpiration}d)
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -236,49 +237,46 @@ export function OptimizeClient({
             </Field>
             <Field>
               <FieldLabel htmlFor="return-chance-weight">Rank by</FieldLabel>
-              <div className="grid gap-2 rounded-lg border bg-card px-3 py-2">
-                <Slider
-                  aria-label="Rank by max return or max chance"
-                  id="return-chance-weight"
-                  max={100}
-                  min={0}
-                  step={10}
-                  value={[inputs.returnChanceWeight ?? 50]}
-                  onValueChange={(value) =>
-                    updateInputs({
-                      returnChanceWeight: Array.isArray(value)
-                        ? (value[0] ?? 50)
-                        : value,
-                    })
-                  }
-                />
-                <div className="flex items-center justify-between gap-3 font-medium text-sm">
-                  <span>← Max Return</span>
-                  <span>Max Chance →</span>
-                </div>
+
+              <Slider
+                aria-label="Rank by max return or max chance"
+                id="return-chance-weight"
+                max={100}
+                min={0}
+                step={10}
+                value={[inputs.returnChanceWeight ?? 50]}
+                onValueChange={(value) =>
+                  updateInputs({
+                    returnChanceWeight: Array.isArray(value)
+                      ? (value[0] ?? 50)
+                      : value,
+                  })
+                }
+              />
+              <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Max Return</span>
+                <span>Max Chance</span>
               </div>
             </Field>
           </div>
-          <p className="text-muted-foreground text-sm">
-            Results use the configured option-chain provider, Black-Scholes
-            estimates, standard 100-share contracts, and no saved server-side
-            state. Probability and delta rankings are model estimates.
-          </p>
         </section>
 
+        {/* Strategy card grid */}
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {strategyCards.map((candidate) => (
             <StrategyCard candidate={candidate} key={candidate.id} />
           ))}
-          {strategyCards.length === 0 ? (
-            <Card className="rounded-lg">
-              <CardContent>
-                No strategies match the current filters.
-              </CardContent>
-            </Card>
-          ) : null}
+          {strategyCards.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+              <p className="text-lg font-semibold">No strategies match</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try adjusting the thesis, expiration, or target price.
+              </p>
+            </div>
+          )}
         </section>
       </div>
+
       <DebugDrawer
         closeLabel="Close optimizer debug panel"
         openLabel="Open optimizer debug panel"
@@ -348,20 +346,18 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
     (leg) => leg.kind === "option",
   );
   const title = titleCase(candidate.summary.strategyLabel);
-  const profitColor =
-    returnOnRisk !== null && returnOnRisk >= 0.25
-      ? "text-primary"
-      : "text-destructive";
   const returnLabel =
     candidate.summary.returnProfitBasisLabel === "target-profit"
       ? "Target return/risk"
       : "Return on risk";
+  const isGoodReturn = returnOnRisk !== null && returnOnRisk >= 0.25;
 
   return (
-    <Card className="overflow-hidden rounded-lg shadow-sm">
-      <CardHeader className="pb-2 text-center">
-        <CardTitle className="text-xl">{title}</CardTitle>
-        <div className="flex flex-wrap justify-center gap-1.5">
+    <Card className="flex flex-col overflow-hidden rounded-xl shadow-sm">
+      {/* Card header: name + leg badges */}
+      <CardHeader className="pb-3 text-center">
+        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+        <div className="mt-1.5 flex flex-wrap justify-center gap-1">
           {optionLegs.map((leg, index) => (
             <LegBadge
               key={`${leg.optionType}-${leg.side}-${leg.strike}-${index}`}
@@ -370,36 +366,48 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
           ))}
         </div>
       </CardHeader>
-      <CardContent className="grid gap-3">
-        <div className="grid grid-cols-2 gap-3 border-b pb-3">
+
+      <CardContent className="flex flex-1 flex-col gap-4">
+        {/* Key metrics */}
+        <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 px-4 py-3">
           <div>
-            <p className={cn("text-2xl font-bold tabular-nums", profitColor)}>
+            <p
+              className={cn(
+                "font-mono text-2xl font-bold tabular-nums leading-none",
+                isGoodReturn ? "text-profit" : "text-destructive",
+              )}
+            >
               {formatPercent(returnOnRisk)}
             </p>
-            <p className="text-muted-foreground text-xs">{returnLabel}</p>
-            <p className="mt-1.5 font-semibold text-sm">
-              {formatCurrency(candidate.summary.maxProfit)} profit
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {returnLabel}
             </p>
-            <p className="text-muted-foreground text-xs">
+            <p className="mt-2 text-sm font-semibold">
+              {formatCurrency(candidate.summary.maxProfit)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
               {formatCurrency(candidate.summary.targetProfitLoss)} at{" "}
               {formatCurrency(candidate.summary.targetUnderlyingPrice)}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold tabular-nums text-primary">
+            <p className="font-mono text-2xl font-bold tabular-nums leading-none text-primary">
               {formatPercent(candidate.summary.probabilityOfProfit)}
             </p>
-            <p className="text-muted-foreground text-xs">Chance</p>
-            <p className="mt-1.5 font-semibold text-sm">
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Probability of profit
+            </p>
+            <p className="mt-2 text-sm font-semibold text-destructive">
               {maxLoss === null
-                ? "Undefined"
-                : formatCurrency(Math.abs(maxLoss))}{" "}
-              risk
+                ? "Undefined risk"
+                : `${formatCurrency(Math.abs(maxLoss))} risk`}
             </p>
           </div>
         </div>
+
+        {/* Payoff chart */}
         <ChartContainer
-          className="aspect-[2.25/1] min-h-36"
+          className="aspect-[2.4/1] min-h-32"
           config={{
             expirationProfitLoss: {
               label: "Expiration P/L",
@@ -410,7 +418,7 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
           <AreaChart
             accessibilityLayer
             data={candidate.evaluation.payoff}
-            margin={{ bottom: 0, left: 0, right: 6, top: 8 }}
+            margin={{ bottom: 0, left: 0, right: 6, top: 6 }}
           >
             <defs>
               <linearGradient
@@ -423,54 +431,58 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
                 <stop
                   offset="5%"
                   stopColor="var(--primary)"
-                  stopOpacity={0.75}
+                  stopOpacity={0.5}
                 />
                 <stop
                   offset="95%"
                   stopColor="var(--primary)"
-                  stopOpacity={0.05}
+                  stopOpacity={0.02}
                 />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="var(--border)" />
+            <CartesianGrid stroke="var(--border)" strokeOpacity={0.5} />
             <XAxis
               dataKey="underlyingPrice"
-              tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
               tickFormatter={(value) => `$${value}`}
             />
             <YAxis
-              tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
               tickFormatter={(value) => formatCurrency(Number(value))}
-              width={58}
+              width={56}
             />
-            <ReferenceLine y={0} stroke="var(--foreground)" />
+            <ReferenceLine y={0} stroke="var(--border)" strokeWidth={1.5} />
             <ReferenceLine
               x={candidate.state.underlyingPrice}
               stroke="var(--muted-foreground)"
               strokeDasharray="3 3"
+              strokeWidth={1}
             />
             <ReferenceLine
               x={candidate.summary.targetUnderlyingPrice}
               stroke="var(--destructive)"
               strokeDasharray="4 2"
+              strokeWidth={1}
             />
             <Area
               dataKey="expirationProfitLoss"
               fill={`url(#${candidate.id}-pnl)`}
               isAnimationActive={false}
               stroke="var(--primary)"
-              strokeWidth={3}
+              strokeWidth={2.5}
               type="linear"
             />
           </AreaChart>
         </ChartContainer>
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <span className="text-muted-foreground">
-            {candidate.summary.expiration} • Δ{" "}
-            {formatDecimal(candidate.summary.delta)}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2 border-t border-border/50 pt-2 text-sm">
+          <span className="font-mono text-xs text-muted-foreground">
+            {candidate.summary.expiration}
           </span>
           <Button
             nativeButton={false}
+            size="sm"
             render={<Link href={candidate.summary.builderHref} />}
           >
             Open in Builder
@@ -479,10 +491,6 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
       </CardContent>
     </Card>
   );
-}
-
-function isThesis(value: string | null): value is OptimizerThesis {
-  return value === "bullish" || value === "bearish" || value === "income";
 }
 
 function titleCase(value: string) {

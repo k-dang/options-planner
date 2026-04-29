@@ -66,17 +66,6 @@ export function BuilderClient({
     ) ?? chain.expirations[0];
   const evaluationResult = useMemo(() => safeEvaluateStrategy(state), [state]);
   const evaluation = evaluationResult.evaluation;
-  const selectedOptionValue = evaluation
-    ? Math.abs(evaluation.netPremium)
-    : null;
-  const selectedOptionValueLabel =
-    evaluation === null
-      ? "Net premium"
-      : evaluation.netPremium > 0
-        ? "Net credit"
-        : evaluation.netPremium < 0
-          ? "Net debit"
-          : "Net premium";
   const netPremiumLabel =
     evaluation === null
       ? "Net premium"
@@ -160,47 +149,86 @@ export function BuilderClient({
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-6">
-        <header className="border-b pb-5">
-          <p className="font-medium text-muted-foreground text-sm">
-            Options Planner
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
+        {/* Page header */}
+        <header>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
+            Options Planner · Builder
           </p>
-          <h1 className="font-semibold text-3xl tracking-normal">
-            Strategy builder
-          </h1>
-          <p className="mt-2 font-medium text-lg">
+          <h1 className="mt-1.5 text-3xl font-bold tracking-tight">
             {formatStrategyName(state.strategy)}
-          </p>
+          </h1>
         </header>
 
-        <section className="grid gap-5 lg:grid-cols-[360px_1fr]">
+        {/* Metric strip — shown when evaluation is available */}
+        {evaluation && (
+          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+            <MetricTile
+              label="Max profit"
+              value={formatCurrency(evaluation.maxProfit)}
+              color="profit"
+            />
+            <MetricTile
+              label="Max loss"
+              value={formatCurrency(evaluation.maxLoss)}
+              color="loss"
+            />
+            <MetricTile
+              label="Prob. of profit"
+              value={formatPercent(evaluation.probabilityOfProfit)}
+              color="primary"
+            />
+            <MetricTile
+              label={netPremiumLabel}
+              value={formatCurrency(Math.abs(evaluation.netPremium))}
+            />
+            <MetricTile
+              label="Breakeven"
+              value={
+                evaluation.breakevens.length
+                  ? evaluation.breakevens.map(formatCurrency).join(", ")
+                  : "None"
+              }
+            />
+          </section>
+        )}
+
+        {/* Two-column layout */}
+        <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
+          {/* Sidebar: strategy controls */}
           <aside>
             <Card className="h-fit" size="sm">
               <CardContent>
                 <FieldGroup className="gap-4">
+                  {/* Symbol */}
                   <Field>
                     <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
                     <div className="flex gap-2">
                       <Input
-                        className="uppercase"
+                        className="font-mono uppercase"
                         id="symbol"
                         value={symbolDraft}
                         onChange={(event) => setSymbolDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") loadSymbol();
+                        }}
                       />
                       <Button type="button" onClick={loadSymbol}>
                         Load
                       </Button>
                     </div>
-                    <div className="flex items-baseline gap-2 pt-1">
-                      <span className="font-bold tabular-nums">
+                    <div className="flex items-center gap-2 pt-1.5">
+                      <span className="font-mono text-lg font-bold tabular-nums">
                         {formatCurrency(chain.underlying.price)}
                       </span>
-                      <Badge variant="secondary">
-                        {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
+                      <Badge variant="secondary" className="text-xs">
+                        {chain.expirations[0]?.calls[0]?.provider ??
+                          "generated"}
                       </Badge>
                     </div>
                   </Field>
 
+                  {/* Expiration */}
                   <Field>
                     <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
                     <Select
@@ -212,7 +240,7 @@ export function BuilderClient({
                         }
                       }}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full font-mono">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -221,14 +249,17 @@ export function BuilderClient({
                             key={candidate.expiration}
                             value={candidate.expiration}
                           >
-                            {candidate.expiration} ({candidate.daysToExpiration}
-                            d)
+                            {candidate.expiration}{" "}
+                            <span className="text-muted-foreground">
+                              ({candidate.daysToExpiration}d)
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </Field>
 
+                  {/* Strike selects */}
                   {optionLegs.map((leg, index) => (
                     <StrikeSelect
                       id={`strike${index + 1}`}
@@ -242,72 +273,23 @@ export function BuilderClient({
                     />
                   ))}
 
-                  <InfoPanel label={selectedOptionValueLabel}>
-                    {selectedOptionValue === null
-                      ? "Unavailable"
-                      : formatCurrency(selectedOptionValue)}
-                  </InfoPanel>
-
-                  <Field>
-                    <FieldLabel htmlFor="contracts">Contracts</FieldLabel>
-                    <Input
-                      id="contracts"
-                      min="1"
-                      step="1"
-                      type="number"
-                      value={primaryLeg?.quantity ?? 1}
-                      onChange={(event) => {
-                        const quantity = Number(event.target.value);
-
-                        if (Number.isFinite(quantity) && quantity >= 1) {
-                          updateFromInputs({ quantity: Math.floor(quantity) });
-                        }
-                      }}
-                    />
-                  </Field>
                 </FieldGroup>
               </CardContent>
             </Card>
+
           </aside>
 
+          {/* Main analysis area */}
           {evaluation ? (
-            <section className="grid gap-5">
-              <Card>
-                <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                  <Metric
-                    label="Max profit"
-                    value={formatCurrency(evaluation.maxProfit)}
-                  />
-                  <Metric
-                    label="Max loss"
-                    value={formatCurrency(evaluation.maxLoss)}
-                  />
-                  <Metric
-                    label="Prob. of profit"
-                    value={formatPercent(evaluation.probabilityOfProfit)}
-                  />
-                  <Metric
-                    label={netPremiumLabel}
-                    value={formatCurrency(Math.abs(evaluation.netPremium))}
-                  />
-                  <Metric
-                    label="Breakeven"
-                    value={
-                      evaluation.breakevens.length
-                        ? evaluation.breakevens.map(formatCurrency).join(", ")
-                        : "None"
-                    }
-                  />
-                </CardContent>
-              </Card>
-
+            <section className="flex flex-col gap-5">
+              {/* Payoff chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Payoff analysis</CardTitle>
+                  <CardTitle>Payoff Analysis</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-3">
+                <CardContent className="flex flex-col gap-3">
                   <ChartContainer
-                    className="aspect-[2.4/1] min-h-80"
+                    className="aspect-[2.4/1] min-h-72"
                     config={{
                       expirationProfitLoss: {
                         label: "Expiration P/L",
@@ -324,22 +306,35 @@ export function BuilderClient({
                       data={evaluation.payoff}
                       margin={{ left: 16, right: 16, top: 12, bottom: 8 }}
                     >
-                      <CartesianGrid vertical={false} />
+                      <CartesianGrid
+                        vertical={false}
+                        stroke="var(--border)"
+                        strokeOpacity={0.5}
+                      />
                       <XAxis
                         dataKey="underlyingPrice"
                         tickFormatter={(value) => `$${value}`}
                         type="number"
                         domain={["dataMin", "dataMax"]}
+                        tick={{ fontSize: 11 }}
                       />
                       <YAxis
-                        tickFormatter={(value) => formatCurrency(Number(value))}
+                        tickFormatter={(value) =>
+                          formatCurrency(Number(value))
+                        }
                         width={76}
+                        tick={{ fontSize: 11 }}
                       />
-                      <ReferenceLine y={0} stroke="var(--muted-foreground)" />
+                      <ReferenceLine
+                        y={0}
+                        stroke="var(--border)"
+                        strokeWidth={1.5}
+                      />
                       <ReferenceLine
                         x={state.underlyingPrice}
                         stroke="var(--muted-foreground)"
                         strokeDasharray="4 4"
+                        strokeWidth={1}
                       />
                       <ChartTooltip
                         content={
@@ -360,7 +355,7 @@ export function BuilderClient({
                         dot={false}
                         name="Expiration P/L"
                         stroke="var(--color-expirationProfitLoss)"
-                        strokeWidth={2}
+                        strokeWidth={2.5}
                         type="monotone"
                       />
                       <Line
@@ -374,29 +369,80 @@ export function BuilderClient({
                       />
                     </LineChart>
                   </ChartContainer>
-                  <p className="text-muted-foreground text-sm">
-                    Expiration P/L uses intrinsic value at the selected expiry.
-                    Model P/L today and estimated probability of profit are
-                    Black-Scholes estimates using generated bid/ask mids, leg
-                    IV, the current quote date, no dividends, and a fixed
-                    risk-free rate. Sample chains are deterministic planning
-                    inputs, not live market data.
-                  </p>
                 </CardContent>
               </Card>
 
+              {/* Leg Greeks */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Trade summary</CardTitle>
+                  <CardTitle>Leg Greeks</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <dl className="grid gap-3 text-sm md:grid-cols-2">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="border-b border-border text-muted-foreground">
+                        <tr>
+                          <th className="pb-2 pr-4 font-medium">Leg</th>
+                          <th className="pb-2 pr-4 font-mono font-medium">IV</th>
+                          <th className="pb-2 pr-4 font-mono font-medium">Δ Delta</th>
+                          <th className="pb-2 pr-4 font-mono font-medium">Γ Gamma</th>
+                          <th className="pb-2 pr-4 font-mono font-medium">Θ Theta</th>
+                          <th className="pb-2 pr-4 font-mono font-medium">V Vega</th>
+                          <th className="pb-2 font-mono font-medium">ρ Rho</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {evaluation.legs.map((evaluatedLeg, index) => (
+                          <tr
+                            className="border-b border-border/50 last:border-b-0"
+                            key={`${evaluatedLeg.leg.kind}-${index}`}
+                          >
+                            <td className="py-3 pr-4 font-medium">
+                              <LegDescription leg={evaluatedLeg.leg} />
+                            </td>
+                            <td className="py-3 pr-4 font-mono tabular-nums">
+                              {evaluatedLeg.leg.kind === "option"
+                                ? formatPercent(evaluatedLeg.leg.impliedVolatility)
+                                : "—"}
+                            </td>
+                            <td className="py-3 pr-4 font-mono tabular-nums">
+                              {formatDecimal(evaluatedLeg.greeks.delta)}
+                            </td>
+                            <td className="py-3 pr-4 font-mono tabular-nums">
+                              {formatDecimal(evaluatedLeg.greeks.gamma)}
+                            </td>
+                            <td className="py-3 pr-4 font-mono tabular-nums">
+                              {formatCurrency(evaluatedLeg.greeks.theta)}
+                            </td>
+                            <td className="py-3 pr-4 font-mono tabular-nums">
+                              {formatCurrency(evaluatedLeg.greeks.vega)}
+                            </td>
+                            <td className="py-3 font-mono tabular-nums">
+                              {formatCurrency(evaluatedLeg.greeks.rho)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Trade summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Trade Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <dl className="grid gap-2 text-sm sm:grid-cols-2">
                     <SummaryRow label="Symbol" value={state.symbol} />
                     <SummaryRow
                       label="Breakeven"
                       value={
                         evaluation.breakevens.length
-                          ? evaluation.breakevens.map(formatCurrency).join(", ")
+                          ? evaluation.breakevens
+                              .map(formatCurrency)
+                              .join(", ")
                           : "None in modeled range"
                       }
                     />
@@ -431,60 +477,14 @@ export function BuilderClient({
                   </dl>
                 </CardContent>
               </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Leg Greeks</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b text-muted-foreground">
-                        <tr>
-                          <th className="py-2 pr-4 font-medium">Leg</th>
-                          <th className="py-2 pr-4 font-medium">Delta</th>
-                          <th className="py-2 pr-4 font-medium">Gamma</th>
-                          <th className="py-2 pr-4 font-medium">Theta</th>
-                          <th className="py-2 pr-4 font-medium">Vega</th>
-                          <th className="py-2 font-medium">Rho</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {evaluation.legs.map((evaluatedLeg, index) => (
-                          <tr
-                            className="border-b last:border-b-0"
-                            key={`${evaluatedLeg.leg.kind}-${index}`}
-                          >
-                            <td className="py-3 pr-4 font-medium">
-                              <LegDescription leg={evaluatedLeg.leg} />
-                            </td>
-                            <td className="py-3 pr-4">
-                              {formatDecimal(evaluatedLeg.greeks.delta)}
-                            </td>
-                            <td className="py-3 pr-4">
-                              {formatDecimal(evaluatedLeg.greeks.gamma)}
-                            </td>
-                            <td className="py-3 pr-4">
-                              {formatCurrency(evaluatedLeg.greeks.theta)}
-                            </td>
-                            <td className="py-3 pr-4">
-                              {formatCurrency(evaluatedLeg.greeks.vega)}
-                            </td>
-                            <td className="py-3">
-                              {formatCurrency(evaluatedLeg.greeks.rho)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+
             </section>
           ) : (
             <ValidationPanel errors={evaluationResult.errors} />
           )}
         </section>
       </div>
+
       <DebugDrawer
         closeLabel="Close chain debug panel"
         openLabel="Open chain debug panel"
@@ -518,21 +518,22 @@ export function BuilderClient({
 
 function ValidationPanel({ errors }: { errors: string[] }) {
   return (
-    <section className="grid gap-5">
+    <section className="flex flex-col gap-4">
       <Card className="border-destructive/30 bg-destructive/5">
         <CardHeader>
-          <CardTitle>Strategy needs attention</CardTitle>
+          <CardTitle className="text-destructive">
+            Strategy needs attention
+          </CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3">
-          <p className="text-muted-foreground text-sm">
-            The selected legs do not currently form a valid strategy. Adjust the
-            strikes, expiration, or contract inputs to continue the payoff
-            analysis.
+        <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            The selected legs do not form a valid strategy. Adjust strikes,
+            expiration, or contracts to continue.
           </p>
-          <ul className="grid gap-2 text-sm">
+          <ul className="flex flex-col gap-1.5">
             {errors.map((error) => (
               <li
-                className="rounded-md border bg-background px-3 py-2"
+                className="rounded-lg border border-destructive/20 bg-background px-3 py-2.5 text-sm"
                 key={error}
               >
                 {error}
@@ -549,26 +550,14 @@ function quotesForLeg(
   expiration: OptionExpiration,
   leg?: OptionLeg,
 ): OptionQuote[] {
-  if (!leg) {
-    return [];
-  }
-
+  if (!leg) return [];
   return leg.optionType === "put" ? expiration.puts : expiration.calls;
 }
 
 function strikeInput(index: number, strike: number) {
-  if (index === 0) {
-    return { strike };
-  }
-
-  if (index === 1) {
-    return { strike2: strike };
-  }
-
-  if (index === 2) {
-    return { strike3: strike };
-  }
-
+  if (index === 0) return { strike };
+  if (index === 1) return { strike2: strike };
+  if (index === 2) return { strike3: strike };
   return { strike4: strike };
 }
 
@@ -602,17 +591,19 @@ function StrikeSelect({
         id={id}
         value={value === undefined ? undefined : String(value)}
         onValueChange={(nextValue) => {
-          if (nextValue !== null) {
-            onChange(Number(nextValue));
-          }
+          if (nextValue !== null) onChange(Number(nextValue));
         }}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full font-mono">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {quotes?.map((quote) => (
-            <SelectItem key={quote.strike} value={String(quote.strike)}>
+            <SelectItem
+              key={quote.strike}
+              value={String(quote.strike)}
+              className="font-mono"
+            >
               {formatCurrency(quote.strike)}
             </SelectItem>
           ))}
@@ -636,22 +627,15 @@ function describeLegText(leg: StrategyState["legs"][number]) {
 
 function LegDescription({ leg }: { leg: StrategyState["legs"][number] }) {
   if (leg.kind === "stock") {
-    return <span>{describeLegText(leg)}</span>;
+    return <span className="font-mono text-xs">{describeLegText(leg)}</span>;
   }
 
   return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      <span
-        className={cn(
-          "rounded-md border px-2 py-0.5 font-semibold text-xs uppercase",
-          leg.side === "long"
-            ? "border-primary/25 bg-primary/10 text-primary"
-            : "border-destructive/25 bg-destructive/10 text-destructive",
-        )}
-      >
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <Badge variant={leg.side === "long" ? "default" : "destructive"}>
         {legAction(leg)}
-      </span>
-      <span>
+      </Badge>
+      <span className="font-mono text-xs">
         {leg.quantity} {leg.optionType} {formatCurrency(leg.strike)}{" "}
         {leg.expiration}
       </span>
@@ -663,35 +647,42 @@ function legAction(leg: OptionLeg) {
   return leg.side === "long" ? "Buy" : "Sell";
 }
 
-function InfoPanel({
+type MetricColor = "profit" | "loss" | "primary" | "default";
+
+function MetricTile({
   label,
-  children,
+  value,
+  color = "default",
 }: {
   label: string;
-  children: React.ReactNode;
+  value: string;
+  color?: MetricColor;
 }) {
-  return (
-    <div className="rounded-lg bg-muted p-3">
-      <p className="font-medium text-muted-foreground text-sm">{label}</p>
-      <p className="mt-1 font-semibold capitalize">{children}</p>
-    </div>
+  const valueClass = cn(
+    "font-mono text-xl font-bold tabular-nums leading-none",
+    color === "profit" && "text-profit",
+    color === "loss" && "text-destructive",
+    color === "primary" && "text-primary",
+    color === "default" && "text-foreground",
   );
-}
 
-function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="font-medium text-muted-foreground text-sm">{label}</p>
-      <p className="mt-1 font-semibold text-2xl">{value}</p>
+    <div className="rounded-xl border border-border/60 bg-card px-4 py-3 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <p className={cn("mt-1.5", valueClass)}>{value}</p>
     </div>
   );
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-muted p-3">
-      <dt className="font-medium text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-semibold">{value}</dd>
+    <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2.5">
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 font-mono text-sm font-semibold tabular-nums">
+        {value}
+      </dd>
     </div>
   );
 }
