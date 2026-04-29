@@ -13,12 +13,9 @@ import {
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { LegBadge } from "@/components/leg-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -26,7 +23,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
+import { formatCurrency, formatPercent } from "@/lib/format";
 import {
   type OptimizerCandidate,
   type OptimizerInputs,
@@ -35,6 +32,12 @@ import {
   optimizeStrategies,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
+
+const THESIS_OPTIONS = [
+  ["bearish", "Bearish"],
+  ["income", "Income"],
+  ["bullish", "Bullish"],
+] as [OptimizerThesis, string][];
 
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
@@ -111,8 +114,55 @@ export function OptimizeClient({
 
   function loadSymbol() {
     const symbol = symbolDraft.trim().toUpperCase() || "AAPL";
-
     router.push(`/optimize?symbol=${encodeURIComponent(symbol)}`);
+  }
+
+  function handleSliderChange(value: number | readonly number[]) {
+    updateInputs({
+      returnChanceWeight: Array.isArray(value) ? (value[0] ?? 50) : value,
+    });
+  }
+
+  function handleTargetBlur() {
+    const p = Number(targetUnderlyingDraft);
+    if (p > 0) updateInputs({ targetUnderlyingPrice: p });
+  }
+
+  function handleTargetKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      const p = Number(targetUnderlyingDraft);
+      if (p > 0) updateInputs({ targetUnderlyingPrice: p });
+    }
+  }
+
+  const provider = chain.expirations[0]?.calls[0]?.provider ?? "generated";
+
+  function ExpirationSelect({ triggerClassName }: { triggerClassName: string }) {
+    return (
+      <Select
+        value={inputs.expiration ?? ""}
+        onValueChange={(v) => {
+          if (v) updateInputs({ expiration: v });
+        }}
+      >
+        <SelectTrigger className={triggerClassName}>
+          <span className="truncate">{expirationLabel}</span>
+        </SelectTrigger>
+        <SelectContent>
+          {chain.expirations.map((candidate) => (
+            <SelectItem
+              key={candidate.expiration}
+              value={candidate.expiration}
+            >
+              {candidate.expiration}{" "}
+              <span className="text-muted-foreground">
+                ({candidate.daysToExpiration}d)
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
   }
 
   return (
@@ -129,135 +179,115 @@ export function OptimizeClient({
         </header>
 
         {/* Filter controls */}
-        <section className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          {/* Row 1: Symbol + price + thesis */}
-          <div className="flex flex-wrap items-end gap-3">
-            <Field className="w-32 shrink-0">
-              <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
-              <Input
-                className="h-9 font-mono uppercase"
-                id="symbol"
+        <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/[0.04]">
+          {/* Atmospheric blobs */}
+          <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-primary/8 blur-2xl" />
+
+          {/* Row 1: Symbol · Price · Thesis */}
+          <div className="relative flex flex-wrap items-center gap-3">
+            {/* Symbol + Load — unified pill */}
+            <div className="flex items-center overflow-hidden rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
+              <input
+                className="w-20 bg-transparent py-2.5 pl-4 pr-2 font-mono text-sm font-bold uppercase tracking-widest caret-primary focus:outline-none"
                 value={symbolDraft}
-                onChange={(event) => setSymbolDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") loadSymbol();
+                onChange={(e) => setSymbolDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") loadSymbol();
                 }}
               />
-            </Field>
-            <Button type="button" onClick={loadSymbol} className="mb-0.5">
-              Load
-            </Button>
-            <div className="flex items-center gap-2 pb-0.5">
-              <span className="font-mono text-2xl font-bold tabular-nums">
-                {formatCurrency(chain.underlying.price)}
-              </span>
-              <Badge variant="secondary" className="text-xs">
-                {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
-              </Badge>
+              <div className="h-4 w-px bg-border/60" />
+              <button
+                type="button"
+                onClick={loadSymbol}
+                className="py-2.5 pl-3 pr-4 font-mono text-xs font-semibold text-primary transition-colors hover:text-primary/65"
+              >
+                Load →
+              </button>
             </div>
 
-            <div className="ml-auto flex items-center gap-1.5 pb-0.5">
-              {(
-                [
-                  ["bearish", "Bearish"],
-                  ["income", "Income"],
-                  ["bullish", "Bullish"],
-                ] as [OptimizerThesis, string][]
-              ).map(([value, label]) => (
-                <Button
-                  aria-pressed={inputs.thesis === value}
+            {/* Price pill */}
+            <div className="flex items-center gap-2.5 rounded-full border border-border/60 bg-white/80 px-4 py-2.5 shadow-sm dark:bg-white/8">
+              <span className="font-mono text-xl font-bold tabular-nums">
+                {formatCurrency(chain.underlying.price)}
+              </span>
+              <div className="h-3.5 w-px bg-border/60" />
+              <span className="text-xs text-muted-foreground">{provider}</span>
+            </div>
+
+            {/* Thesis — individual floating chips */}
+            <div className="ml-auto flex items-center gap-2">
+              {THESIS_OPTIONS.map(([value, label]) => (
+                <button
                   key={value}
                   type="button"
-                  size="sm"
-                  variant={inputs.thesis === value ? "default" : "outline"}
+                  aria-pressed={inputs.thesis === value}
                   onClick={() => updateInputs({ thesis: value })}
+                  className={cn(
+                    "rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all",
+                    inputs.thesis === value
+                      ? "border-primary bg-primary text-primary-foreground shadow-md"
+                      : "border-border/60 bg-white/80 text-foreground/55 hover:border-primary/40 hover:text-foreground dark:bg-white/8",
+                  )}
                 >
                   {label}
-                </Button>
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Row 2: Target + expiration + ranking */}
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <Field>
-              <FieldLabel htmlFor="target-underlying">
-                Target underlying
-              </FieldLabel>
-              <Input
-                id="target-underlying"
-                min="1"
-                step="1"
-                type="number"
-                className="font-mono"
-                value={targetUnderlyingDraft}
-                onChange={(event) =>
-                  setTargetUnderlyingDraft(event.target.value)
-                }
-                onBlur={() => {
-                  const parsed = Number(targetUnderlyingDraft);
-                  if (parsed > 0)
-                    updateInputs({ targetUnderlyingPrice: parsed });
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    const parsed = Number(targetUnderlyingDraft);
-                    if (parsed > 0)
-                      updateInputs({ targetUnderlyingPrice: parsed });
-                  }
-                }}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
-              <Select
-                id="expiration"
-                value={inputs.expiration ?? ""}
-                onValueChange={(value) => {
-                  if (value) updateInputs({ expiration: value });
-                }}
-              >
-                <SelectTrigger className="w-full font-mono">
-                  <span className="truncate">{expirationLabel}</span>
-                </SelectTrigger>
-                <SelectContent>
-                  {chain.expirations.map((candidate) => (
-                    <SelectItem
-                      key={candidate.expiration}
-                      value={candidate.expiration}
-                    >
-                      {candidate.expiration}{" "}
-                      <span className="text-muted-foreground">
-                        ({candidate.daysToExpiration}d)
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="return-chance-weight">Rank by</FieldLabel>
-
-              <Slider
-                aria-label="Rank by max return or max chance"
-                id="return-chance-weight"
-                max={100}
-                min={0}
-                step={10}
-                value={[inputs.returnChanceWeight ?? 50]}
-                onValueChange={(value) =>
-                  updateInputs({
-                    returnChanceWeight: Array.isArray(value)
-                      ? (value[0] ?? 50)
-                      : value,
-                  })
-                }
-              />
-              <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Max Return</span>
-                <span>Max Chance</span>
+          {/* Row 2: Target · Expiration · Rank */}
+          <div className="relative mt-4 grid gap-3 sm:grid-cols-3">
+            {/* Target price */}
+            <div className="flex flex-col gap-1.5">
+              <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                Target Price
+              </label>
+              <div className="flex items-center rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
+                <span className="pl-4 font-mono text-sm text-muted-foreground">
+                  $
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  className="flex-1 bg-transparent py-2.5 pl-1 pr-4 font-mono text-sm font-semibold caret-primary focus:outline-none"
+                  value={targetUnderlyingDraft}
+                  onChange={(e) => setTargetUnderlyingDraft(e.target.value)}
+                  onBlur={handleTargetBlur}
+                  onKeyDown={handleTargetKeyDown}
+                />
               </div>
-            </Field>
+            </div>
+
+            {/* Expiration */}
+            <div className="flex flex-col gap-1.5">
+              <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                Expiration
+              </label>
+              <ExpirationSelect triggerClassName="w-full rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8 font-mono text-sm data-[size=default]:h-[42px] focus-visible:ring-0 focus-visible:border-primary/60" />
+            </div>
+
+            {/* Rank slider */}
+            <div className="flex flex-col gap-1.5">
+              <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+                Rank By
+              </label>
+              <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
+                <Slider
+                  aria-label="Rank by"
+                  max={100}
+                  min={0}
+                  step={10}
+                  value={[inputs.returnChanceWeight ?? 50]}
+                  onValueChange={handleSliderChange}
+                />
+                <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Max Return <span className="font-semibold tabular-nums text-foreground/70">{100 - (inputs.returnChanceWeight ?? 50)}%</span></span>
+                  <span><span className="font-semibold tabular-nums text-foreground/70">{inputs.returnChanceWeight ?? 50}%</span> Max Chance</span>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -354,9 +384,8 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
 
   return (
     <Card className="flex flex-col overflow-hidden rounded-xl shadow-sm">
-      {/* Card header: name + leg badges */}
       <CardHeader className="pb-3 text-center">
-        <CardTitle className="text-base font-semibold">{title}</CardTitle>
+        <div className="text-base font-semibold">{title}</div>
         <div className="mt-1.5 flex flex-wrap justify-center gap-1">
           {optionLegs.map((leg, index) => (
             <LegBadge
