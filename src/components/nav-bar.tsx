@@ -7,7 +7,9 @@ export function NavBar() {
         <span className="size-5 rounded flex items-center justify-center bg-primary/15 ring-1 ring-primary/30 group-hover:bg-primary/20 transition-colors">
           <span className="block size-2 rounded-[2px] bg-primary" />
         </span>
-        <span className="font-semibold text-sm tracking-tight">Options Planner</span>
+        <span className="font-semibold text-sm tracking-tight">
+          Options Planner
+        </span>
       </Link>
       <div className="h-4 w-px bg-border" />
       <Link

@@ -14,8 +14,16 @@ import {
 import { DebugDrawer } from "@/components/debug-drawer";
 import { LegBadge } from "@/components/leg-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -31,6 +39,7 @@ import {
   type OptionChainSnapshot,
   optimizeStrategies,
 } from "@/lib/options";
+import { searchTickerSuggestions, type TickerSuggestion } from "@/lib/tickers";
 import { cn } from "@/lib/utils";
 
 const THESIS_OPTIONS = [
@@ -65,6 +74,8 @@ export function OptimizeClient({
   const [symbolDraft, setSymbolDraft] = useState(
     initialChain.underlying.symbol,
   );
+  const [selectedTickerSuggestion, setSelectedTickerSuggestion] =
+    useState<TickerSuggestion | null>(null);
   const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(
     String(Math.round(initialChain.underlying.price * 1.08)),
   );
@@ -107,14 +118,25 @@ export function OptimizeClient({
     () => JSON.stringify(initialChain, null, 2),
     [initialChain],
   );
+  const tickerSuggestions = useMemo(
+    () => searchTickerSuggestions(symbolDraft),
+    [symbolDraft],
+  );
 
   function updateInputs(next: Partial<OptimizerInputs>) {
     setInputs((current) => ({ ...current, ...next }));
   }
 
   function loadSymbol() {
-    const symbol = symbolDraft.trim().toUpperCase() || "AAPL";
-    router.push(`/optimize?symbol=${encodeURIComponent(symbol)}`);
+    router.push(optimizeSymbolHref(symbolDraft));
+  }
+
+  function loadTickerSuggestion(suggestion: TickerSuggestion | null) {
+    if (!suggestion) return;
+
+    setSelectedTickerSuggestion(suggestion);
+    setSymbolDraft(suggestion.symbol);
+    router.push(optimizeSymbolHref(suggestion.symbol));
   }
 
   function handleSliderChange(value: number | readonly number[]) {
@@ -137,9 +159,16 @@ export function OptimizeClient({
 
   const provider = chain.expirations[0]?.calls[0]?.provider ?? "generated";
 
-  function ExpirationSelect({ triggerClassName }: { triggerClassName: string }) {
+  function ExpirationSelect({
+    id,
+    triggerClassName,
+  }: {
+    id: string;
+    triggerClassName: string;
+  }) {
     return (
       <Select
+        id={id}
         value={inputs.expiration ?? ""}
         onValueChange={(v) => {
           if (v) updateInputs({ expiration: v });
@@ -150,10 +179,7 @@ export function OptimizeClient({
         </SelectTrigger>
         <SelectContent>
           {chain.expirations.map((candidate) => (
-            <SelectItem
-              key={candidate.expiration}
-              value={candidate.expiration}
-            >
+            <SelectItem key={candidate.expiration} value={candidate.expiration}>
               {candidate.expiration}{" "}
               <span className="text-muted-foreground">
                 ({candidate.daysToExpiration}d)
@@ -186,24 +212,61 @@ export function OptimizeClient({
 
           {/* Row 1: Symbol · Price · Thesis */}
           <div className="relative flex flex-wrap items-center gap-3">
-            {/* Symbol + Load — unified pill */}
-            <div className="flex items-center overflow-hidden rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
-              <input
-                className="w-20 bg-transparent py-2.5 pl-4 pr-2 font-mono text-sm font-bold uppercase tracking-widest caret-primary focus:outline-none"
-                value={symbolDraft}
-                onChange={(e) => setSymbolDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") loadSymbol();
+            {/* Symbol */}
+            <div className="flex h-[42px] items-center overflow-hidden rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
+              <Combobox
+                autoHighlight
+                inputValue={symbolDraft}
+                isItemEqualToValue={(item, value) =>
+                  item.symbol === value.symbol
+                }
+                itemToStringLabel={(item) => item.symbol}
+                items={tickerSuggestions}
+                value={selectedTickerSuggestion}
+                onInputValueChange={(value, eventDetails) => {
+                  if (eventDetails.reason === "item-press") return;
+
+                  setSelectedTickerSuggestion(null);
+                  setSymbolDraft(value.toUpperCase());
                 }}
-              />
-              <div className="h-4 w-px bg-border/60" />
-              <button
-                type="button"
-                onClick={loadSymbol}
-                className="py-2.5 pl-3 pr-4 font-mono text-xs font-semibold text-primary transition-colors hover:text-primary/65"
+                onValueChange={loadTickerSuggestion}
               >
-                Load →
-              </button>
+                <ComboboxInput
+                  aria-label="Symbol"
+                  className="h-full w-28 border-0 bg-transparent px-4 py-0 font-mono text-sm font-bold uppercase tracking-widest shadow-none ring-0 outline-none focus-within:border-transparent focus-within:ring-0 has-[[data-slot=input-group-control]:focus-visible]:border-transparent has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[[data-slot=input-group-control]:focus-visible]:outline-none [&_[data-slot=input-group-control]]:px-0 [&_[data-slot=input-group-control]]:font-mono [&_[data-slot=input-group-control]]:font-bold [&_[data-slot=input-group-control]]:tracking-widest [&_[data-slot=input-group-control]]:focus-visible:ring-0 [&_[data-slot=input-group-control]]:focus-visible:outline-none"
+                  showTrigger={false}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      tickerSuggestions.every(
+                        (suggestion) => suggestion.symbol !== symbolDraft,
+                      )
+                    ) {
+                      loadSymbol();
+                    }
+                  }}
+                >
+                  <ComboboxContent className="min-w-72 rounded-xl" alignOffset={-16}>
+                    <ComboboxEmpty>No matching tickers</ComboboxEmpty>
+                    <ComboboxList>
+                      {tickerSuggestions.map((suggestion, index) => (
+                        <ComboboxItem
+                          index={index}
+                          key={suggestion.symbol}
+                          value={suggestion}
+                        >
+                          <span className="font-mono font-bold">
+                            {suggestion.symbol}
+                          </span>
+                          <span className="truncate text-muted-foreground">
+                            {suggestion.name}
+                          </span>
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </ComboboxInput>
+              </Combobox>
             </div>
 
             {/* Price pill */}
@@ -240,7 +303,10 @@ export function OptimizeClient({
           <div className="relative mt-4 grid gap-3 sm:grid-cols-3">
             {/* Target price */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              <label
+                className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+                htmlFor="target-price"
+              >
                 Target Price
               </label>
               <div className="flex items-center rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
@@ -248,6 +314,7 @@ export function OptimizeClient({
                   $
                 </span>
                 <input
+                  id="target-price"
                   type="number"
                   min="1"
                   step="1"
@@ -262,20 +329,30 @@ export function OptimizeClient({
 
             {/* Expiration */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              <label
+                className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+                htmlFor="expiration"
+              >
                 Expiration
               </label>
-              <ExpirationSelect triggerClassName="w-full rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8 font-mono text-sm data-[size=default]:h-[42px] focus-visible:ring-0 focus-visible:border-primary/60" />
+              <ExpirationSelect
+                id="expiration"
+                triggerClassName="w-full rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8 font-mono text-sm data-[size=default]:h-[42px] focus-visible:ring-0 focus-visible:border-primary/60"
+              />
             </div>
 
             {/* Rank slider */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              <label
+                className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+                htmlFor="rank-by"
+              >
                 Rank By
               </label>
               <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
                 <Slider
                   aria-label="Rank by"
+                  id="rank-by"
                   max={100}
                   min={0}
                   step={10}
@@ -283,8 +360,18 @@ export function OptimizeClient({
                   onValueChange={handleSliderChange}
                 />
                 <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>Max Return <span className="font-semibold tabular-nums text-foreground/70">{100 - (inputs.returnChanceWeight ?? 50)}%</span></span>
-                  <span><span className="font-semibold tabular-nums text-foreground/70">{inputs.returnChanceWeight ?? 50}%</span> Max Chance</span>
+                  <span>
+                    Max Return{" "}
+                    <span className="font-semibold tabular-nums text-foreground/70">
+                      {100 - (inputs.returnChanceWeight ?? 50)}%
+                    </span>
+                  </span>
+                  <span>
+                    <span className="font-semibold tabular-nums text-foreground/70">
+                      {inputs.returnChanceWeight ?? 50}%
+                    </span>{" "}
+                    Max Chance
+                  </span>
                 </div>
               </div>
             </div>
@@ -524,4 +611,13 @@ function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
 
 function titleCase(value: string) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function optimizeSymbolHref(
+  symbolValue: string,
+  fallbackSymbol = "AAPL",
+) {
+  const symbol = symbolValue.trim().toUpperCase() || fallbackSymbol;
+
+  return `/optimize?symbol=${encodeURIComponent(symbol)}`;
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type React from "react";
 import { useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -272,11 +271,9 @@ export function BuilderClient({
                       }
                     />
                   ))}
-
                 </FieldGroup>
               </CardContent>
             </Card>
-
           </aside>
 
           {/* Main analysis area */}
@@ -319,9 +316,7 @@ export function BuilderClient({
                         tick={{ fontSize: 11 }}
                       />
                       <YAxis
-                        tickFormatter={(value) =>
-                          formatCurrency(Number(value))
-                        }
+                        tickFormatter={(value) => formatCurrency(Number(value))}
                         width={76}
                         tick={{ fontSize: 11 }}
                       />
@@ -383,11 +378,21 @@ export function BuilderClient({
                       <thead className="border-b border-border text-muted-foreground">
                         <tr>
                           <th className="pb-2 pr-4 font-medium">Leg</th>
-                          <th className="pb-2 pr-4 font-mono font-medium">IV</th>
-                          <th className="pb-2 pr-4 font-mono font-medium">Δ Delta</th>
-                          <th className="pb-2 pr-4 font-mono font-medium">Γ Gamma</th>
-                          <th className="pb-2 pr-4 font-mono font-medium">Θ Theta</th>
-                          <th className="pb-2 pr-4 font-mono font-medium">V Vega</th>
+                          <th className="pb-2 pr-4 font-mono font-medium">
+                            IV
+                          </th>
+                          <th className="pb-2 pr-4 font-mono font-medium">
+                            Δ Delta
+                          </th>
+                          <th className="pb-2 pr-4 font-mono font-medium">
+                            Γ Gamma
+                          </th>
+                          <th className="pb-2 pr-4 font-mono font-medium">
+                            Θ Theta
+                          </th>
+                          <th className="pb-2 pr-4 font-mono font-medium">
+                            V Vega
+                          </th>
                           <th className="pb-2 font-mono font-medium">ρ Rho</th>
                         </tr>
                       </thead>
@@ -402,7 +407,9 @@ export function BuilderClient({
                             </td>
                             <td className="py-3 pr-4 font-mono tabular-nums">
                               {evaluatedLeg.leg.kind === "option"
-                                ? formatPercent(evaluatedLeg.leg.impliedVolatility)
+                                ? formatPercent(
+                                    evaluatedLeg.leg.impliedVolatility,
+                                  )
                                 : "—"}
                             </td>
                             <td className="py-3 pr-4 font-mono tabular-nums">
@@ -440,9 +447,7 @@ export function BuilderClient({
                       label="Breakeven"
                       value={
                         evaluation.breakevens.length
-                          ? evaluation.breakevens
-                              .map(formatCurrency)
-                              .join(", ")
+                          ? evaluation.breakevens.map(formatCurrency).join(", ")
                           : "None in modeled range"
                       }
                     />
@@ -477,7 +482,6 @@ export function BuilderClient({
                   </dl>
                 </CardContent>
               </Card>
-
             </section>
           ) : (
             <ValidationPanel errors={evaluationResult.errors} />

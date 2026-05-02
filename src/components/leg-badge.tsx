@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { type OptionLeg } from "@/lib/options";
 import { formatCurrency } from "@/lib/format";
+import type { OptionLeg } from "@/lib/options";
 
 export function LegBadge({ leg }: { leg: OptionLeg }) {
   const action = leg.side === "long" ? "Buy" : "Sell";
