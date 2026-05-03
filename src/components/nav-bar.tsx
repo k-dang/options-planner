@@ -18,6 +18,12 @@ export function NavBar() {
       >
         Optimizer
       </Link>
+      <Link
+        href="/scan"
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Scan
+      </Link>
     </nav>
   );
 }

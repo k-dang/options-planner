@@ -599,6 +599,147 @@ export function optimizeStrategies(
   );
 }
 
+const SINGLE_STRIKE_SCAN_STRATEGIES: StrategyTemplateId[] = [
+  "long-call",
+  "long-put",
+  "short-call",
+  "short-put",
+  "cash-secured-put",
+  "covered-call",
+  "short-straddle",
+];
+
+export type ScanInputs = {
+  symbol: string;
+  minDaysToExpiration: number;
+  maxDaysToExpiration: number;
+  minProbabilityOfProfit: number;
+  enabledStrategies: StrategyTemplateId[];
+  strikeWindowFraction?: number;
+};
+
+function strikesWithinRange(
+  strikes: number[],
+  price: number,
+  fraction: number,
+) {
+  const min = price * (1 - fraction);
+  const max = price * (1 + fraction);
+
+  return strikes.filter((strike) => strike >= min && strike <= max);
+}
+
+export function scanRiskReward(
+  inputs: ScanInputs,
+  chainInput?: OptionChainSnapshot,
+): OptimizerCandidate[] {
+  const symbol = inputs.symbol.trim().toUpperCase() || "AAPL";
+  const chain = chainInput ?? getBuilderChain(createBuilderState({ symbol }));
+  const candidates = new Map<string, OptimizerCandidate>();
+  const baseInputs: OptimizerInputs = {
+    symbol,
+    thesis: "bullish",
+    minDaysToExpiration: inputs.minDaysToExpiration,
+    maxDaysToExpiration: inputs.maxDaysToExpiration,
+    minProbabilityOfProfit: inputs.minProbabilityOfProfit,
+  };
+  const windowFraction = inputs.strikeWindowFraction ?? 0.15;
+
+  for (const expirationGroup of chain.expirations) {
+    const days = expirationGroup.daysToExpiration;
+
+    if (
+      days < inputs.minDaysToExpiration ||
+      days > inputs.maxDaysToExpiration
+    ) {
+      continue;
+    }
+
+    const expirationIso = expirationGroup.expiration;
+    const allStrikes = expirationGroup.calls.map((quote) => quote.strike);
+    const denseStrikes = strikesWithinRange(
+      allStrikes,
+      chain.underlying.price,
+      windowFraction,
+    );
+
+    for (const strategy of inputs.enabledStrategies) {
+      if (SINGLE_STRIKE_SCAN_STRATEGIES.includes(strategy)) {
+        for (const strike of denseStrikes) {
+          tryAddCandidate(candidates, baseInputs, {
+            symbol,
+            strategy,
+            expiration: expirationIso,
+            strike,
+            chain,
+          });
+        }
+      } else {
+        const targetPrice = chain.underlying.price;
+
+        for (const input of candidateInputs(strategy)) {
+          tryAddCandidate(candidates, baseInputs, {
+            symbol,
+            strategy,
+            expiration: expirationIso,
+            strike: strikeForInput(
+              allStrikes,
+              targetPrice,
+              input,
+              "strikeOffset",
+              "strikeTargetRatio",
+            ),
+            strike2: strikeForInput(
+              allStrikes,
+              targetPrice,
+              input,
+              "strike2Offset",
+              "strike2TargetRatio",
+            ),
+            strike3: strikeForInput(
+              allStrikes,
+              targetPrice,
+              input,
+              "strike3Offset",
+              "strike3TargetRatio",
+            ),
+            strike4: strikeForInput(
+              allStrikes,
+              targetPrice,
+              input,
+              "strike4Offset",
+              "strike4TargetRatio",
+            ),
+            chain,
+          });
+        }
+      }
+    }
+  }
+
+  return [...candidates.values()];
+}
+
+function tryAddCandidate(
+  candidates: Map<string, OptimizerCandidate>,
+  baseInputs: OptimizerInputs,
+  builderInput: Parameters<typeof createBuilderState>[0],
+) {
+  let state: StrategyState;
+
+  try {
+    state = createBuilderState(builderInput);
+  } catch {
+    return;
+  }
+
+  const candidate = makeCandidate(baseInputs, state);
+
+  if (candidate) {
+    candidates.set(candidate.id, candidate);
+  }
+}
+
 export function toOptimizerResultRows(
   candidates: OptimizerCandidate[],
 ): OptimizerResultRow[] {

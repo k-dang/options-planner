@@ -18,6 +18,8 @@ export {
   type OptimizerResultRow,
   type OptimizerThesis,
   optimizeStrategies,
+  scanRiskReward,
+  type ScanInputs,
   toOptimizerResultRows,
 } from "./optimizer";
 export { blackScholes, intrinsicValue } from "./pricing";
