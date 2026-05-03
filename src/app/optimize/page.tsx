@@ -1,4 +1,5 @@
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
+import { singleValue } from "@/lib/utils";
 import { OptimizeClient } from "./optimize-client";
 
 export default async function OptimizePage({
@@ -19,8 +20,4 @@ export default async function OptimizePage({
       key={initialChain.underlying.symbol}
     />
   );
-}
-
-function singleValue(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] : value;
 }

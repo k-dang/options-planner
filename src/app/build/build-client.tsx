@@ -12,15 +12,14 @@ import {
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { TickerCombobox } from "@/components/ticker-combobox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -53,7 +52,6 @@ export function BuilderClient({
 }: BuilderClientProps) {
   const router = useRouter();
   const [state, setState] = useState(initialState);
-  const [symbolDraft, setSymbolDraft] = useState(initialState.symbol);
   const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
   const optionLegs = getBuilderOptionLegs(state);
@@ -138,9 +136,7 @@ export function BuilderClient({
     commitState(next);
   }
 
-  function loadSymbol() {
-    const symbol = symbolDraft.trim().toUpperCase() || state.symbol;
-
+  function navigateToSymbol(symbol: string) {
     router.push(
       `/build/${encodeURIComponent(state.strategy)}/${encodeURIComponent(symbol)}`,
     );
@@ -202,20 +198,10 @@ export function BuilderClient({
                   {/* Symbol */}
                   <Field>
                     <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
-                    <div className="flex gap-2">
-                      <Input
-                        className="font-mono uppercase"
-                        id="symbol"
-                        value={symbolDraft}
-                        onChange={(event) => setSymbolDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") loadSymbol();
-                        }}
-                      />
-                      <Button type="button" onClick={loadSymbol}>
-                        Load
-                      </Button>
-                    </div>
+                    <TickerCombobox
+                      defaultSymbol={state.symbol}
+                      onNavigate={navigateToSymbol}
+                    />
                     <div className="flex items-center gap-2 pt-1.5">
                       <span className="font-mono text-lg font-bold tabular-nums">
                         {formatCurrency(chain.underlying.price)}

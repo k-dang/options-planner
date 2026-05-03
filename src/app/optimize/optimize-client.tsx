@@ -13,17 +13,16 @@ import {
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { LegBadge } from "@/components/leg-badge";
+import { TickerCombobox } from "@/components/ticker-combobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
+import { Field, FieldLabel } from "@/components/ui/field";
 import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   Select,
   SelectContent,
@@ -39,7 +38,6 @@ import {
   type OptionChainSnapshot,
   optimizeStrategies,
 } from "@/lib/options";
-import { searchTickerSuggestions, type TickerSuggestion } from "@/lib/tickers";
 import { cn } from "@/lib/utils";
 
 const THESIS_OPTIONS = [
@@ -71,11 +69,6 @@ export function OptimizeClient({
     symbol: initialChain.underlying.symbol,
     expiration: defaultExpiration,
   });
-  const [symbolDraft, setSymbolDraft] = useState(
-    initialChain.underlying.symbol,
-  );
-  const [selectedTickerSuggestion, setSelectedTickerSuggestion] =
-    useState<TickerSuggestion | null>(null);
   const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(
     String(Math.round(initialChain.underlying.price * 1.08)),
   );
@@ -118,25 +111,8 @@ export function OptimizeClient({
     () => JSON.stringify(initialChain, null, 2),
     [initialChain],
   );
-  const tickerSuggestions = useMemo(
-    () => searchTickerSuggestions(symbolDraft),
-    [symbolDraft],
-  );
-
   function updateInputs(next: Partial<OptimizerInputs>) {
     setInputs((current) => ({ ...current, ...next }));
-  }
-
-  function loadSymbol() {
-    router.push(optimizeSymbolHref(symbolDraft));
-  }
-
-  function loadTickerSuggestion(suggestion: TickerSuggestion | null) {
-    if (!suggestion) return;
-
-    setSelectedTickerSuggestion(suggestion);
-    setSymbolDraft(suggestion.symbol);
-    router.push(optimizeSymbolHref(suggestion.symbol));
   }
 
   function handleSliderChange(value: number | readonly number[]) {
@@ -157,15 +133,7 @@ export function OptimizeClient({
     }
   }
 
-  const provider = chain.expirations[0]?.calls[0]?.provider ?? "generated";
-
-  function ExpirationSelect({
-    id,
-    triggerClassName,
-  }: {
-    id: string;
-    triggerClassName: string;
-  }) {
+  function ExpirationSelect({ id }: { id: string }) {
     return (
       <Select
         id={id}
@@ -174,7 +142,7 @@ export function OptimizeClient({
           if (v) updateInputs({ expiration: v });
         }}
       >
-        <SelectTrigger className={triggerClassName}>
+        <SelectTrigger>
           <span className="truncate">{expirationLabel}</span>
         </SelectTrigger>
         <SelectContent>
@@ -205,7 +173,7 @@ export function OptimizeClient({
         </header>
 
         {/* Filter controls */}
-        <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/[0.04]">
+        <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
           {/* Atmospheric blobs */}
           <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-primary/8 blur-2xl" />
@@ -213,88 +181,35 @@ export function OptimizeClient({
           {/* Row 1: Symbol · Price · Thesis */}
           <div className="relative flex flex-wrap items-center gap-3">
             {/* Symbol */}
-            <div className="flex h-[42px] items-center overflow-hidden rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
-              <Combobox
-                autoHighlight
-                inputValue={symbolDraft}
-                isItemEqualToValue={(item, value) =>
-                  item.symbol === value.symbol
+            <div>
+              <TickerCombobox
+                defaultSymbol={initialChain.underlying.symbol}
+                onNavigate={(symbol) =>
+                  router.push(optimizeSymbolHref(symbol))
                 }
-                itemToStringLabel={(item) => item.symbol}
-                items={tickerSuggestions}
-                value={selectedTickerSuggestion}
-                onInputValueChange={(value, eventDetails) => {
-                  if (eventDetails.reason === "item-press") return;
-
-                  setSelectedTickerSuggestion(null);
-                  setSymbolDraft(value.toUpperCase());
-                }}
-                onValueChange={loadTickerSuggestion}
-              >
-                <ComboboxInput
-                  aria-label="Symbol"
-                  className="h-full w-28 border-0 bg-transparent px-4 py-0 font-mono text-sm font-bold uppercase tracking-widest shadow-none ring-0 outline-none focus-within:border-transparent focus-within:ring-0 has-[[data-slot=input-group-control]:focus-visible]:border-transparent has-[[data-slot=input-group-control]:focus-visible]:ring-0 has-[[data-slot=input-group-control]:focus-visible]:outline-none [&_[data-slot=input-group-control]]:px-0 [&_[data-slot=input-group-control]]:font-mono [&_[data-slot=input-group-control]]:font-bold [&_[data-slot=input-group-control]]:tracking-widest [&_[data-slot=input-group-control]]:focus-visible:ring-0 [&_[data-slot=input-group-control]]:focus-visible:outline-none"
-                  showTrigger={false}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      tickerSuggestions.every(
-                        (suggestion) => suggestion.symbol !== symbolDraft,
-                      )
-                    ) {
-                      loadSymbol();
-                    }
-                  }}
-                >
-                  <ComboboxContent className="min-w-72 rounded-xl" alignOffset={-16}>
-                    <ComboboxEmpty>No matching tickers</ComboboxEmpty>
-                    <ComboboxList>
-                      {tickerSuggestions.map((suggestion, index) => (
-                        <ComboboxItem
-                          index={index}
-                          key={suggestion.symbol}
-                          value={suggestion}
-                        >
-                          <span className="font-mono font-bold">
-                            {suggestion.symbol}
-                          </span>
-                          <span className="truncate text-muted-foreground">
-                            {suggestion.name}
-                          </span>
-                        </ComboboxItem>
-                      ))}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </ComboboxInput>
-              </Combobox>
+              />
             </div>
 
             {/* Price pill */}
-            <div className="flex items-center gap-2.5 rounded-full border border-border/60 bg-white/80 px-4 py-2.5 shadow-sm dark:bg-white/8">
-              <span className="font-mono text-xl font-bold tabular-nums">
-                {formatCurrency(chain.underlying.price)}
-              </span>
-              <div className="h-3.5 w-px bg-border/60" />
-              <span className="text-xs text-muted-foreground">{provider}</span>
-            </div>
+            <div>{formatCurrency(chain.underlying.price)}</div>
 
             {/* Thesis — individual floating chips */}
             <div className="ml-auto flex items-center gap-2">
               {THESIS_OPTIONS.map(([value, label]) => (
-                <button
+                <Button
                   key={value}
-                  type="button"
                   aria-pressed={inputs.thesis === value}
-                  onClick={() => updateInputs({ thesis: value })}
+                  variant={inputs.thesis === value ? "default" : "outline"}
                   className={cn(
-                    "rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all",
+                    "rounded-full shadow-sm",
                     inputs.thesis === value
-                      ? "border-primary bg-primary text-primary-foreground shadow-md"
-                      : "border-border/60 bg-white/80 text-foreground/55 hover:border-primary/40 hover:text-foreground dark:bg-white/8",
+                      ? "shadow-md"
+                      : "border-border/60 bg-white/80 text-foreground/55 hover:border-primary/40 dark:bg-white/8",
                   )}
+                  onClick={() => updateInputs({ thesis: value })}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -302,53 +217,48 @@ export function OptimizeClient({
           {/* Row 2: Target · Expiration · Rank */}
           <div className="relative mt-4 grid gap-3 sm:grid-cols-3">
             {/* Target price */}
-            <div className="flex flex-col gap-1.5">
-              <label
+            <Field className="flex flex-col gap-1.5">
+              <FieldLabel
                 className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
                 htmlFor="target-price"
               >
                 Target Price
-              </label>
-              <div className="flex items-center rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8">
-                <span className="pl-4 font-mono text-sm text-muted-foreground">
-                  $
-                </span>
-                <input
+              </FieldLabel>
+              <InputGroup className="rounded-full border-border/60 bg-white/80 shadow-sm dark:bg-input/20">
+                <InputGroupAddon>$</InputGroupAddon>
+                <InputGroupInput
                   id="target-price"
                   type="number"
                   min="1"
                   step="1"
-                  className="flex-1 bg-transparent py-2.5 pl-1 pr-4 font-mono text-sm font-semibold caret-primary focus:outline-none"
+                  className="font-mono font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   value={targetUnderlyingDraft}
                   onChange={(e) => setTargetUnderlyingDraft(e.target.value)}
                   onBlur={handleTargetBlur}
                   onKeyDown={handleTargetKeyDown}
                 />
-              </div>
-            </div>
+              </InputGroup>
+            </Field>
 
             {/* Expiration */}
-            <div className="flex flex-col gap-1.5">
-              <label
+            <Field className="flex flex-col gap-1.5">
+              <FieldLabel
                 className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
                 htmlFor="expiration"
               >
                 Expiration
-              </label>
-              <ExpirationSelect
-                id="expiration"
-                triggerClassName="w-full rounded-full border border-border/60 bg-white/80 shadow-sm dark:bg-white/8 font-mono text-sm data-[size=default]:h-[42px] focus-visible:ring-0 focus-visible:border-primary/60"
-              />
-            </div>
+              </FieldLabel>
+              <ExpirationSelect id="expiration" />
+            </Field>
 
             {/* Rank slider */}
-            <div className="flex flex-col gap-1.5">
-              <label
+            <Field className="flex flex-col gap-1.5">
+              <FieldLabel
                 className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
                 htmlFor="rank-by"
               >
                 Rank By
-              </label>
+              </FieldLabel>
               <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
                 <Slider
                   aria-label="Rank by"
@@ -374,7 +284,7 @@ export function OptimizeClient({
                   </span>
                 </div>
               </div>
-            </div>
+            </Field>
           </div>
         </section>
 
