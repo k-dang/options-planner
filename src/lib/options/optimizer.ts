@@ -717,7 +717,7 @@ export function scanRiskReward(
     }
   }
 
-  return [...candidates.values()];
+  return rankCandidatesByFamily(baseInputs, [...candidates.values()]);
 }
 
 function tryAddCandidate(

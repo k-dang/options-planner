@@ -30,6 +30,7 @@ type SortColumn =
   | "strategy"
   | "bias"
   | "expiration"
+  | "score"
   | "maxProfit"
   | "maxLoss"
   | "returnOnRisk"
@@ -73,6 +74,7 @@ const DEFAULT_FILTERS: Omit<ScanFilters, "enabled"> = {
   maxDays: 60,
   minPop: 0.25,
 };
+const RETURN_ON_RISK_SORT_CAP = 5;
 
 export function ScanClient({
   initialChain,
@@ -85,7 +87,7 @@ export function ScanClient({
     enabled: new Set(BUILDER_STRATEGIES),
   });
   const [sort, setSort] = useState<{ column: SortColumn; dir: SortDirection }>({
-    column: "returnOnRisk",
+    column: "score",
     dir: "desc",
   });
   const chain = initialChain;
@@ -307,6 +309,14 @@ export function ScanClient({
                     </SortableHeader>
                     <TableHead>Strikes</TableHead>
                     <SortableHeader
+                      column="score"
+                      sort={sort}
+                      onSort={setSortColumn}
+                      align="right"
+                    >
+                      Score
+                    </SortableHeader>
+                    <SortableHeader
                       column="maxProfit"
                       sort={sort}
                       onSort={setSortColumn}
@@ -381,6 +391,9 @@ function CandidateRow({ candidate }: { candidate: OptimizerCandidate }) {
         {candidate.summary.strikes.map((s) => `$${s}`).join(" / ")}
       </TableCell>
       <TableCell className="text-right font-mono tabular-nums">
+        {formatPercent(candidate.summary.score)}
+      </TableCell>
+      <TableCell className="text-right font-mono tabular-nums">
         {formatCurrency(candidate.summary.maxProfit)}
       </TableCell>
       <TableCell className="text-right font-mono tabular-nums text-destructive">
@@ -398,7 +411,12 @@ function CandidateRow({ candidate }: { candidate: OptimizerCandidate }) {
               : "text-foreground",
         )}
       >
-        {ror === null ? "n/a" : formatPercent(ror)}
+        <div>{ror === null ? "n/a" : formatPercent(ror)}</div>
+        {candidate.summary.returnProfitBasisLabel === "target-profit" && (
+          <div className="mt-0.5 text-[10px] font-normal text-muted-foreground">
+            target
+          </div>
+        )}
       </TableCell>
       <TableCell className="text-right font-mono tabular-nums text-primary">
         {formatPercent(candidate.summary.probabilityOfProfit)}
@@ -503,6 +521,8 @@ function compare(
       return (
         sign * left.summary.expiration.localeCompare(right.summary.expiration)
       );
+    case "score":
+      return sign * compareNullable(left.summary.score, right.summary.score);
     case "maxProfit":
       return (
         sign * compareNullable(left.summary.maxProfit, right.summary.maxProfit)
@@ -514,7 +534,10 @@ function compare(
     case "returnOnRisk":
       return (
         sign *
-        compareNullable(left.summary.returnOnRisk, right.summary.returnOnRisk)
+        compareNullable(
+          cappedReturnOnRisk(left.summary.returnOnRisk),
+          cappedReturnOnRisk(right.summary.returnOnRisk),
+        )
       );
     case "probabilityOfProfit":
       return (
@@ -535,6 +558,10 @@ function compareNullable(left: number | null, right: number | null) {
   if (right === null) return 1;
 
   return left - right;
+}
+
+function cappedReturnOnRisk(value: number | null) {
+  return value === null ? null : Math.min(value, RETURN_ON_RISK_SORT_CAP);
 }
 
 function titleCase(value: string) {

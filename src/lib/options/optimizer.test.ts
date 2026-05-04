@@ -5,6 +5,7 @@ import {
   type OptionQuote,
   optimizeStrategies,
   parseBuilderState,
+  scanRiskReward,
   toOptimizerResultRows,
   validateStrategyState,
 } from "./index";
@@ -155,6 +156,27 @@ describe("optimizer", () => {
     expect(chanceResults.map((candidate) => candidate.summary.score)).toEqual(
       sortedChanceScores,
     );
+  });
+
+  it("scores and sorts scan candidates by composite score", () => {
+    const results = scanRiskReward({
+      symbol: "AAPL",
+      minDaysToExpiration: 20,
+      maxDaysToExpiration: 70,
+      minProbabilityOfProfit: 0.25,
+      enabledStrategies: [
+        "long-call",
+        "bull-call-spread",
+        "short-put",
+        "bull-put-spread",
+      ],
+    });
+    const scores = results.map((candidate) => candidate.summary.score);
+    const sortedScores = [...scores].sort((left, right) => right - left);
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(scores.some((score) => score > 0)).toBe(true);
+    expect(scores).toEqual(sortedScores);
   });
 
   it("changes selected legs within strategy families across slider endpoints", () => {
