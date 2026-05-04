@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
+import { StrikeSlider } from "@/components/strike-slider";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,6 +189,19 @@ export function BuilderClient({
           </section>
         )}
 
+        {/* Strike slider — full width, the primary leg-strike control */}
+        {expiration && optionLegs.length > 0 && (
+          <StrikeSlider
+            legs={optionLegs}
+            expiration={expiration}
+            underlyingPrice={state.underlyingPrice}
+            symbol={state.symbol}
+            onLegStrikeChange={(index, strike) =>
+              updateFromInputs(strikeInput(index, strike))
+            }
+          />
+        )}
+
         {/* Two-column layout */}
         <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
           {/* Sidebar: strategy controls */}
@@ -243,20 +257,6 @@ export function BuilderClient({
                       </SelectContent>
                     </Select>
                   </Field>
-
-                  {/* Strike selects */}
-                  {optionLegs.map((leg, index) => (
-                    <StrikeSelect
-                      id={`strike${index + 1}`}
-                      key={`${leg.optionType}-${leg.side}-${index}`}
-                      label={strikeLabel(leg)}
-                      quotes={quotesForLeg(expiration, leg)}
-                      value={leg.strike}
-                      onChange={(strike) =>
-                        updateFromInputs(strikeInput(index, strike))
-                      }
-                    />
-                  ))}
                 </FieldGroup>
               </CardContent>
             </Card>
@@ -551,56 +551,10 @@ function strikeInput(index: number, strike: number) {
   return { strike4: strike };
 }
 
-function strikeLabel(leg: OptionLeg) {
-  return `${legAction(leg)} ${leg.optionType} strike`;
-}
-
 function formatStrategyName(strategy: StrategyState["strategy"]) {
   return strategy
     .replaceAll("-", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function StrikeSelect({
-  id,
-  label,
-  quotes,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  quotes?: OptionQuote[];
-  value?: number;
-  onChange: (strike: number) => void;
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Select
-        id={id}
-        value={value === undefined ? undefined : String(value)}
-        onValueChange={(nextValue) => {
-          if (nextValue !== null) onChange(Number(nextValue));
-        }}
-      >
-        <SelectTrigger className="w-full font-mono">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {quotes?.map((quote) => (
-            <SelectItem
-              key={quote.strike}
-              value={String(quote.strike)}
-              className="font-mono"
-            >
-              {formatCurrency(quote.strike)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
 }
 
 function describeLegText(leg: StrategyState["legs"][number]) {
