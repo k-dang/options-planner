@@ -184,9 +184,7 @@ export function OptimizeClient({
             <div>
               <TickerCombobox
                 defaultSymbol={initialChain.underlying.symbol}
-                onNavigate={(symbol) =>
-                  router.push(optimizeSymbolHref(symbol))
-                }
+                onNavigate={(symbol) => router.push(optimizeSymbolHref(symbol))}
               />
             </div>
 

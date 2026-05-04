@@ -21,8 +21,8 @@ import {
   BUILDER_STRATEGIES,
   type OptimizerCandidate,
   type OptionChainSnapshot,
-  scanRiskReward,
   type StrategyTemplateId,
+  scanRiskReward,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
@@ -275,8 +275,8 @@ export function ScanClient({
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <p className="text-lg font-semibold">No setups match</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Try widening the DTE range, lowering PoP floor, or enabling
-                more strategies.
+                Try widening the DTE range, lowering PoP floor, or enabling more
+                strategies.
               </p>
             </div>
           ) : (
@@ -489,8 +489,9 @@ function compare(
 
   switch (sort.column) {
     case "strategy":
-      return sign * left.summary.strategyLabel.localeCompare(
-        right.summary.strategyLabel,
+      return (
+        sign *
+        left.summary.strategyLabel.localeCompare(right.summary.strategyLabel)
       );
     case "bias":
       return (
@@ -499,28 +500,29 @@ function compare(
           BIAS_ORDER[STRATEGY_BIAS[right.state.strategy]])
       );
     case "expiration":
-      return sign * left.summary.expiration.localeCompare(
-        right.summary.expiration,
+      return (
+        sign * left.summary.expiration.localeCompare(right.summary.expiration)
       );
     case "maxProfit":
-      return sign * compareNullable(
-        left.summary.maxProfit,
-        right.summary.maxProfit,
+      return (
+        sign * compareNullable(left.summary.maxProfit, right.summary.maxProfit)
       );
     case "maxLoss":
-      return sign * compareNullable(
-        left.summary.maxLoss,
-        right.summary.maxLoss,
+      return (
+        sign * compareNullable(left.summary.maxLoss, right.summary.maxLoss)
       );
     case "returnOnRisk":
-      return sign * compareNullable(
-        left.summary.returnOnRisk,
-        right.summary.returnOnRisk,
+      return (
+        sign *
+        compareNullable(left.summary.returnOnRisk, right.summary.returnOnRisk)
       );
     case "probabilityOfProfit":
-      return sign * compareNullable(
-        left.summary.probabilityOfProfit,
-        right.summary.probabilityOfProfit,
+      return (
+        sign *
+        compareNullable(
+          left.summary.probabilityOfProfit,
+          right.summary.probabilityOfProfit,
+        )
       );
     default:
       return 0;

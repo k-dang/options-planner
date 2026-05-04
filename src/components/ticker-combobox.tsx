@@ -20,8 +20,6 @@ export function TickerCombobox({
 }) {
   const [committedSymbol, setCommittedSymbol] = useState(defaultSymbol);
   const [symbolDraft, setSymbolDraft] = useState(defaultSymbol);
-  const [selectedTickerSuggestion, setSelectedTickerSuggestion] =
-    useState<TickerSuggestion | null>(null);
   const tickerSuggestions = useMemo(
     () => searchTickerSuggestions(symbolDraft),
     [symbolDraft],
@@ -35,26 +33,24 @@ export function TickerCombobox({
 
   function handleSelect(suggestion: TickerSuggestion | null) {
     if (!suggestion) return;
-    setSelectedTickerSuggestion(suggestion);
     commit(suggestion.symbol);
   }
 
   function handleBlur() {
-    setSelectedTickerSuggestion(null);
     setSymbolDraft(committedSymbol);
   }
 
   return (
-    <Combobox
+    <Combobox<TickerSuggestion>
       autoHighlight
       inputValue={symbolDraft}
-      isItemEqualToValue={(item, value) => item.symbol === value.symbol}
-      itemToStringLabel={(item) => item.symbol}
+      isItemEqualToValue={(item, value) => item?.symbol === value?.symbol}
+      itemToStringLabel={(item) => item?.symbol ?? ""}
       items={tickerSuggestions}
-      value={selectedTickerSuggestion}
       onInputValueChange={(value, eventDetails) => {
-        if (eventDetails.reason === "item-press") return;
-        setSelectedTickerSuggestion(null);
+        if (eventDetails.reason !== "input-change") {
+          return;
+        }
         setSymbolDraft(value.toUpperCase());
       }}
       onValueChange={handleSelect}

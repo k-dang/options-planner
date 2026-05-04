@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { DebugDrawer } from "@/components/debug-drawer";
+import { TickerCombobox } from "@/components/ticker-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,7 +19,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { TickerCombobox } from "@/components/ticker-combobox";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import {
   Select,
