@@ -1,0 +1,146 @@
+"use client";
+
+import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import type { OptionExpiration } from "@/lib/options";
+import { cn } from "@/lib/utils";
+
+type Group = {
+  key: string;
+  year: number;
+  month: number;
+  label: string;
+  items: OptionExpiration[];
+};
+
+export function ExpirationTimeline({
+  expirations,
+  value,
+  onChange,
+}: {
+  expirations: OptionExpiration[];
+  value: string | undefined;
+  onChange: (expiration: string) => void;
+}) {
+  const selected = expirations.find((e) => e.expiration === value);
+  const groups = useMemo<Group[]>(() => {
+    const map = new Map<string, Group>();
+    const currentYear = new Date().getFullYear();
+    for (const exp of expirations) {
+      const [yearStr, monthStr] = exp.expiration.split("-");
+      const year = Number(yearStr);
+      const month = Number(monthStr);
+      const key = `${year}-${month}`;
+      let group = map.get(key);
+      if (!group) {
+        const monthLabel = new Date(year, month - 1, 1).toLocaleString(
+          "en-US",
+          { month: "short" },
+        );
+        group = {
+          key,
+          year,
+          month,
+          label:
+            year === currentYear
+              ? monthLabel
+              : `${monthLabel} '${String(year).slice(2)}`,
+          items: [],
+        };
+        map.set(key, group);
+      }
+      group.items.push(exp);
+    }
+    return [...map.values()];
+  }, [expirations]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-3">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+            Expiration
+          </span>
+          {selected && (
+            <span className="font-mono text-xs tabular-nums text-foreground/55">
+              {selected.expiration}
+            </span>
+          )}
+        </div>
+        {selected && (
+          <div className="flex items-baseline gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 shadow-sm">
+            <span className="font-mono text-sm font-bold tabular-nums leading-none text-primary">
+              {selected.daysToExpiration}
+            </span>
+            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-primary/70">
+              days
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Timeline body — grid with one column per expiration so months
+          (which span N columns) line up exactly with their day buttons. */}
+      <div
+        className="grid gap-x-1 gap-y-2"
+        style={{
+          gridTemplateColumns: `repeat(${expirations.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {/* Row 1: month pills */}
+        {groups.map((group) => {
+          const isActive = group.items.some((e) => e.expiration === value);
+          return (
+            <div
+              key={group.key}
+              style={{ gridColumn: `span ${group.items.length}` }}
+              className={cn(
+                "min-w-0 overflow-hidden rounded-full px-2 py-1 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors",
+                isActive
+                  ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30"
+                  : "bg-muted/50 text-muted-foreground/80 dark:bg-white/5",
+              )}
+            >
+              <span className="block truncate">{group.label}</span>
+            </div>
+          );
+        })}
+
+        {/* Row 2: hairline axis spanning all columns */}
+        <div
+          style={{ gridColumn: "1 / -1" }}
+          className="h-px w-full bg-gradient-to-r from-transparent via-border/80 to-transparent"
+        />
+
+        {/* Row 3: day buttons, one per column */}
+        {expirations.map((exp) => {
+          const day = Number(exp.expiration.split("-")[2]);
+          const isSelected = exp.expiration === value;
+          return (
+            <div
+              key={exp.expiration}
+              className="flex min-w-0 items-center justify-center"
+            >
+              <Button
+                aria-pressed={isSelected}
+                title={`${exp.expiration} · ${exp.daysToExpiration}d`}
+                variant={isSelected ? "default" : "ghost"}
+                size="icon-xs"
+                onClick={() => onChange(exp.expiration)}
+                className={cn(
+                  "size-7 rounded-full font-mono text-[11px] tabular-nums",
+                  isSelected
+                    ? "font-bold shadow-md shadow-primary/30 ring-2 ring-primary/30 ring-offset-2 ring-offset-background"
+                    : "text-foreground/55",
+                )}
+              >
+                {day}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

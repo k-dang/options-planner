@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
 import {
   Area,
   AreaChart,
@@ -23,12 +24,6 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { formatCurrency, formatPercent } from "@/lib/format";
 import {
@@ -74,10 +69,6 @@ export function OptimizeClient({
   );
   const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
-  const expirationLabel =
-    chain.expirations.find(
-      (candidate) => candidate.expiration === inputs.expiration,
-    )?.expiration ?? "";
   const strategyCards = useMemo(() => {
     const byStrategy = new Map<string, OptimizerCandidate>();
 
@@ -133,32 +124,6 @@ export function OptimizeClient({
     }
   }
 
-  function ExpirationSelect({ id }: { id: string }) {
-    return (
-      <Select
-        id={id}
-        value={inputs.expiration ?? ""}
-        onValueChange={(v) => {
-          if (v) updateInputs({ expiration: v });
-        }}
-      >
-        <SelectTrigger>
-          <span className="truncate">{expirationLabel}</span>
-        </SelectTrigger>
-        <SelectContent>
-          {chain.expirations.map((candidate) => (
-            <SelectItem key={candidate.expiration} value={candidate.expiration}>
-              {candidate.expiration}{" "}
-              <span className="text-muted-foreground">
-                ({candidate.daysToExpiration}d)
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -212,8 +177,8 @@ export function OptimizeClient({
             </div>
           </div>
 
-          {/* Row 2: Target · Expiration · Rank */}
-          <div className="relative mt-4 grid gap-3 sm:grid-cols-3">
+          {/* Row 2: Target · Rank */}
+          <div className="relative mt-4 grid gap-3 sm:grid-cols-2">
             {/* Target price */}
             <Field className="flex flex-col gap-1.5">
               <FieldLabel
@@ -236,17 +201,6 @@ export function OptimizeClient({
                   onKeyDown={handleTargetKeyDown}
                 />
               </InputGroup>
-            </Field>
-
-            {/* Expiration */}
-            <Field className="flex flex-col gap-1.5">
-              <FieldLabel
-                className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
-                htmlFor="expiration"
-              >
-                Expiration
-              </FieldLabel>
-              <ExpirationSelect id="expiration" />
             </Field>
 
             {/* Rank slider */}
@@ -283,6 +237,15 @@ export function OptimizeClient({
                 </div>
               </div>
             </Field>
+          </div>
+
+          {/* Row 3: Expiration timeline */}
+          <div className="relative mt-4">
+            <ExpirationTimeline
+              expirations={chain.expirations}
+              value={inputs.expiration}
+              onChange={(expiration) => updateInputs({ expiration })}
+            />
           </div>
         </section>
 
