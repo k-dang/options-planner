@@ -28,7 +28,6 @@ import { cn } from "@/lib/utils";
 
 type SortColumn =
   | "strategy"
-  | "bias"
   | "expiration"
   | "score"
   | "maxProfit"
@@ -54,11 +53,6 @@ const STRATEGY_BIAS: Record<StrategyTemplateId, StrategyBias> = {
   "short-strangle": "neutral",
 };
 
-const BIAS_ORDER: Record<StrategyBias, number> = {
-  bullish: 0,
-  neutral: 1,
-  bearish: 2,
-};
 
 type SortDirection = "asc" | "desc";
 
@@ -90,6 +84,7 @@ export function ScanClient({
     column: "score",
     dir: "desc",
   });
+  const [page, setPage] = useState(0);
   const chain = initialChain;
 
   const candidates = useMemo(() => {
@@ -109,7 +104,15 @@ export function ScanClient({
     return [...candidates].sort((left, right) => compare(left, right, sort));
   }, [candidates, sort]);
 
+  const PAGE_SIZE = 50;
+  const totalPages = Math.ceil(sortedCandidates.length / PAGE_SIZE);
+  const pagedCandidates = sortedCandidates.slice(
+    page * PAGE_SIZE,
+    (page + 1) * PAGE_SIZE,
+  );
+
   function setSortColumn(column: SortColumn) {
+    setPage(0);
     setSort((current) =>
       current.column === column
         ? { column, dir: current.dir === "asc" ? "desc" : "asc" }
@@ -118,6 +121,7 @@ export function ScanClient({
   }
 
   function toggleStrategy(strategy: StrategyTemplateId) {
+    setPage(0);
     setFilters((current) => {
       const next = new Set(current.enabled);
 
@@ -132,6 +136,7 @@ export function ScanClient({
   }
 
   function setAllStrategies(value: boolean) {
+    setPage(0);
     setFilters((current) => ({
       ...current,
       enabled: value ? new Set(BUILDER_STRATEGIES) : new Set(),
@@ -144,6 +149,7 @@ export function ScanClient({
 
     if (typeof lo !== "number" || typeof hi !== "number") return;
 
+    setPage(0);
     setFilters((current) => ({
       ...current,
       minDays: Math.min(lo, hi),
@@ -154,6 +160,7 @@ export function ScanClient({
   function handlePopChange(value: number | readonly number[]) {
     const next = Array.isArray(value) ? (value[0] ?? 0) : value;
 
+    setPage(0);
     setFilters((current) => ({ ...current, minPop: next / 100 }));
   }
 
@@ -294,13 +301,6 @@ export function ScanClient({
                       Strategy
                     </SortableHeader>
                     <SortableHeader
-                      column="bias"
-                      sort={sort}
-                      onSort={setSortColumn}
-                    >
-                      Bias
-                    </SortableHeader>
-                    <SortableHeader
                       column="expiration"
                       sort={sort}
                       onSort={setSortColumn}
@@ -348,21 +348,43 @@ export function ScanClient({
                     >
                       Probability of Profit
                     </SortableHeader>
-                    <TableHead>Breakevens</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedCandidates.slice(0, 200).map((candidate) => (
+                  {pagedCandidates.map((candidate) => (
                     <CandidateRow candidate={candidate} key={candidate.id} />
                   ))}
                 </TableBody>
               </Table>
-              {sortedCandidates.length > 200 && (
-                <div className="border-t border-border/50 px-4 py-2 text-center text-xs text-muted-foreground">
-                  Showing top 200 of {sortedCandidates.length} setups
+              <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
+                <span className="text-xs text-muted-foreground">
+                  {page * PAGE_SIZE + 1}–
+                  {Math.min((page + 1) * PAGE_SIZE, sortedCandidates.length)}{" "}
+                  of {sortedCandidates.length} setups
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {page + 1} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
                 </div>
-              )}
+              </div>
             </>
           )}
         </section>
@@ -379,10 +401,10 @@ function CandidateRow({ candidate }: { candidate: OptimizerCandidate }) {
   return (
     <TableRow>
       <TableCell className="font-medium">
-        {titleCase(candidate.summary.strategyLabel)}
-      </TableCell>
-      <TableCell>
-        <BiasBadge bias={bias} />
+        <div className="flex flex-col gap-1">
+          {titleCase(candidate.summary.strategyLabel)}
+          <BiasBadge bias={bias} />
+        </div>
       </TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground">
         {candidate.summary.expiration}
@@ -420,13 +442,6 @@ function CandidateRow({ candidate }: { candidate: OptimizerCandidate }) {
       </TableCell>
       <TableCell className="text-right font-mono tabular-nums text-primary">
         {formatPercent(candidate.summary.probabilityOfProfit)}
-      </TableCell>
-      <TableCell className="font-mono text-xs text-muted-foreground">
-        {candidate.evaluation.breakevens.length === 0
-          ? "—"
-          : candidate.evaluation.breakevens
-              .map((value) => `$${value.toFixed(2)}`)
-              .join(", ")}
       </TableCell>
       <TableCell className="text-right">
         <Button
@@ -493,7 +508,7 @@ function SortableHeader({
 }
 
 function defaultDirection(column: SortColumn): SortDirection {
-  return column === "strategy" || column === "bias" || column === "expiration"
+  return column === "strategy" || column === "expiration"
     ? "asc"
     : "desc";
 }
@@ -510,12 +525,6 @@ function compare(
       return (
         sign *
         left.summary.strategyLabel.localeCompare(right.summary.strategyLabel)
-      );
-    case "bias":
-      return (
-        sign *
-        (BIAS_ORDER[STRATEGY_BIAS[left.state.strategy]] -
-          BIAS_ORDER[STRATEGY_BIAS[right.state.strategy]])
       );
     case "expiration":
       return (
