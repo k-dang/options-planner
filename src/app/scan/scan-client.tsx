@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { TickerCombobox } from "@/components/ticker-combobox";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Slider } from "@/components/ui/slider";
@@ -35,25 +35,6 @@ type SortColumn =
   | "returnOnRisk"
   | "probabilityOfProfit";
 
-type StrategyBias = "bullish" | "bearish" | "neutral";
-
-const STRATEGY_BIAS: Record<StrategyTemplateId, StrategyBias> = {
-  "long-call": "bullish",
-  "short-put": "bullish",
-  "cash-secured-put": "bullish",
-  "bull-call-spread": "bullish",
-  "bull-put-spread": "bullish",
-  "covered-call": "bullish",
-  "long-put": "bearish",
-  "short-call": "bearish",
-  "bear-put-spread": "bearish",
-  "bear-call-spread": "bearish",
-  "iron-condor": "neutral",
-  "short-straddle": "neutral",
-  "short-strangle": "neutral",
-};
-
-
 type SortDirection = "asc" | "desc";
 
 type ScanFilters = {
@@ -64,7 +45,7 @@ type ScanFilters = {
 };
 
 const DEFAULT_FILTERS: Omit<ScanFilters, "enabled"> = {
-  minDays: 7,
+  minDays: 30,
   maxDays: 60,
   minPop: 0.25,
 };
@@ -360,8 +341,8 @@ export function ScanClient({
               <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
                 <span className="text-xs text-muted-foreground">
                   {page * PAGE_SIZE + 1}–
-                  {Math.min((page + 1) * PAGE_SIZE, sortedCandidates.length)}{" "}
-                  of {sortedCandidates.length} setups
+                  {Math.min((page + 1) * PAGE_SIZE, sortedCandidates.length)} of{" "}
+                  {sortedCandidates.length} setups
                 </span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -457,21 +438,6 @@ function CandidateRow({ candidate }: { candidate: OptimizerCandidate }) {
   );
 }
 
-function BiasBadge({ bias }: { bias: StrategyBias }) {
-  const className =
-    bias === "bullish"
-      ? "border-profit/30 bg-profit/10 text-profit"
-      : bias === "bearish"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
-        : "border-border/60 bg-muted text-muted-foreground";
-
-  return (
-    <Badge variant="outline" className={cn("capitalize", className)}>
-      {bias}
-    </Badge>
-  );
-}
-
 function SortableHeader({
   column,
   sort,
@@ -508,9 +474,7 @@ function SortableHeader({
 }
 
 function defaultDirection(column: SortColumn): SortDirection {
-  return column === "strategy" || column === "expiration"
-    ? "asc"
-    : "desc";
+  return column === "strategy" || column === "expiration" ? "asc" : "desc";
 }
 
 function compare(

@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { StrikeSlider } from "@/components/strike-slider";
 import { TickerCombobox } from "@/components/ticker-combobox";
@@ -28,6 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import {
   createBuilderState,
@@ -151,9 +160,12 @@ export function BuilderClient({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
             Options Planner · Builder
           </p>
-          <h1 className="mt-1.5 text-3xl font-bold tracking-tight">
-            {formatStrategyName(state.strategy)}
-          </h1>
+          <div className="mt-1.5 flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {formatStrategyName(state.strategy)}
+            </h1>
+            <BiasBadge bias={STRATEGY_BIAS[state.strategy]} />
+          </div>
         </header>
 
         {/* Metric strip — shown when evaluation is available */}
@@ -359,65 +371,48 @@ export function BuilderClient({
                   <CardTitle>Leg Greeks</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm">
-                      <thead className="border-b border-border text-muted-foreground">
-                        <tr>
-                          <th className="pb-2 pr-4 font-medium">Leg</th>
-                          <th className="pb-2 pr-4 font-mono font-medium">
-                            IV
-                          </th>
-                          <th className="pb-2 pr-4 font-mono font-medium">
-                            Δ Delta
-                          </th>
-                          <th className="pb-2 pr-4 font-mono font-medium">
-                            Γ Gamma
-                          </th>
-                          <th className="pb-2 pr-4 font-mono font-medium">
-                            Θ Theta
-                          </th>
-                          <th className="pb-2 pr-4 font-mono font-medium">
-                            V Vega
-                          </th>
-                          <th className="pb-2 font-mono font-medium">ρ Rho</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {evaluation.legs.map((evaluatedLeg, index) => (
-                          <tr
-                            className="border-b border-border/50 last:border-b-0"
-                            key={`${evaluatedLeg.leg.kind}-${index}`}
-                          >
-                            <td className="py-3 pr-4 font-medium">
-                              <LegDescription leg={evaluatedLeg.leg} />
-                            </td>
-                            <td className="py-3 pr-4 font-mono tabular-nums">
-                              {evaluatedLeg.leg.kind === "option"
-                                ? formatPercent(
-                                    evaluatedLeg.leg.impliedVolatility,
-                                  )
-                                : "—"}
-                            </td>
-                            <td className="py-3 pr-4 font-mono tabular-nums">
-                              {formatDecimal(evaluatedLeg.greeks.delta)}
-                            </td>
-                            <td className="py-3 pr-4 font-mono tabular-nums">
-                              {formatDecimal(evaluatedLeg.greeks.gamma)}
-                            </td>
-                            <td className="py-3 pr-4 font-mono tabular-nums">
-                              {formatCurrency(evaluatedLeg.greeks.theta)}
-                            </td>
-                            <td className="py-3 pr-4 font-mono tabular-nums">
-                              {formatCurrency(evaluatedLeg.greeks.vega)}
-                            </td>
-                            <td className="py-3 font-mono tabular-nums">
-                              {formatCurrency(evaluatedLeg.greeks.rho)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Leg</TableHead>
+                        <TableHead className="font-mono">IV</TableHead>
+                        <TableHead className="font-mono">Δ Delta</TableHead>
+                        <TableHead className="font-mono">Γ Gamma</TableHead>
+                        <TableHead className="font-mono">Θ Theta</TableHead>
+                        <TableHead className="font-mono">V Vega</TableHead>
+                        <TableHead className="font-mono">ρ Rho</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {evaluation.legs.map((evaluatedLeg, index) => (
+                        <TableRow key={`${evaluatedLeg.leg.kind}-${index}`}>
+                          <TableCell className="font-medium">
+                            <LegDescription leg={evaluatedLeg.leg} />
+                          </TableCell>
+                          <TableCell className="font-mono tabular-nums">
+                            {evaluatedLeg.leg.kind === "option"
+                              ? formatPercent(evaluatedLeg.leg.impliedVolatility)
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="font-mono tabular-nums">
+                            {formatDecimal(evaluatedLeg.greeks.delta)}
+                          </TableCell>
+                          <TableCell className="font-mono tabular-nums">
+                            {formatDecimal(evaluatedLeg.greeks.gamma)}
+                          </TableCell>
+                          <TableCell className="font-mono tabular-nums">
+                            {formatCurrency(evaluatedLeg.greeks.theta)}
+                          </TableCell>
+                          <TableCell className="font-mono tabular-nums">
+                            {formatCurrency(evaluatedLeg.greeks.vega)}
+                          </TableCell>
+                          <TableCell className="font-mono tabular-nums">
+                            {formatCurrency(evaluatedLeg.greeks.rho)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
 
