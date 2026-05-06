@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Combobox,
   ComboboxContent,
@@ -9,7 +9,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import { searchTickerSuggestions, type TickerSuggestion } from "@/lib/tickers";
+import type { TickerSuggestion } from "@/lib/tickers";
 
 export function TickerCombobox({
   defaultSymbol,
@@ -20,10 +20,27 @@ export function TickerCombobox({
 }) {
   const [committedSymbol, setCommittedSymbol] = useState(defaultSymbol);
   const [symbolDraft, setSymbolDraft] = useState(defaultSymbol);
-  const tickerSuggestions = useMemo(
-    () => searchTickerSuggestions(symbolDraft),
-    [symbolDraft],
-  );
+  const [tickerSuggestions, setTickerSuggestions] = useState<
+    TickerSuggestion[]
+  >([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/tickers/search?q=${encodeURIComponent(symbolDraft)}`,
+        );
+        if (res.ok) {
+          setTickerSuggestions((await res.json()) as TickerSuggestion[]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [symbolDraft]);
 
   function commit(symbol: string) {
     setCommittedSymbol(symbol);
@@ -72,7 +89,9 @@ export function TickerCombobox({
         }}
       >
         <ComboboxContent className="min-w-72 rounded-xl">
-          <ComboboxEmpty>No matching tickers</ComboboxEmpty>
+          <ComboboxEmpty>
+            {isLoading ? "Searching..." : "No matching tickers"}
+          </ComboboxEmpty>
           <ComboboxList>
             {tickerSuggestions.map((suggestion, index) => (
               <ComboboxItem

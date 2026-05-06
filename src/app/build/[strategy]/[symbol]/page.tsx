@@ -1,20 +1,41 @@
+import { Suspense } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { parseBuilderState } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
+import { singleValue } from "@/lib/utils";
 import { BuilderClient } from "../../build-client";
 
-export default async function BuildStrategyPage({
+type SearchParams = Promise<{
+  exp?: string | string[];
+  strike?: string | string[];
+  strike2?: string | string[];
+  strike3?: string | string[];
+  strike4?: string | string[];
+  qty?: string | string[];
+}>;
+
+type Params = Promise<{ strategy: string; symbol: string }>;
+
+export default function BuildStrategyPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ strategy: string; symbol: string }>;
-  searchParams: Promise<{
-    exp?: string | string[];
-    strike?: string | string[];
-    strike2?: string | string[];
-    strike3?: string | string[];
-    strike4?: string | string[];
-    qty?: string | string[];
-  }>;
+  params: Params;
+  searchParams: SearchParams;
+}) {
+  return (
+    <Suspense fallback={<Spinner className="h-96 w-full" />}>
+      <BuildContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function BuildContent({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: SearchParams;
 }) {
   const route = await params;
   const query = await searchParams;
@@ -36,8 +57,4 @@ export default async function BuildStrategyPage({
   );
 
   return <BuilderClient initialChain={chain} initialState={initialState} />;
-}
-
-function singleValue(value?: string | string[]) {
-  return Array.isArray(value) ? value[0] : value;
 }

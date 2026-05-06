@@ -1,3 +1,4 @@
+import { AlpacaClient } from "@/lib/alpaca/client";
 import type {
   OptionChainProvider,
   OptionChainRequest,
@@ -14,13 +15,9 @@ import {
   strikeFromContractSymbol,
 } from "./normalize";
 
-const ALPACA_DATA_BASE_URL = "https://data.alpaca.markets";
-
 export type AlpacaOptionChainProviderConfig = {
-  apiKey: string;
-  apiSecret: string;
+  client: AlpacaClient;
   feed?: "indicative" | "opra";
-  baseUrl?: string;
 };
 
 type AlpacaSnapshot = {
@@ -43,15 +40,11 @@ type AlpacaStockSnapshotResponse = {
 };
 
 export class AlpacaOptionChainProvider implements OptionChainProvider {
-  private readonly apiKey: string;
-  private readonly apiSecret: string;
-  private readonly baseUrl: string;
+  private readonly client: AlpacaClient;
   private readonly feed: "indicative" | "opra";
 
   constructor(config: AlpacaOptionChainProviderConfig) {
-    this.apiKey = config.apiKey;
-    this.apiSecret = config.apiSecret;
-    this.baseUrl = config.baseUrl ?? ALPACA_DATA_BASE_URL;
+    this.client = config.client;
     this.feed = config.feed ?? "indicative";
   }
 
@@ -99,9 +92,9 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
     input: OptionChainRequest,
     pageToken?: string,
   ): Promise<AlpacaChainResponse> {
-    const url = new URL(
+    const url = this.client.buildUrl(
+      "data",
       `/v1beta1/options/snapshots/${encodeURIComponent(symbol)}`,
-      this.baseUrl,
     );
     url.searchParams.set("feed", input.feed ?? this.feed);
     url.searchParams.set("limit", "1000");
@@ -122,12 +115,7 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
       url.searchParams.set("page_token", pageToken);
     }
 
-    const response = await fetch(url, {
-      headers: {
-        "APCA-API-KEY-ID": this.apiKey,
-        "APCA-API-SECRET-KEY": this.apiSecret,
-      },
-    });
+    const response = await this.client.fetch(url);
 
     if (!response.ok) {
       throw new Error(
@@ -139,16 +127,11 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
   }
 
   private async fetchUnderlyingPrice(symbol: string) {
-    const url = new URL(
+    const url = this.client.buildUrl(
+      "data",
       `/v2/stocks/${encodeURIComponent(symbol)}/snapshot`,
-      this.baseUrl,
     );
-    const response = await fetch(url, {
-      headers: {
-        "APCA-API-KEY-ID": this.apiKey,
-        "APCA-API-SECRET-KEY": this.apiSecret,
-      },
-    });
+    const response = await this.client.fetch(url);
 
     if (!response.ok) {
       return null;

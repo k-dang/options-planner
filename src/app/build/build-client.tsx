@@ -391,7 +391,9 @@ export function BuilderClient({
                           </TableCell>
                           <TableCell className="font-mono tabular-nums">
                             {evaluatedLeg.leg.kind === "option"
-                              ? formatPercent(evaluatedLeg.leg.impliedVolatility)
+                              ? formatPercent(
+                                  evaluatedLeg.leg.impliedVolatility,
+                                )
                               : "—"}
                           </TableCell>
                           <TableCell className="font-mono tabular-nums">

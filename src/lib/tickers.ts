@@ -1,3 +1,6 @@
+import { cacheLife } from "next/cache";
+import { getAlpacaClient } from "@/lib/alpaca/client";
+
 export type TickerSuggestion = {
   symbol: string;
   name: string;
@@ -42,6 +45,64 @@ export const STOCK_TICKER_SUGGESTIONS: TickerSuggestion[] = [
   { symbol: "INTC", name: "Intel Corporation", type: "stock" },
   { symbol: "BA", name: "Boeing Company", type: "stock" },
 ];
+
+type AlpacaAsset = {
+  symbol: string;
+  name: string;
+  status: string;
+  tradable: boolean;
+};
+
+async function getAlpacaAssets(): Promise<TickerSuggestion[]> {
+  "use cache";
+  cacheLife("days");
+  console.log("getAlpacaAssets MISS", Date.now())
+  const client = getAlpacaClient();
+  if (!client) return [];
+
+  const url = client.buildUrl("trading", "/v2/assets");
+  url.searchParams.set("status", "active");
+  url.searchParams.set("asset_class", "us_equity");
+
+  const response = await client.fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Alpaca asset search failed with ${response.status}.`);
+  }
+
+  const assets = (await response.json()) as AlpacaAsset[];
+
+  return assets
+    .filter((asset) => asset.tradable)
+    .map((asset) => ({
+      symbol: asset.symbol,
+      name: asset.name,
+      type: "stock" as const,
+    }));
+}
+
+export async function searchAlpacaTickers(
+  query: string,
+  limit = MAX_TICKER_SUGGESTIONS,
+): Promise<TickerSuggestion[]> {
+  const assets = await getAlpacaAssets();
+  const normalizedQuery = query.trim().toUpperCase();
+
+  if (!normalizedQuery) {
+    return assets.slice(0, limit);
+  }
+
+  const symbolMatches = assets.filter((asset) =>
+    asset.symbol.startsWith(normalizedQuery),
+  );
+  const nameMatches = assets.filter(
+    (asset) =>
+      !asset.symbol.startsWith(normalizedQuery) &&
+      asset.name.toUpperCase().includes(normalizedQuery),
+  );
+
+  return [...symbolMatches, ...nameMatches].slice(0, limit);
+}
 
 export function searchTickerSuggestions(
   query: string,
