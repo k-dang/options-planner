@@ -1,4 +1,8 @@
-import { AlpacaClient } from "@/lib/alpaca/client";
+import type {
+  AlpacaChainResponse,
+  AlpacaClient,
+  AlpacaOptionSnapshot,
+} from "@/lib/alpaca/client";
 import type {
   OptionChainProvider,
   OptionChainRequest,
@@ -18,25 +22,6 @@ import {
 export type AlpacaOptionChainProviderConfig = {
   client: AlpacaClient;
   feed?: "indicative" | "opra";
-};
-
-type AlpacaSnapshot = {
-  latestQuote?: Record<string, unknown>;
-  latestTrade?: Record<string, unknown>;
-  greeks?: Record<string, unknown>;
-  impliedVolatility?: unknown;
-};
-
-type AlpacaChainResponse = {
-  snapshots?: Record<string, AlpacaSnapshot>;
-  next_page_token?: string;
-};
-
-type AlpacaStockSnapshotResponse = {
-  latestQuote?: Record<string, unknown>;
-  latestTrade?: Record<string, unknown>;
-  minuteBar?: Record<string, unknown>;
-  dailyBar?: Record<string, unknown>;
 };
 
 export class AlpacaOptionChainProvider implements OptionChainProvider {
@@ -87,57 +72,29 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
     };
   }
 
-  private async fetchPage(
+  private fetchPage(
     symbol: string,
     input: OptionChainRequest,
     pageToken?: string,
   ): Promise<AlpacaChainResponse> {
-    const url = this.client.buildUrl(
-      "data",
-      `/v1beta1/options/snapshots/${encodeURIComponent(symbol)}`,
-    );
-    url.searchParams.set("feed", input.feed ?? this.feed);
-    url.searchParams.set("limit", "1000");
-
-    if (input.expirationGte) {
-      url.searchParams.set("expiration_date_gte", input.expirationGte);
-    }
-    if (input.expirationLte) {
-      url.searchParams.set("expiration_date_lte", input.expirationLte);
-    }
-    if (input.strikeGte !== undefined) {
-      url.searchParams.set("strike_price_gte", String(input.strikeGte));
-    }
-    if (input.strikeLte !== undefined) {
-      url.searchParams.set("strike_price_lte", String(input.strikeLte));
-    }
-    if (pageToken) {
-      url.searchParams.set("page_token", pageToken);
-    }
-
-    const response = await this.client.fetch(url);
-
-    if (!response.ok) {
-      throw new Error(
-        `Alpaca option chain request failed with ${response.status}.`,
-      );
-    }
-
-    return response.json() as Promise<AlpacaChainResponse>;
+    return this.client.getOptionSnapshots(symbol, {
+      feed: input.feed ?? this.feed,
+      limit: 1000,
+      expirationGte: input.expirationGte,
+      expirationLte: input.expirationLte,
+      strikeGte: input.strikeGte,
+      strikeLte: input.strikeLte,
+      pageToken,
+    });
   }
 
   private async fetchUnderlyingPrice(symbol: string) {
-    const url = this.client.buildUrl(
-      "data",
-      `/v2/stocks/${encodeURIComponent(symbol)}/snapshot`,
-    );
-    const response = await this.client.fetch(url);
+    const snapshot = await this.client.getStockSnapshot(symbol);
 
-    if (!response.ok) {
+    if (!snapshot) {
       return null;
     }
 
-    const snapshot = (await response.json()) as AlpacaStockSnapshotResponse;
     const latestQuote = snapshot.latestQuote ?? {};
     const latestTrade = snapshot.latestTrade ?? {};
     const minuteBar = snapshot.minuteBar ?? {};
@@ -157,7 +114,7 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
 
 export function normalizeAlpacaSnapshot(input: {
   providerSymbol: string;
-  snapshot: AlpacaSnapshot;
+  snapshot: AlpacaOptionSnapshot;
 }): OptionQuote | null {
   const optionType = optionTypeFromContractSymbol(input.providerSymbol);
   const expiration = expirationFromContractSymbol(input.providerSymbol);

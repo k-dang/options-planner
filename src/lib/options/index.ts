@@ -13,11 +13,13 @@ export {
   safeEvaluateStrategy,
 } from "./evaluate";
 export {
+  enumerateOptimizerCandidates,
   type OptimizerCandidate,
   type OptimizerInputs,
   type OptimizerResultRow,
   type OptimizerThesis,
   optimizeStrategies,
+  rankOptimizerCandidates,
   type ScanInputs,
   scanRiskReward,
   toOptimizerResultRows,

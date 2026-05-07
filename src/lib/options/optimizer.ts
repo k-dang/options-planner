@@ -136,11 +136,11 @@ function returnMetrics(
 }
 
 function candidateScore(
-  inputs: OptimizerInputs,
+  returnChanceWeight: number | undefined,
   candidate: OptimizerCandidate,
   familyCandidates: OptimizerCandidate[],
 ) {
-  const chanceWeight = clamp(inputs.returnChanceWeight ?? 50, 0, 100) / 100;
+  const chanceWeight = clamp(returnChanceWeight ?? 50, 0, 100) / 100;
   const returnWeight = 1 - chanceWeight;
   const returnScores = familyCandidates.map(
     (item) => item.summary.returnOnRisk ?? 0,
@@ -319,7 +319,7 @@ function makeCandidate(
 }
 
 function rankCandidatesByFamily(
-  inputs: OptimizerInputs,
+  returnChanceWeight: number | undefined,
   candidates: OptimizerCandidate[],
 ) {
   const byStrategy = new Map<StrategyTemplateId, OptimizerCandidate[]>();
@@ -340,7 +340,11 @@ function rankCandidatesByFamily(
       ...candidate,
       summary: {
         ...candidate.summary,
-        score: candidateScore(inputs, candidate, familyCandidates),
+        score: candidateScore(
+          returnChanceWeight,
+          candidate,
+          familyCandidates,
+        ),
       },
     };
   });
@@ -504,7 +508,7 @@ function strikeForInput(
   return strikeAt(strikes, anchorPrice, offset);
 }
 
-export function optimizeStrategies(
+export function enumerateOptimizerCandidates(
   inputs: OptimizerInputs,
   chainInput?: OptionChainSnapshot,
 ): OptimizerCandidate[] {
@@ -573,7 +577,23 @@ export function optimizeStrategies(
     }
   }
 
-  const ranked = rankCandidatesByFamily(inputs, [...candidates.values()]);
+  return [...candidates.values()];
+}
+
+export function rankOptimizerCandidates(
+  returnChanceWeight: number | undefined,
+  candidates: OptimizerCandidate[],
+): OptimizerCandidate[] {
+  return rankCandidatesByFamily(returnChanceWeight, candidates);
+}
+
+export function optimizeStrategies(
+  inputs: OptimizerInputs,
+  chainInput?: OptionChainSnapshot,
+): OptimizerCandidate[] {
+  const candidates = enumerateOptimizerCandidates(inputs, chainInput);
+  const strategies = THESIS_STRATEGIES[inputs.thesis];
+  const ranked = rankCandidatesByFamily(inputs.returnChanceWeight, candidates);
   const selected = new Map<string, OptimizerCandidate>();
 
   for (const strategy of strategies) {
@@ -717,7 +737,10 @@ export function scanRiskReward(
     }
   }
 
-  return rankCandidatesByFamily(baseInputs, [...candidates.values()]);
+  return rankCandidatesByFamily(
+    baseInputs.returnChanceWeight,
+    [...candidates.values()],
+  );
 }
 
 function tryAddCandidate(

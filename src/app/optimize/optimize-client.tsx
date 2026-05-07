@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
 import { StrategyCard } from "@/app/optimize/strategy-card";
 import { DebugDrawer } from "@/components/debug-drawer";
@@ -16,11 +16,12 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { formatCurrency } from "@/lib/format";
 import {
+  enumerateOptimizerCandidates,
   type OptimizerCandidate,
   type OptimizerInputs,
   type OptimizerThesis,
   type OptionChainSnapshot,
-  optimizeStrategies,
+  rankOptimizerCandidates,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
@@ -58,41 +59,61 @@ export function OptimizeClient({
   );
   const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
+  const candidates = useMemo(
+    () => enumerateOptimizerCandidates(inputs, chain),
+    [
+      chain,
+      inputs.symbol,
+      inputs.thesis,
+      inputs.expiration,
+      inputs.targetUnderlyingPrice,
+      inputs.minDaysToExpiration,
+      inputs.maxDaysToExpiration,
+      inputs.minProbabilityOfProfit,
+    ],
+  );
+  const deferredWeight = useDeferredValue(inputs.returnChanceWeight);
   const strategyCards = useMemo(() => {
+    const ranked = rankOptimizerCandidates(deferredWeight, candidates);
     const byStrategy = new Map<string, OptimizerCandidate>();
 
-    for (const candidate of optimizeStrategies(inputs, chain)) {
-      const current = byStrategy.get(candidate.state.strategy);
-
-      if (!current || candidate.summary.score > current.summary.score) {
+    for (const candidate of ranked) {
+      if (!byStrategy.has(candidate.state.strategy)) {
         byStrategy.set(candidate.state.strategy, candidate);
       }
     }
 
-    return [...byStrategy.values()].sort(
-      (left, right) => right.summary.score - left.summary.score,
-    );
-  }, [inputs, chain]);
+    return [...byStrategy.values()];
+  }, [candidates, deferredWeight]);
   const optimizerDebugJson = useMemo(
     () =>
-      JSON.stringify(
-        {
-          inputs,
-          selectedCards: strategyCards.map((candidate) =>
-            optimizerCandidateDebug(candidate),
-          ),
-        },
-        null,
-        2,
-      ),
-    [inputs, strategyCards],
+      debugOpen
+        ? JSON.stringify(
+            {
+              inputs,
+              selectedCards: strategyCards.map((candidate) =>
+                optimizerCandidateDebug(candidate),
+              ),
+            },
+            null,
+            2,
+          )
+        : "",
+    [debugOpen, inputs, strategyCards],
   );
   const initialChainDebugJson = useMemo(
     () => JSON.stringify(initialChain, null, 2),
     [initialChain],
   );
   function updateInputs(next: Partial<OptimizerInputs>) {
-    setInputs((current) => ({ ...current, ...next }));
+    setInputs((current) => {
+      for (const key of Object.keys(next) as (keyof OptimizerInputs)[]) {
+        if (current[key] !== next[key]) {
+          return { ...current, ...next };
+        }
+      }
+      return current;
+    });
   }
 
   function handleSliderChange(value: number | readonly number[]) {

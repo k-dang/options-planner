@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { memo } from "react";
 import {
   Area,
   AreaChart,
@@ -15,7 +16,12 @@ import { formatCurrency, formatPercent } from "@/lib/format";
 import type { OptimizerCandidate } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
-export function StrategyCard({ candidate }: { candidate: OptimizerCandidate }) {
+export const StrategyCard = memo(
+  StrategyCardImpl,
+  (prev, next) => prev.candidate.id === next.candidate.id,
+);
+
+function StrategyCardImpl({ candidate }: { candidate: OptimizerCandidate }) {
   const maxLoss = candidate.summary.maxLoss;
   const returnOnRisk = candidate.summary.returnOnRisk;
   const optionLegs = candidate.state.legs.filter(

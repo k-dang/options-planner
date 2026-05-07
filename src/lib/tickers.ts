@@ -46,13 +46,6 @@ export const STOCK_TICKER_SUGGESTIONS: TickerSuggestion[] = [
   { symbol: "BA", name: "Boeing Company", type: "stock" },
 ];
 
-type AlpacaAsset = {
-  symbol: string;
-  name: string;
-  status: string;
-  tradable: boolean;
-};
-
 async function getAlpacaAssets(): Promise<TickerSuggestion[]> {
   "use cache";
   cacheLife("days");
@@ -60,17 +53,10 @@ async function getAlpacaAssets(): Promise<TickerSuggestion[]> {
   const client = getAlpacaClient();
   if (!client) return [];
 
-  const url = client.buildUrl("trading", "/v2/assets");
-  url.searchParams.set("status", "active");
-  url.searchParams.set("asset_class", "us_equity");
-
-  const response = await client.fetch(url);
-
-  if (!response.ok) {
-    throw new Error(`Alpaca asset search failed with ${response.status}.`);
-  }
-
-  const assets = (await response.json()) as AlpacaAsset[];
+  const assets = await client.getAssets({
+    status: "active",
+    assetClass: "us_equity",
+  });
 
   return assets
     .filter((asset) => asset.tradable)
