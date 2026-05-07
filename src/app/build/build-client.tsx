@@ -126,7 +126,7 @@ export function BuilderClient({
 
   function commitState(next: StrategyState) {
     setState(next);
-    router.replace(serializeBuilderState(next), { scroll: false });
+    window.history.replaceState(null, "", serializeBuilderState(next));
   }
 
   function updateFromInputs(input: Parameters<typeof createBuilderState>[0]) {
