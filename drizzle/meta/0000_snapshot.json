@@ -1,0 +1,314 @@
+{
+  "id": "a1d3cf0c-5f2b-4fd5-97ae-daa5e76232b8",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "options_planner.saved_strategies": {
+      "name": "saved_strategies",
+      "schema": "options_planner",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "strategy_type": {
+          "name": "strategy_type",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "saved_strategy_status",
+          "typeSchema": "options_planner",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "entry_state": {
+          "name": "entry_state",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_evaluation": {
+          "name": "entry_evaluation",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entry_signed_mark_value": {
+          "name": "entry_signed_mark_value",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "capital_at_risk": {
+          "name": "capital_at_risk",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "saved_strategies_symbol_idx": {
+          "name": "saved_strategies_symbol_idx",
+          "columns": [
+            {
+              "expression": "symbol",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "saved_strategies_status_idx": {
+          "name": "saved_strategies_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "saved_strategies_created_at_idx": {
+          "name": "saved_strategies_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "options_planner.strategy_snapshots": {
+      "name": "strategy_snapshots",
+      "schema": "options_planner",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "strategy_id": {
+          "name": "strategy_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot_type": {
+          "name": "snapshot_type",
+          "type": "strategy_snapshot_type",
+          "typeSchema": "options_planner",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "underlying_price": {
+          "name": "underlying_price",
+          "type": "numeric(14, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signed_mark_value": {
+          "name": "signed_mark_value",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "unrealized_profit_loss": {
+          "name": "unrealized_profit_loss",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "return_on_risk": {
+          "name": "return_on_risk",
+          "type": "numeric(12, 6)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "leg_marks": {
+          "name": "leg_marks",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quote_source": {
+          "name": "quote_source",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "strategy_snapshots_strategy_id_idx": {
+          "name": "strategy_snapshots_strategy_id_idx",
+          "columns": [
+            {
+              "expression": "strategy_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "strategy_snapshots_observed_at_idx": {
+          "name": "strategy_snapshots_observed_at_idx",
+          "columns": [
+            {
+              "expression": "observed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "strategy_snapshots_strategy_observed_idx": {
+          "name": "strategy_snapshots_strategy_observed_idx",
+          "columns": [
+            {
+              "expression": "strategy_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "observed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "strategy_snapshots_strategy_id_saved_strategies_id_fk": {
+          "name": "strategy_snapshots_strategy_id_saved_strategies_id_fk",
+          "tableFrom": "strategy_snapshots",
+          "tableTo": "saved_strategies",
+          "schemaTo": "options_planner",
+          "columnsFrom": ["strategy_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "options_planner.saved_strategy_status": {
+      "name": "saved_strategy_status",
+      "schema": "options_planner",
+      "values": ["open", "closed", "expired"]
+    },
+    "options_planner.strategy_snapshot_type": {
+      "name": "strategy_snapshot_type",
+      "schema": "options_planner",
+      "values": ["entry", "mark", "close"]
+    }
+  },
+  "schemas": {
+    "options_planner": "options_planner"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -49,7 +49,7 @@ export const STOCK_TICKER_SUGGESTIONS: TickerSuggestion[] = [
 async function getAlpacaAssets(): Promise<TickerSuggestion[]> {
   "use cache";
   cacheLife("days");
-  console.log("getAlpacaAssets MISS", Date.now())
+  console.log("getAlpacaAssets MISS", Date.now());
   const client = getAlpacaClient();
   if (!client) return [];
 

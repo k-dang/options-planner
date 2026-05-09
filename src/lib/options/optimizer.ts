@@ -340,11 +340,7 @@ function rankCandidatesByFamily(
       ...candidate,
       summary: {
         ...candidate.summary,
-        score: candidateScore(
-          returnChanceWeight,
-          candidate,
-          familyCandidates,
-        ),
+        score: candidateScore(returnChanceWeight, candidate, familyCandidates),
       },
     };
   });
@@ -737,10 +733,9 @@ export function scanRiskReward(
     }
   }
 
-  return rankCandidatesByFamily(
-    baseInputs.returnChanceWeight,
-    [...candidates.values()],
-  );
+  return rankCandidatesByFamily(baseInputs.returnChanceWeight, [
+    ...candidates.values(),
+  ]);
 }
 
 function tryAddCandidate(

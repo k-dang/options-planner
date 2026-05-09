@@ -61,16 +61,7 @@ export function OptimizeClient({
   const chain = initialChain;
   const candidates = useMemo(
     () => enumerateOptimizerCandidates(inputs, chain),
-    [
-      chain,
-      inputs.symbol,
-      inputs.thesis,
-      inputs.expiration,
-      inputs.targetUnderlyingPrice,
-      inputs.minDaysToExpiration,
-      inputs.maxDaysToExpiration,
-      inputs.minProbabilityOfProfit,
-    ],
+    [chain, inputs],
   );
   const deferredWeight = useDeferredValue(inputs.returnChanceWeight);
   const strategyCards = useMemo(() => {
