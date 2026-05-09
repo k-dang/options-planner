@@ -1,7 +1,8 @@
 "use client";
 
+import { Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
   CartesianGrid,
   Line,
@@ -15,6 +16,7 @@ import { DebugDrawer } from "@/components/debug-drawer";
 import { StrikeSlider } from "@/components/strike-slider";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -50,6 +52,7 @@ import {
   serializeBuilderState,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
+import { type SaveStrategyResult, saveBuilderStrategy } from "./actions";
 
 type BuilderClientProps = {
   initialChain: OptionChainSnapshot;
@@ -63,6 +66,8 @@ export function BuilderClient({
   const router = useRouter();
   const [state, setState] = useState(initialState);
   const [debugOpen, setDebugOpen] = useState(false);
+  const [saveResult, setSaveResult] = useState<SaveStrategyResult | null>(null);
+  const [isSaving, startSaving] = useTransition();
   const chain = initialChain;
   const optionLegs = getBuilderOptionLegs(state);
   const primaryLeg = optionLegs[0];
@@ -152,6 +157,18 @@ export function BuilderClient({
     );
   }
 
+  function saveCurrentStrategy() {
+    if (!evaluationResult.valid) {
+      return;
+    }
+
+    setSaveResult(null);
+    startSaving(async () => {
+      const result = await saveBuilderStrategy(state);
+      setSaveResult(result);
+    });
+  }
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -160,11 +177,38 @@ export function BuilderClient({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
             Options Planner · Builder
           </p>
-          <div className="mt-1.5 flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {formatStrategyName(state.strategy)}
-            </h1>
-            <BiasBadge bias={STRATEGY_BIAS[state.strategy]} />
+          <div className="mt-1.5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">
+                {formatStrategyName(state.strategy)}
+              </h1>
+              <BiasBadge bias={STRATEGY_BIAS[state.strategy]} />
+            </div>
+            <div className="flex flex-col items-start gap-1.5 sm:items-end">
+              <Button
+                disabled={!evaluationResult.valid || isSaving}
+                size="sm"
+                type="button"
+                onClick={saveCurrentStrategy}
+              >
+                <Save data-icon="inline-start" />
+                {isSaving ? "Saving" : "Save strategy"}
+              </Button>
+              {saveResult && (
+                <p
+                  className={cn(
+                    "max-w-sm text-pretty text-xs",
+                    saveResult.ok
+                      ? "text-muted-foreground"
+                      : "text-destructive",
+                  )}
+                >
+                  {saveResult.ok
+                    ? `Saved as ${saveResult.name}`
+                    : saveResult.error}
+                </p>
+              )}
+            </div>
           </div>
         </header>
 
