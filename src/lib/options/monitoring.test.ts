@@ -4,6 +4,7 @@ import {
   calculateCapitalAtRisk,
   calculateSignedMarkValue,
   generateSavedStrategyName,
+  getDaysUntilExpiration,
 } from "./monitoring";
 import type { StrategyState } from "./types";
 
@@ -101,5 +102,41 @@ describe("saved strategy monitoring", () => {
     });
 
     expect(calculateCapitalAtRisk(state, evaluateStrategy(state))).toBeNull();
+  });
+
+  it("calculates days until the earliest option expiration", () => {
+    const state: StrategyState = {
+      version: 1,
+      symbol: "SPY",
+      strategy: "short-strangle",
+      underlyingPrice: 510,
+      asOf: "2026-05-08T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "put",
+          side: "long",
+          quantity: 1,
+          expiration: "2026-06-19",
+          strike: 500,
+          premium: 4,
+          impliedVolatility: 0.2,
+        },
+        {
+          kind: "option",
+          optionType: "call",
+          side: "long",
+          quantity: 1,
+          expiration: "2026-05-24",
+          strike: 520,
+          premium: 5,
+          impliedVolatility: 0.2,
+        },
+      ],
+    };
+
+    expect(
+      getDaysUntilExpiration(state, new Date("2026-05-08T16:00:00.000Z")),
+    ).toBe(16);
   });
 });

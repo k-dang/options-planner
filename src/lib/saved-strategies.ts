@@ -1,12 +1,105 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb, savedStrategies, strategySnapshots } from "@/db";
+import type {
+  SavedStrategyStatus,
+  StrategySnapshot,
+  StrategySnapshotLegMark,
+} from "@/db/schema";
 import { evaluateStrategy, type StrategyState } from "@/lib/options";
 import {
   buildEntryLegMarks,
   calculateCapitalAtRisk,
   calculateSignedMarkValue,
   generateSavedStrategyName,
+  getDaysUntilExpiration,
 } from "@/lib/options/monitoring";
+
+export type SavedStrategyListItem = {
+  id: string;
+  name: string;
+  symbol: string;
+  strategyType: string;
+  status: SavedStrategyStatus;
+  displayStatus: SavedStrategyStatus;
+  createdAt: Date;
+  closedAt: Date | null;
+  daysUntilExpiration: number | null;
+  entrySignedMarkValue: number;
+  capitalAtRisk: number | null;
+  latestSnapshot: {
+    id: string;
+    snapshotType: StrategySnapshot["snapshotType"];
+    observedAt: Date;
+    underlyingPrice: number;
+    signedMarkValue: number;
+    unrealizedProfitLoss: number;
+    returnOnRisk: number | null;
+    legMarks: StrategySnapshotLegMark[];
+    quoteSource: string;
+  } | null;
+};
+
+export async function listSavedStrategies(): Promise<SavedStrategyListItem[]> {
+  const db = getDb();
+  const [strategies, snapshots] = await Promise.all([
+    db
+      .select()
+      .from(savedStrategies)
+      .orderBy(savedStrategies.symbol, desc(savedStrategies.createdAt)),
+    db
+      .select()
+      .from(strategySnapshots)
+      .orderBy(
+        desc(strategySnapshots.observedAt),
+        desc(strategySnapshots.createdAt),
+      ),
+  ]);
+  const latestSnapshots = new Map<string, StrategySnapshot>();
+
+  for (const snapshot of snapshots) {
+    if (!latestSnapshots.has(snapshot.strategyId)) {
+      latestSnapshots.set(snapshot.strategyId, snapshot);
+    }
+  }
+
+  return strategies.map((strategy) => {
+    const daysUntilExpiration = getDaysUntilExpiration(strategy.entryState);
+    const latestSnapshot = latestSnapshots.get(strategy.id) ?? null;
+    const displayStatus =
+      strategy.status === "open" &&
+      daysUntilExpiration !== null &&
+      daysUntilExpiration < 0
+        ? "expired"
+        : strategy.status;
+
+    return {
+      id: strategy.id,
+      name: strategy.name,
+      symbol: strategy.symbol,
+      strategyType: strategy.strategyType,
+      status: strategy.status,
+      displayStatus,
+      createdAt: strategy.createdAt,
+      closedAt: strategy.closedAt,
+      daysUntilExpiration,
+      entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
+      capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
+      latestSnapshot: latestSnapshot
+        ? {
+            id: latestSnapshot.id,
+            snapshotType: latestSnapshot.snapshotType,
+            observedAt: latestSnapshot.observedAt,
+            underlyingPrice: toNumber(latestSnapshot.underlyingPrice),
+            signedMarkValue: toNumber(latestSnapshot.signedMarkValue),
+            unrealizedProfitLoss: toNumber(latestSnapshot.unrealizedProfitLoss),
+            returnOnRisk: toNullableNumber(latestSnapshot.returnOnRisk),
+            legMarks: latestSnapshot.legMarks,
+            quoteSource: latestSnapshot.quoteSource,
+          }
+        : null,
+    };
+  });
+}
 
 export async function createSavedStrategyFromEntry(state: StrategyState) {
   const evaluation = evaluateStrategy(state);
@@ -54,4 +147,12 @@ export async function createSavedStrategyFromEntry(state: StrategyState) {
 
 function decimal(value: number, places = 2) {
   return value.toFixed(places);
+}
+
+function toNumber(value: string) {
+  return Number(value);
+}
+
+function toNullableNumber(value: string | null) {
+  return value === null ? null : Number(value);
 }

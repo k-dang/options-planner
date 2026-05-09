@@ -100,6 +100,29 @@ export function calculateCapitalAtRisk(
   return null;
 }
 
+export function getDaysUntilExpiration(
+  state: Pick<StrategyState, "legs">,
+  asOf: Date = new Date(),
+) {
+  const expirations = state.legs
+    .filter((leg) => leg.kind === "option")
+    .map((leg) => leg.expiration);
+
+  if (expirations.length === 0) {
+    return null;
+  }
+
+  const earliestExpiration = expirations.sort()[0];
+  const expirationDate = new Date(`${earliestExpiration}T00:00:00.000Z`);
+  const asOfDate = Date.UTC(
+    asOf.getUTCFullYear(),
+    asOf.getUTCMonth(),
+    asOf.getUTCDate(),
+  );
+
+  return Math.ceil((expirationDate.getTime() - asOfDate) / 86_400_000);
+}
+
 function signedEntryLegValue(leg: StrategyState["legs"][number]) {
   const direction = leg.side === "long" ? 1 : -1;
 
