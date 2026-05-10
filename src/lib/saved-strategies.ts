@@ -9,10 +9,12 @@ import { evaluateStrategy, type StrategyState } from "@/lib/options";
 import {
   buildEntryLegMarks,
   calculateCapitalAtRisk,
+  calculateCurrentMarkSnapshot,
   calculateSignedMarkValue,
   generateSavedStrategyName,
   getDaysUntilExpiration,
 } from "@/lib/options/monitoring";
+import { getOptionChainProvider } from "@/lib/options/providers/registry";
 
 export type SavedStrategyListItem = {
   id: string;
@@ -143,6 +145,64 @@ export async function createSavedStrategyFromEntry(state: StrategyState) {
   }
 
   return saved;
+}
+
+export async function refreshSavedStrategyMark(id: string) {
+  const db = getDb();
+  const [strategy] = await db
+    .select()
+    .from(savedStrategies)
+    .where(eq(savedStrategies.id, id))
+    .limit(1);
+
+  if (!strategy) {
+    throw new Error("Saved strategy was not found.");
+  }
+
+  if (strategy.status !== "open") {
+    throw new Error("Closed and expired strategies cannot be refreshed.");
+  }
+
+  const state = strategy.entryState;
+  const optionLegs = state.legs.filter((leg) => leg.kind === "option");
+  const expirations = optionLegs.map((leg) => leg.expiration).sort();
+  const strikes = optionLegs.map((leg) => leg.strike).sort((a, b) => a - b);
+  const provider = getOptionChainProvider();
+  const chain = await provider.getChain({
+    symbol: strategy.symbol,
+    expirationGte: expirations[0],
+    expirationLte: expirations.at(-1),
+    strikeGte: strikes[0],
+    strikeLte: strikes.at(-1),
+  });
+  const mark = calculateCurrentMarkSnapshot({
+    state,
+    chain,
+    entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
+    capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
+  });
+
+  const [snapshot] = await db
+    .insert(strategySnapshots)
+    .values({
+      strategyId: strategy.id,
+      snapshotType: "mark",
+      observedAt: mark.observedAt,
+      underlyingPrice: decimal(mark.underlyingPrice, 4),
+      signedMarkValue: decimal(mark.signedMarkValue),
+      unrealizedProfitLoss: decimal(mark.unrealizedProfitLoss),
+      returnOnRisk:
+        mark.returnOnRisk === null ? null : decimal(mark.returnOnRisk, 6),
+      legMarks: mark.legMarks,
+      quoteSource: mark.quoteSource,
+    })
+    .returning({ id: strategySnapshots.id });
+
+  if (!snapshot) {
+    throw new Error("Strategy mark insert did not return a row.");
+  }
+
+  return snapshot;
 }
 
 function decimal(value: number, places = 2) {

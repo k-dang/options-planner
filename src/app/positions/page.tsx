@@ -11,12 +11,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDateTime,
+  formatPercent,
+  formatTitleCaseFromKebab,
+} from "@/lib/format";
 import {
   listSavedStrategies,
   type SavedStrategyListItem,
 } from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
+import { PositionActions } from "./position-actions";
 
 export default async function PositionsPage() {
   return (
@@ -93,7 +99,8 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
         <div className="flex flex-col gap-1">
           <span className="font-medium text-foreground">{strategy.name}</span>
           <span className="font-mono text-xs text-muted-foreground">
-            {strategy.symbol} · {formatStrategyType(strategy.strategyType)}
+            {strategy.symbol} ·{" "}
+            {formatTitleCaseFromKebab(strategy.strategyType)}
           </span>
         </div>
       </TableCell>
@@ -112,9 +119,10 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
         <StatusBadge status={strategy.displayStatus} />
       </TableCell>
       <TableCell className="text-right">
-        <Button variant="outline" size="sm" disabled>
-          Actions
-        </Button>
+        <PositionActions
+          id={strategy.id}
+          disabled={strategy.displayStatus !== "open"}
+        />
         {snapshot ? (
           <div className="mt-1 text-xs text-muted-foreground">
             Marked {formatDateTime(snapshot.observedAt)}
@@ -186,20 +194,4 @@ function EmptyState() {
       </div>
     </div>
   );
-}
-
-function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function formatStrategyType(strategyType: string) {
-  return strategyType
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

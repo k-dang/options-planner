@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { createBuilderState, evaluateStrategy } from "./index";
 import {
   calculateCapitalAtRisk,
+  calculateCurrentMarkSnapshot,
   calculateSignedMarkValue,
   generateSavedStrategyName,
   getDaysUntilExpiration,
+  selectOptionMark,
 } from "./monitoring";
-import type { StrategyState } from "./types";
+import type { OptionQuote, StrategyState } from "./types";
 
 describe("saved strategy monitoring", () => {
   it("generates readable names from symbol, expiration, strikes, and strategy", () => {
@@ -139,4 +141,121 @@ describe("saved strategy monitoring", () => {
       getDaysUntilExpiration(state, new Date("2026-05-08T16:00:00.000Z")),
     ).toBe(16);
   });
+
+  it("prefers bid/ask mid, then last, then model for current option marks", () => {
+    const leg = optionLeg({ premium: 4, impliedVolatility: 0.2 });
+    const quote = optionQuote({ bid: 4, ask: 5, mid: null, last: 6 });
+
+    expect(
+      selectOptionMark({
+        quote,
+        leg,
+        underlyingPrice: 510,
+        observedAt: new Date("2026-05-08T16:00:00.000Z"),
+      }),
+    ).toEqual({ markPrice: 4.5, source: "mid" });
+    expect(
+      selectOptionMark({
+        quote: optionQuote({ bid: null, ask: null, mid: null, last: 6 }),
+        leg,
+        underlyingPrice: 510,
+        observedAt: new Date("2026-05-08T16:00:00.000Z"),
+      }),
+    ).toEqual({ markPrice: 6, source: "last" });
+
+    const fallback = selectOptionMark({
+      quote: null,
+      leg,
+      underlyingPrice: 510,
+      observedAt: new Date("2026-05-08T16:00:00.000Z"),
+    });
+
+    expect(fallback.source).toBe("model");
+    expect(fallback.markPrice).toBeGreaterThan(0);
+  });
+
+  it("calculates signed current marks, P/L, and return on risk", () => {
+    const state: StrategyState = {
+      version: 1,
+      symbol: "SPY",
+      strategy: "bull-call-spread",
+      underlyingPrice: 510,
+      asOf: "2026-05-08T16:00:00.000Z",
+      legs: [
+        optionLeg({ side: "long", strike: 510, premium: 5 }),
+        optionLeg({ side: "short", strike: 520, premium: 2 }),
+      ],
+    };
+
+    const mark = calculateCurrentMarkSnapshot({
+      state,
+      entrySignedMarkValue: 300,
+      capitalAtRisk: 300,
+      observedAt: new Date("2026-05-09T16:00:00.000Z"),
+      chain: {
+        underlying: {
+          symbol: "SPY",
+          price: 515,
+          asOf: "2026-05-09T16:00:00.000Z",
+        },
+        expirations: [
+          {
+            expiration: "2026-05-24",
+            daysToExpiration: 15,
+            calls: [
+              optionQuote({ strike: 510, bid: 7, ask: 8 }),
+              optionQuote({ strike: 520, bid: 3, ask: 4 }),
+            ],
+            puts: [],
+          },
+        ],
+      },
+    });
+
+    expect(mark.signedMarkValue).toBe(400);
+    expect(mark.unrealizedProfitLoss).toBe(100);
+    expect(mark.returnOnRisk).toBe(0.333333);
+    expect(mark.legMarks.map((leg) => leg.source)).toEqual(["mid", "mid"]);
+  });
 });
+
+function optionLeg(
+  overrides: Partial<
+    Extract<StrategyState["legs"][number], { kind: "option" }>
+  >,
+): Extract<StrategyState["legs"][number], { kind: "option" }> {
+  return {
+    kind: "option",
+    optionType: "call",
+    side: "long",
+    quantity: 1,
+    expiration: "2026-05-24",
+    strike: 510,
+    premium: 5,
+    impliedVolatility: 0.2,
+    ...overrides,
+  };
+}
+
+function optionQuote(overrides: Partial<OptionQuote>): OptionQuote {
+  return {
+    provider: "generated",
+    optionType: "call",
+    expiration: "2026-05-24",
+    strike: 510,
+    bid: null,
+    ask: null,
+    mid: null,
+    last: null,
+    volume: null,
+    openInterest: null,
+    impliedVolatility: null,
+    delta: null,
+    gamma: null,
+    theta: null,
+    vega: null,
+    rho: null,
+    updatedAt: null,
+    ...overrides,
+  };
+}
