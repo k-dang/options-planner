@@ -37,6 +37,15 @@ export function formatDateTime(date: Date) {
   }).format(date);
 }
 
+export function formatShortDateTime(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 export function formatTitleCaseFromKebab(value: string) {
   return value
     .replaceAll("-", " ")

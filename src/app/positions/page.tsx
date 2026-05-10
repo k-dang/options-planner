@@ -1,7 +1,6 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -15,6 +14,7 @@ import {
   formatCurrency,
   formatDateTime,
   formatPercent,
+  formatShortDateTime,
   formatTitleCaseFromKebab,
 } from "@/lib/format";
 import {
@@ -22,7 +22,7 @@ import {
   type SavedStrategyListItem,
 } from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
-import { PositionActions } from "./position-actions";
+import { PositionActions, RefreshAllPositionsButton } from "./position-actions";
 
 export default async function PositionsPage() {
   return (
@@ -37,9 +37,7 @@ export default async function PositionsPage() {
               Positions
             </h1>
           </div>
-          <Button variant="outline" disabled>
-            Refresh all
-          </Button>
+          <RefreshAllPositionsButton />
         </div>
 
         <Suspense fallback={<Spinner className="h-80 w-full" />}>
@@ -68,7 +66,8 @@ async function PositionsContent() {
                 <TableHead>Created At</TableHead>
                 <TableHead>Days To Expiration</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Marked</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -118,16 +117,23 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
       <TableCell>
         <StatusBadge status={strategy.displayStatus} />
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell>
+        {snapshot ? (
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {formatShortDateTime(snapshot.observedAt)}
+          </span>
+        ) : (
+          <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground/60">
+            Never
+          </span>
+        )}
+      </TableCell>
+      <TableCell>
         <PositionActions
           id={strategy.id}
+          name={strategy.name}
           disabled={strategy.displayStatus !== "open"}
         />
-        {snapshot ? (
-          <div className="mt-1 text-xs text-muted-foreground">
-            Marked {formatDateTime(snapshot.observedAt)}
-          </div>
-        ) : null}
       </TableCell>
     </TableRow>
   );

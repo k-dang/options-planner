@@ -1,17 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { refreshSavedStrategyMark } from "@/lib/saved-strategies";
+import {
+  closeSavedStrategyAtMarketMark,
+  deleteSavedStrategy,
+  refreshOpenSavedStrategies,
+  refreshSavedStrategyMark,
+} from "@/lib/saved-strategies";
 
-export type RefreshPositionState = {
+export type PositionActionState = {
   ok: boolean;
   message: string | null;
 };
 
 export async function refreshPositionAction(
-  _previousState: RefreshPositionState,
+  _previousState: PositionActionState,
   formData: FormData,
-): Promise<RefreshPositionState> {
+): Promise<PositionActionState> {
   const id = formData.get("id");
 
   if (typeof id !== "string" || id.length === 0) {
@@ -29,6 +34,96 @@ export async function refreshPositionAction(
         error instanceof Error
           ? error.message
           : "Could not refresh this strategy.",
+    };
+  }
+}
+
+export async function closePositionAction(
+  _previousState: PositionActionState,
+  formData: FormData,
+): Promise<PositionActionState> {
+  const id = formData.get("id");
+  const intent = formData.get("intent");
+
+  if (typeof id !== "string" || id.length === 0) {
+    return { ok: false, message: "Missing saved strategy id." };
+  }
+
+  if (intent !== "close") {
+    return { ok: false, message: "Confirm close before submitting." };
+  }
+
+  try {
+    await closeSavedStrategyAtMarketMark(id);
+    revalidatePath("/positions");
+    return { ok: true, message: "Strategy closed." };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Could not close strategy.",
+    };
+  }
+}
+
+export async function deletePositionAction(
+  _previousState: PositionActionState,
+  formData: FormData,
+): Promise<PositionActionState> {
+  const id = formData.get("id");
+  const intent = formData.get("intent");
+
+  if (typeof id !== "string" || id.length === 0) {
+    return { ok: false, message: "Missing saved strategy id." };
+  }
+
+  if (intent !== "delete") {
+    return { ok: false, message: "Confirm delete before submitting." };
+  }
+
+  try {
+    await deleteSavedStrategy(id);
+    revalidatePath("/positions");
+    return { ok: true, message: "Strategy deleted." };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "Could not delete strategy.",
+    };
+  }
+}
+
+export async function refreshAllOpenPositionsAction(
+  _previousState: PositionActionState,
+): Promise<PositionActionState> {
+  try {
+    const results = await refreshOpenSavedStrategies();
+    revalidatePath("/positions");
+
+    if (results.length === 0) {
+      return { ok: true, message: "No open strategies to refresh." };
+    }
+
+    const failures = results.filter((result) => !result.ok);
+    if (failures.length > 0) {
+      return {
+        ok: false,
+        message: `${results.length - failures.length} refreshed, ${failures.length} failed.`,
+      };
+    }
+
+    return {
+      ok: true,
+      message: `${results.length} open strategies refreshed.`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Could not refresh open strategies.",
     };
   }
 }

@@ -1,9 +1,12 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb, savedStrategies, strategySnapshots } from "@/db";
 import type {
+  NewStrategySnapshot,
+  SavedStrategy,
   SavedStrategyStatus,
   StrategySnapshot,
   StrategySnapshotLegMark,
+  StrategySnapshotType,
 } from "@/db/schema";
 import { evaluateStrategy, type StrategyState } from "@/lib/options";
 import {
@@ -148,6 +151,100 @@ export async function createSavedStrategyFromEntry(state: StrategyState) {
 }
 
 export async function refreshSavedStrategyMark(id: string) {
+  const strategy = await loadOpenStrategy(
+    id,
+    "Closed and expired strategies cannot be refreshed.",
+  );
+  return insertMarkSnapshot(strategy);
+}
+
+export async function closeSavedStrategyAtMarketMark(id: string) {
+  const strategy = await loadOpenStrategy(
+    id,
+    "Only open strategies can be closed.",
+  );
+  const mark = await fetchMarkForStrategy(strategy);
+  const db = getDb();
+
+  const [insertResult, updateResult] = await db.batch([
+    db
+      .insert(strategySnapshots)
+      .values(buildSnapshotValues(strategy, mark, "close"))
+      .returning({ id: strategySnapshots.id }),
+    db
+      .update(savedStrategies)
+      .set({
+        status: "closed",
+        closedAt: mark.observedAt,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(eq(savedStrategies.id, id), eq(savedStrategies.status, "open")),
+      )
+      .returning({
+        id: savedStrategies.id,
+        closedAt: savedStrategies.closedAt,
+      }),
+  ]);
+
+  const snapshot = insertResult[0];
+  const closed = updateResult[0];
+
+  if (!snapshot) {
+    throw new Error("Strategy close snapshot insert did not return a row.");
+  }
+  if (!closed) {
+    throw new Error("Saved strategy could not be closed.");
+  }
+
+  return { strategy: closed, snapshot };
+}
+
+export async function deleteSavedStrategy(id: string) {
+  const db = getDb();
+  const [deleted] = await db
+    .delete(savedStrategies)
+    .where(eq(savedStrategies.id, id))
+    .returning({ id: savedStrategies.id });
+
+  if (!deleted) {
+    throw new Error("Saved strategy was not found.");
+  }
+
+  return deleted;
+}
+
+export async function refreshOpenSavedStrategies() {
+  const db = getDb();
+  const strategies = await db
+    .select()
+    .from(savedStrategies)
+    .where(eq(savedStrategies.status, "open"));
+
+  const settled = await Promise.allSettled(
+    strategies.map((strategy) => insertMarkSnapshot(strategy)),
+  );
+
+  return settled.map((result, index) => {
+    const id = strategies[index].id;
+    if (result.status === "fulfilled") {
+      return { id, ok: true as const, message: null };
+    }
+    return {
+      id,
+      ok: false as const,
+      message:
+        result.reason instanceof Error
+          ? result.reason.message
+          : "Could not refresh this strategy.",
+    };
+  });
+}
+
+async function loadOpenStrategy(
+  id: string,
+  notOpenMessage: string,
+): Promise<SavedStrategy> {
   const db = getDb();
   const [strategy] = await db
     .select()
@@ -158,11 +255,27 @@ export async function refreshSavedStrategyMark(id: string) {
   if (!strategy) {
     throw new Error("Saved strategy was not found.");
   }
-
   if (strategy.status !== "open") {
-    throw new Error("Closed and expired strategies cannot be refreshed.");
+    throw new Error(notOpenMessage);
   }
+  return strategy;
+}
 
+async function insertMarkSnapshot(strategy: SavedStrategy) {
+  const mark = await fetchMarkForStrategy(strategy);
+  const db = getDb();
+  const [snapshot] = await db
+    .insert(strategySnapshots)
+    .values(buildSnapshotValues(strategy, mark, "mark"))
+    .returning({ id: strategySnapshots.id });
+
+  if (!snapshot) {
+    throw new Error("Strategy mark insert did not return a row.");
+  }
+  return snapshot;
+}
+
+async function fetchMarkForStrategy(strategy: SavedStrategy) {
   const state = strategy.entryState;
   const optionLegs = state.legs.filter((leg) => leg.kind === "option");
   const expirations = optionLegs.map((leg) => leg.expiration).sort();
@@ -175,34 +288,32 @@ export async function refreshSavedStrategyMark(id: string) {
     strikeGte: strikes[0],
     strikeLte: strikes.at(-1),
   });
-  const mark = calculateCurrentMarkSnapshot({
+
+  return calculateCurrentMarkSnapshot({
     state,
     chain,
     entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
     capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
   });
+}
 
-  const [snapshot] = await db
-    .insert(strategySnapshots)
-    .values({
-      strategyId: strategy.id,
-      snapshotType: "mark",
-      observedAt: mark.observedAt,
-      underlyingPrice: decimal(mark.underlyingPrice, 4),
-      signedMarkValue: decimal(mark.signedMarkValue),
-      unrealizedProfitLoss: decimal(mark.unrealizedProfitLoss),
-      returnOnRisk:
-        mark.returnOnRisk === null ? null : decimal(mark.returnOnRisk, 6),
-      legMarks: mark.legMarks,
-      quoteSource: mark.quoteSource,
-    })
-    .returning({ id: strategySnapshots.id });
-
-  if (!snapshot) {
-    throw new Error("Strategy mark insert did not return a row.");
-  }
-
-  return snapshot;
+function buildSnapshotValues(
+  strategy: SavedStrategy,
+  mark: ReturnType<typeof calculateCurrentMarkSnapshot>,
+  snapshotType: StrategySnapshotType,
+): NewStrategySnapshot {
+  return {
+    strategyId: strategy.id,
+    snapshotType,
+    observedAt: mark.observedAt,
+    underlyingPrice: decimal(mark.underlyingPrice, 4),
+    signedMarkValue: decimal(mark.signedMarkValue),
+    unrealizedProfitLoss: decimal(mark.unrealizedProfitLoss),
+    returnOnRisk:
+      mark.returnOnRisk === null ? null : decimal(mark.returnOnRisk, 6),
+    legMarks: mark.legMarks,
+    quoteSource: mark.quoteSource,
+  };
 }
 
 function decimal(value: number, places = 2) {
