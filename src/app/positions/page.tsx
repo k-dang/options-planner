@@ -1,7 +1,5 @@
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -22,9 +20,23 @@ import {
   type SavedStrategyListItem,
 } from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
+import { DevSkeletonToggle } from "./dev-skeleton-toggle";
 import { PositionActions, RefreshAllPositionsButton } from "./position-actions";
+import { PositionsSkeleton } from "./positions-skeleton";
+import {
+  POSITIONS_TABLE_CLASS,
+  PositionsTableColGroup,
+} from "./positions-table-layout";
 
-export default async function PositionsPage() {
+const IS_DEV = process.env.NODE_ENV === "development";
+
+export default function PositionsPage() {
+  const body = (
+    <Suspense fallback={<PositionsSkeleton />}>
+      <PositionsContent />
+    </Suspense>
+  );
+
   return (
     <main className="flex-1 bg-background px-6 py-8">
       <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -40,16 +52,19 @@ export default async function PositionsPage() {
           <RefreshAllPositionsButton />
         </div>
 
-        <Suspense fallback={<Spinner className="h-80 w-full" />}>
-          <PositionsContent />
-        </Suspense>
+        {IS_DEV ? (
+          <DevSkeletonToggle skeleton={<PositionsSkeleton />}>
+            {body}
+          </DevSkeletonToggle>
+        ) : (
+          body
+        )}
       </section>
     </main>
   );
 }
 
 async function PositionsContent() {
-  await connection();
   const strategies = await listSavedStrategies();
 
   return (
@@ -58,7 +73,8 @@ async function PositionsContent() {
         <EmptyState />
       ) : (
         <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <Table>
+          <Table className={POSITIONS_TABLE_CLASS}>
+            <PositionsTableColGroup />
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Name</TableHead>
@@ -95,9 +111,11 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
       )}
     >
       <TableCell>
-        <div className="flex flex-col gap-1">
-          <span className="font-medium text-foreground">{strategy.name}</span>
-          <span className="font-mono text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="truncate font-medium text-foreground">
+            {strategy.name}
+          </span>
+          <span className="truncate font-mono text-xs text-muted-foreground">
             {strategy.symbol} ·{" "}
             {formatTitleCaseFromKebab(strategy.strategyType)}
           </span>
