@@ -32,6 +32,8 @@ const THESIS_OPTIONS = [
   ["bullish", "Bullish"],
 ] as [OptimizerThesis, string][];
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
   thesis: "bullish",
@@ -244,33 +246,35 @@ export function OptimizeClient({
         )}
       </section>
 
-      <DebugDrawer
-        closeLabel="Close optimizer debug panel"
-        openLabel="Open optimizer debug panel"
-        open={debugOpen}
-        panels={[
-          {
-            title: "Currently selected optimizer cards",
-            value: optimizerDebugJson,
-          },
-          {
-            title: "Full initialChain payload",
-            value: initialChainDebugJson,
-          },
-        ]}
-        subtitle={`Provider ${
-          chain.expirations[0]?.calls[0]?.provider ?? "n/a"
-        } · ${chain.underlying.symbol} ${formatCurrency(
-          chain.underlying.price,
-        )}`}
-        summary={[
-          { label: "As of", value: chain.underlying.asOf },
-          { label: "Expirations", value: String(chain.expirations.length) },
-        ]}
-        title="Optimizer debug"
-        onClose={() => setDebugOpen(false)}
-        onOpen={() => setDebugOpen(true)}
-      />
+      {IS_DEV ? (
+        <DebugDrawer
+          closeLabel="Close optimizer debug panel"
+          openLabel="Open optimizer debug panel"
+          open={debugOpen}
+          panels={[
+            {
+              title: "Currently selected optimizer cards",
+              value: optimizerDebugJson,
+            },
+            {
+              title: "Full initialChain payload",
+              value: initialChainDebugJson,
+            },
+          ]}
+          subtitle={`Provider ${
+            chain.expirations[0]?.calls[0]?.provider ?? "n/a"
+          } · ${chain.underlying.symbol} ${formatCurrency(
+            chain.underlying.price,
+          )}`}
+          summary={[
+            { label: "As of", value: chain.underlying.asOf },
+            { label: "Expirations", value: String(chain.expirations.length) },
+          ]}
+          title="Optimizer debug"
+          onClose={() => setDebugOpen(false)}
+          onOpen={() => setDebugOpen(true)}
+        />
+      ) : null}
     </>
   );
 }
