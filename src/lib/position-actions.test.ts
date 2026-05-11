@@ -24,7 +24,7 @@ import {
   deletePositionAction,
   refreshAllOpenPositionsAction,
   refreshPositionAction,
-} from "./actions";
+} from "./position-actions";
 
 const initialState = { ok: true, message: null };
 

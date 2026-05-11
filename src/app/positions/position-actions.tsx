@@ -14,14 +14,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   closePositionAction,
   deletePositionAction,
   type PositionActionState,
   refreshAllOpenPositionsAction,
   refreshPositionAction,
-} from "./actions";
+} from "@/lib/position-actions";
+import { cn } from "@/lib/utils";
 
 const INITIAL_STATE: PositionActionState = {
   ok: true,
