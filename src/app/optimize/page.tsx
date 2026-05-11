@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { Spinner } from "@/components/ui/spinner";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { OptimizeClient } from "./optimize-client";
+import { OptimizeSkeleton } from "./optimize-skeleton";
 
 export default function OptimizePage({
   searchParams,
@@ -20,7 +20,7 @@ export default function OptimizePage({
             Strategy Optimizer
           </h1>
         </header>
-        <Suspense fallback={<Spinner className="h-96 w-full" />}>
+        <Suspense fallback={<OptimizeSkeleton />}>
           <OptimizeContent searchParams={searchParams} />
         </Suspense>
       </div>

@@ -1,8 +1,8 @@
 import { Suspense } from "react";
-import { Spinner } from "@/components/ui/spinner";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { ScanClient } from "./scan-client";
+import { ScanSkeleton } from "./scan-skeleton";
 
 export default function ScanPage({
   searchParams,
@@ -20,7 +20,7 @@ export default function ScanPage({
             Risk/Reward Scanner
           </h1>
         </header>
-        <Suspense fallback={<Spinner className="h-96 w-full" />}>
+        <Suspense fallback={<ScanSkeleton />}>
           <ScanContent searchParams={searchParams} />
         </Suspense>
       </div>

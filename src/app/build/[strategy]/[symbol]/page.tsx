@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { Spinner } from "@/components/ui/spinner";
 import { parseBuilderState } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { BuilderClient } from "../../build-client";
+import { BuildSkeleton } from "../../build-skeleton";
 
 type SearchParams = Promise<{
   exp?: string | string[];
@@ -31,7 +31,7 @@ export default function BuildStrategyPage({
             Options Planner · Builder
           </p>
         </header>
-        <Suspense fallback={<Spinner className="h-96 w-full" />}>
+        <Suspense fallback={<BuildSkeleton />}>
           <BuildContent params={params} searchParams={searchParams} />
         </Suspense>
       </div>
