@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useMemo, useState } from "react";
 import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
+import { optimizeSymbolHref } from "@/app/optimize/href";
 import { StrategyCard } from "@/app/optimize/strategy-card";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { TickerCombobox } from "@/components/ticker-combobox";
@@ -93,8 +94,8 @@ export function OptimizeClient({
     [debugOpen, inputs, strategyCards],
   );
   const initialChainDebugJson = useMemo(
-    () => JSON.stringify(initialChain, null, 2),
-    [initialChain],
+    () => (debugOpen ? JSON.stringify(initialChain, null, 2) : ""),
+    [debugOpen, initialChain],
   );
   function updateInputs(next: Partial<OptimizerInputs>) {
     setInputs((current) => {
@@ -126,145 +127,122 @@ export function OptimizeClient({
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
-        {/* Page header */}
-        <header>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
-            Options Planner
-          </p>
-          <h1 className="mt-1.5 text-3xl font-bold tracking-tight">
-            Strategy Optimizer
-          </h1>
-        </header>
+    <>
+      <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-primary/8 blur-2xl" />
 
-        {/* Filter controls */}
-        <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
-          {/* Atmospheric blobs */}
-          <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-primary/8 blur-2xl" />
-
-          {/* Row 1: Symbol · Price · Thesis */}
-          <div className="relative flex flex-wrap items-center gap-3">
-            {/* Symbol */}
-            <div>
-              <TickerCombobox
-                defaultSymbol={initialChain.underlying.symbol}
-                onNavigate={(symbol) => router.push(optimizeSymbolHref(symbol))}
-              />
-            </div>
-
-            {/* Price pill */}
-            <div>{formatCurrency(chain.underlying.price)}</div>
-
-            {/* Thesis — individual floating chips */}
-            <div className="ml-auto flex items-center gap-2">
-              {THESIS_OPTIONS.map(([value, label]) => (
-                <Button
-                  key={value}
-                  aria-pressed={inputs.thesis === value}
-                  variant={inputs.thesis === value ? "default" : "outline"}
-                  className={cn(
-                    "rounded-full shadow-sm",
-                    inputs.thesis === value
-                      ? "shadow-md"
-                      : "border-border/60 bg-white/80 text-foreground/55 hover:border-primary/40 dark:bg-white/8",
-                  )}
-                  onClick={() => updateInputs({ thesis: value })}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Row 2: Target · Rank */}
-          <div className="relative mt-4 grid gap-3 sm:grid-cols-2">
-            {/* Target price */}
-            <Field className="flex flex-col gap-1.5">
-              <FieldLabel
-                className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
-                htmlFor="target-price"
-              >
-                Target Price
-              </FieldLabel>
-              <InputGroup className="rounded-full border-border/60 bg-white/80 shadow-sm dark:bg-input/20">
-                <InputGroupAddon>$</InputGroupAddon>
-                <InputGroupInput
-                  id="target-price"
-                  type="number"
-                  min="1"
-                  step="1"
-                  className="font-mono font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  value={targetUnderlyingDraft}
-                  onChange={(e) => setTargetUnderlyingDraft(e.target.value)}
-                  onBlur={handleTargetBlur}
-                  onKeyDown={handleTargetKeyDown}
-                />
-              </InputGroup>
-            </Field>
-
-            {/* Rank slider */}
-            <Field className="flex flex-col gap-1.5">
-              <FieldLabel
-                className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
-                htmlFor="rank-by"
-              >
-                Rank By
-              </FieldLabel>
-              <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
-                <Slider
-                  aria-label="Rank by"
-                  id="rank-by"
-                  max={100}
-                  min={0}
-                  step={10}
-                  value={[inputs.returnChanceWeight ?? 50]}
-                  onValueChange={handleSliderChange}
-                />
-                <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                  <span>
-                    Max Return{" "}
-                    <span className="font-semibold tabular-nums text-foreground/70">
-                      {100 - (inputs.returnChanceWeight ?? 50)}%
-                    </span>
-                  </span>
-                  <span>
-                    <span className="font-semibold tabular-nums text-foreground/70">
-                      {inputs.returnChanceWeight ?? 50}%
-                    </span>{" "}
-                    Max Chance
-                  </span>
-                </div>
-              </div>
-            </Field>
-          </div>
-
-          {/* Row 3: Expiration timeline */}
-          <div className="relative mt-4">
-            <ExpirationTimeline
-              expirations={chain.expirations}
-              value={inputs.expiration}
-              onChange={(expiration) => updateInputs({ expiration })}
+        <div className="relative flex flex-wrap items-center gap-3">
+          <div>
+            <TickerCombobox
+              defaultSymbol={initialChain.underlying.symbol}
+              onNavigate={(symbol) => router.push(optimizeSymbolHref(symbol))}
             />
           </div>
-        </section>
 
-        {/* Strategy card grid */}
-        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {strategyCards.map((candidate) => (
-            <StrategyCard candidate={candidate} key={candidate.id} />
-          ))}
-          {strategyCards.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
-              <p className="text-lg font-semibold">No strategies match</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try adjusting the thesis, expiration, or target price.
-              </p>
+          <div>{formatCurrency(chain.underlying.price)}</div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {THESIS_OPTIONS.map(([value, label]) => (
+              <Button
+                key={value}
+                aria-pressed={inputs.thesis === value}
+                variant={inputs.thesis === value ? "default" : "outline"}
+                className={cn(
+                  "rounded-full shadow-sm",
+                  inputs.thesis === value
+                    ? "shadow-md"
+                    : "border-border/60 bg-white/80 text-foreground/55 hover:border-primary/40 dark:bg-white/8",
+                )}
+                onClick={() => updateInputs({ thesis: value })}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative mt-4 grid gap-3 sm:grid-cols-2">
+          <Field className="flex flex-col gap-1.5">
+            <FieldLabel
+              className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+              htmlFor="target-price"
+            >
+              Target Price
+            </FieldLabel>
+            <InputGroup className="rounded-full border-border/60 bg-white/80 shadow-sm dark:bg-input/20">
+              <InputGroupAddon>$</InputGroupAddon>
+              <InputGroupInput
+                id="target-price"
+                type="number"
+                min="1"
+                step="1"
+                className="font-mono font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                value={targetUnderlyingDraft}
+                onChange={(e) => setTargetUnderlyingDraft(e.target.value)}
+                onBlur={handleTargetBlur}
+                onKeyDown={handleTargetKeyDown}
+              />
+            </InputGroup>
+          </Field>
+
+          <Field className="flex flex-col gap-1.5">
+            <FieldLabel
+              className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+              htmlFor="rank-by"
+            >
+              Rank By
+            </FieldLabel>
+            <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
+              <Slider
+                aria-label="Rank by"
+                id="rank-by"
+                max={100}
+                min={0}
+                step={10}
+                value={[inputs.returnChanceWeight ?? 50]}
+                onValueChange={handleSliderChange}
+              />
+              <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>
+                  Max Return{" "}
+                  <span className="font-semibold tabular-nums text-foreground/70">
+                    {100 - (inputs.returnChanceWeight ?? 50)}%
+                  </span>
+                </span>
+                <span>
+                  <span className="font-semibold tabular-nums text-foreground/70">
+                    {inputs.returnChanceWeight ?? 50}%
+                  </span>{" "}
+                  Max Chance
+                </span>
+              </div>
             </div>
-          )}
-        </section>
-      </div>
+          </Field>
+        </div>
+
+        <div className="relative mt-4">
+          <ExpirationTimeline
+            expirations={chain.expirations}
+            value={inputs.expiration}
+            onChange={(expiration) => updateInputs({ expiration })}
+          />
+        </div>
+      </section>
+
+      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {strategyCards.map((candidate) => (
+          <StrategyCard candidate={candidate} key={candidate.id} />
+        ))}
+        {strategyCards.length === 0 && (
+          <div className="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+            <p className="text-lg font-semibold">No strategies match</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try adjusting the thesis, expiration, or target price.
+            </p>
+          </div>
+        )}
+      </section>
 
       <DebugDrawer
         closeLabel="Close optimizer debug panel"
@@ -293,7 +271,7 @@ export function OptimizeClient({
         onClose={() => setDebugOpen(false)}
         onOpen={() => setDebugOpen(true)}
       />
-    </main>
+    </>
   );
 }
 
@@ -328,11 +306,3 @@ function optimizerCandidateDebug(candidate: OptimizerCandidate) {
   };
 }
 
-export function optimizeSymbolHref(
-  symbolValue: string,
-  fallbackSymbol = "AAPL",
-) {
-  const symbol = symbolValue.trim().toUpperCase() || fallbackSymbol;
-
-  return `/optimize?symbol=${encodeURIComponent(symbol)}`;
-}

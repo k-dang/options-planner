@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { scanSymbolHref } from "@/app/scan/href";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Button } from "@/components/ui/button";
@@ -146,231 +147,214 @@ export function ScanClient({
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
-        <header>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
-            Options Planner
-          </p>
-          <h1 className="mt-1.5 text-3xl font-bold tracking-tight">
-            Risk/Reward Scanner
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Scan every strategy and expiration for {chain.underlying.symbol},
-            ranked by return on risk (max profit ÷ max loss).
-          </p>
-        </header>
+    <>
+      <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
+        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
 
-        <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
-          <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
-
-          <div className="relative flex flex-wrap items-center gap-3">
-            <TickerCombobox
-              defaultSymbol={chain.underlying.symbol}
-              onNavigate={(symbol) =>
-                router.push(`/scan?symbol=${encodeURIComponent(symbol)}`)
-              }
-            />
-            <div className="font-mono text-sm text-muted-foreground">
-              {formatCurrency(chain.underlying.price)}
-            </div>
-            <div className="ml-auto text-xs text-muted-foreground">
-              {sortedCandidates.length} setups
-            </div>
+        <div className="relative flex flex-wrap items-center gap-3">
+          <TickerCombobox
+            defaultSymbol={chain.underlying.symbol}
+            onNavigate={(symbol) => router.push(scanSymbolHref(symbol))}
+          />
+          <div className="font-mono text-sm text-muted-foreground">
+            {formatCurrency(chain.underlying.price)}
           </div>
-
-          <div className="relative mt-5 grid gap-5 sm:grid-cols-2">
-            <Field className="flex flex-col gap-2">
-              <FieldLabel className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-                Days To Expiration · {filters.minDays}–{filters.maxDays}
-              </FieldLabel>
-              <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
-                <Slider
-                  aria-label="Days to expiration"
-                  min={1}
-                  max={180}
-                  step={1}
-                  value={[filters.minDays, filters.maxDays]}
-                  onValueChange={handleDteChange}
-                />
-              </div>
-            </Field>
-
-            <Field className="flex flex-col gap-2">
-              <FieldLabel className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-                Min Probability of Profit · {formatPercent(filters.minPop)}
-              </FieldLabel>
-              <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
-                <Slider
-                  aria-label="Minimum probability of profit"
-                  min={0}
-                  max={90}
-                  step={5}
-                  value={[Math.round(filters.minPop * 100)]}
-                  onValueChange={handlePopChange}
-                />
-              </div>
-            </Field>
+          <div className="ml-auto text-xs text-muted-foreground">
+            {sortedCandidates.length} setups
           </div>
+        </div>
 
-          <div className="relative mt-5">
-            <div className="mb-2 flex items-center gap-3">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-                Strategies
+        <div className="relative mt-5 grid gap-5 sm:grid-cols-2">
+          <Field className="flex flex-col gap-2">
+            <FieldLabel className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              Days To Expiration · {filters.minDays}–{filters.maxDays}
+            </FieldLabel>
+            <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
+              <Slider
+                aria-label="Days to expiration"
+                min={1}
+                max={180}
+                step={1}
+                value={[filters.minDays, filters.maxDays]}
+                onValueChange={handleDteChange}
+              />
+            </div>
+          </Field>
+
+          <Field className="flex flex-col gap-2">
+            <FieldLabel className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              Min Probability of Profit · {formatPercent(filters.minPop)}
+            </FieldLabel>
+            <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
+              <Slider
+                aria-label="Minimum probability of profit"
+                min={0}
+                max={90}
+                step={5}
+                value={[Math.round(filters.minPop * 100)]}
+                onValueChange={handlePopChange}
+              />
+            </div>
+          </Field>
+        </div>
+
+        <div className="relative mt-5">
+          <div className="mb-2 flex items-center gap-3">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+              Strategies
+            </span>
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto p-0 text-[11px] text-muted-foreground hover:text-foreground hover:no-underline"
+              onClick={() => setAllStrategies(true)}
+            >
+              Select all
+            </Button>
+            <Button
+              variant="link"
+              size="xs"
+              className="h-auto p-0 text-[11px] text-muted-foreground hover:text-foreground hover:no-underline"
+              onClick={() => setAllStrategies(false)}
+            >
+              Clear
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {BUILDER_STRATEGIES.map((strategy) => {
+              const enabled = filters.enabled.has(strategy);
+
+              return (
+                <Button
+                  key={strategy}
+                  variant="outline"
+                  size="xs"
+                  aria-pressed={enabled}
+                  onClick={() => toggleStrategy(strategy)}
+                  className={cn(
+                    enabled
+                      ? "border-primary/40 bg-primary/15 text-foreground hover:bg-primary/20"
+                      : "border-border/60 bg-white/60 text-muted-foreground hover:border-primary/30 dark:bg-white/5",
+                  )}
+                >
+                  {titleCase(strategy.replaceAll("-", " "))}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
+        {sortedCandidates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-lg font-semibold">No setups match</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try widening the DTE range, lowering PoP floor, or enabling more
+              strategies.
+            </p>
+          </div>
+        ) : (
+          <>
+            <Table>
+              <TableHeader className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <TableRow>
+                  <SortableHeader
+                    column="strategy"
+                    sort={sort}
+                    onSort={setSortColumn}
+                  >
+                    Strategy
+                  </SortableHeader>
+                  <SortableHeader
+                    column="expiration"
+                    sort={sort}
+                    onSort={setSortColumn}
+                  >
+                    Expiration
+                  </SortableHeader>
+                  <TableHead>Strikes</TableHead>
+                  <SortableHeader
+                    column="score"
+                    sort={sort}
+                    onSort={setSortColumn}
+                    align="right"
+                  >
+                    Score
+                  </SortableHeader>
+                  <SortableHeader
+                    column="maxProfit"
+                    sort={sort}
+                    onSort={setSortColumn}
+                    align="right"
+                  >
+                    Max Profit
+                  </SortableHeader>
+                  <SortableHeader
+                    column="maxLoss"
+                    sort={sort}
+                    onSort={setSortColumn}
+                    align="right"
+                  >
+                    Max Loss
+                  </SortableHeader>
+                  <SortableHeader
+                    column="returnOnRisk"
+                    sort={sort}
+                    onSort={setSortColumn}
+                    align="right"
+                  >
+                    Return on Risk
+                  </SortableHeader>
+                  <SortableHeader
+                    column="probabilityOfProfit"
+                    sort={sort}
+                    onSort={setSortColumn}
+                    align="right"
+                  >
+                    Probability of Profit
+                  </SortableHeader>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pagedCandidates.map((candidate) => (
+                  <CandidateRow candidate={candidate} key={candidate.id} />
+                ))}
+              </TableBody>
+            </Table>
+            <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
+              <span className="text-xs text-muted-foreground">
+                {page * PAGE_SIZE + 1}–
+                {Math.min((page + 1) * PAGE_SIZE, sortedCandidates.length)} of{" "}
+                {sortedCandidates.length} setups
               </span>
-              <Button
-                variant="link"
-                size="xs"
-                className="h-auto p-0 text-[11px] text-muted-foreground hover:text-foreground hover:no-underline"
-                onClick={() => setAllStrategies(true)}
-              >
-                Select all
-              </Button>
-              <Button
-                variant="link"
-                size="xs"
-                className="h-auto p-0 text-[11px] text-muted-foreground hover:text-foreground hover:no-underline"
-                onClick={() => setAllStrategies(false)}
-              >
-                Clear
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {BUILDER_STRATEGIES.map((strategy) => {
-                const enabled = filters.enabled.has(strategy);
-
-                return (
-                  <Button
-                    key={strategy}
-                    variant="outline"
-                    size="xs"
-                    aria-pressed={enabled}
-                    onClick={() => toggleStrategy(strategy)}
-                    className={cn(
-                      enabled
-                        ? "border-primary/40 bg-primary/15 text-foreground hover:bg-primary/20"
-                        : "border-border/60 bg-white/60 text-muted-foreground hover:border-primary/30 dark:bg-white/5",
-                    )}
-                  >
-                    {titleCase(strategy.replaceAll("-", " "))}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
-          {sortedCandidates.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-lg font-semibold">No setups match</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try widening the DTE range, lowering PoP floor, or enabling more
-                strategies.
-              </p>
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <TableRow>
-                    <SortableHeader
-                      column="strategy"
-                      sort={sort}
-                      onSort={setSortColumn}
-                    >
-                      Strategy
-                    </SortableHeader>
-                    <SortableHeader
-                      column="expiration"
-                      sort={sort}
-                      onSort={setSortColumn}
-                    >
-                      Expiration
-                    </SortableHeader>
-                    <TableHead>Strikes</TableHead>
-                    <SortableHeader
-                      column="score"
-                      sort={sort}
-                      onSort={setSortColumn}
-                      align="right"
-                    >
-                      Score
-                    </SortableHeader>
-                    <SortableHeader
-                      column="maxProfit"
-                      sort={sort}
-                      onSort={setSortColumn}
-                      align="right"
-                    >
-                      Max Profit
-                    </SortableHeader>
-                    <SortableHeader
-                      column="maxLoss"
-                      sort={sort}
-                      onSort={setSortColumn}
-                      align="right"
-                    >
-                      Max Loss
-                    </SortableHeader>
-                    <SortableHeader
-                      column="returnOnRisk"
-                      sort={sort}
-                      onSort={setSortColumn}
-                      align="right"
-                    >
-                      Return on Risk
-                    </SortableHeader>
-                    <SortableHeader
-                      column="probabilityOfProfit"
-                      sort={sort}
-                      onSort={setSortColumn}
-                      align="right"
-                    >
-                      Probability of Profit
-                    </SortableHeader>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagedCandidates.map((candidate) => (
-                    <CandidateRow candidate={candidate} key={candidate.id} />
-                  ))}
-                </TableBody>
-              </Table>
-              <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={page === 0}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
                 <span className="text-xs text-muted-foreground">
-                  {page * PAGE_SIZE + 1}–
-                  {Math.min((page + 1) * PAGE_SIZE, sortedCandidates.length)} of{" "}
-                  {sortedCandidates.length} setups
+                  {page + 1} / {totalPages}
                 </span>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    disabled={page === 0}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-xs text-muted-foreground">
-                    {page + 1} / {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="xs"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  disabled={page >= totalPages - 1}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
               </div>
-            </>
-          )}
-        </section>
-      </div>
-    </main>
+            </div>
+          </>
+        )}
+      </section>
+    </>
   );
 }
 

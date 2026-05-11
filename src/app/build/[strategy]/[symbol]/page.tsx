@@ -24,9 +24,18 @@ export default function BuildStrategyPage({
   searchParams: SearchParams;
 }) {
   return (
-    <Suspense fallback={<Spinner className="h-96 w-full" />}>
-      <BuildContent params={params} searchParams={searchParams} />
-    </Suspense>
+    <main>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
+        <header>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
+            Options Planner · Builder
+          </p>
+        </header>
+        <Suspense fallback={<Spinner className="h-96 w-full" />}>
+          <BuildContent params={params} searchParams={searchParams} />
+        </Suspense>
+      </div>
+    </main>
   );
 }
 

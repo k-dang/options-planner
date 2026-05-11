@@ -38,8 +38,8 @@ export default function PositionsPage() {
   );
 
   return (
-    <main className="flex-1 bg-background px-6 py-8">
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+    <main>
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
