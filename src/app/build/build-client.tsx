@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { builderStrategyHref } from "@/app/build/href";
+import { builderStrategyHref } from "@/lib/hrefs";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { StrikeSlider } from "@/components/strike-slider";

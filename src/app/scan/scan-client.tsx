@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { scanSymbolHref } from "@/app/scan/href";
+import { scanSymbolHref } from "@/lib/hrefs";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Button } from "@/components/ui/button";
