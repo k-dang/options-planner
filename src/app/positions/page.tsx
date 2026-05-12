@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DevSkeletonToggle } from "./dev-skeleton-toggle";
 import { PositionActions, RefreshAllPositionsButton } from "./position-actions";
+import { PositionRowActionsCell, PositionRowLink } from "./position-row";
 import { PositionsSkeleton } from "./positions-skeleton";
 import {
   POSITIONS_TABLE_CLASS,
@@ -102,7 +103,8 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
   const snapshot = strategy.latestSnapshot;
 
   return (
-    <TableRow
+    <PositionRowLink
+      href={strategy.builderHref}
       className={cn(
         strategy.displayStatus === "closed" &&
           "bg-muted/20 text-muted-foreground",
@@ -146,14 +148,14 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
           </span>
         )}
       </TableCell>
-      <TableCell>
+      <PositionRowActionsCell>
         <PositionActions
           id={strategy.id}
           name={strategy.name}
           disabled={strategy.displayStatus !== "open"}
         />
-      </TableCell>
-    </TableRow>
+      </PositionRowActionsCell>
+    </PositionRowLink>
   );
 }
 

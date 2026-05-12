@@ -5,6 +5,16 @@ function Bar({ className }: { className?: string }) {
   return <Skeleton className={cn("rounded-md", className)} />;
 }
 
+const EXPIRATION_PILLS = [
+  { id: "exp-a", width: "w-16" },
+  { id: "exp-b", width: "w-20" },
+  { id: "exp-c", width: "w-14" },
+  { id: "exp-d", width: "w-20" },
+  { id: "exp-e", width: "w-16" },
+  { id: "exp-f", width: "w-20" },
+  { id: "exp-g", width: "w-14" },
+];
+
 export function OptimizeSkeleton() {
   return (
     <div
@@ -39,14 +49,9 @@ export function OptimizeSkeleton() {
         </div>
 
         <div className="relative mt-4 flex flex-wrap gap-2">
-          {["w-16", "w-20", "w-14", "w-20", "w-16", "w-20", "w-14"].map(
-            (width, index) => (
-              <Bar
-                key={`exp-${index}`}
-                className={cn("h-10 rounded-full", width)}
-              />
-            ),
-          )}
+          {EXPIRATION_PILLS.map(({ id, width }) => (
+            <Bar key={id} className={cn("h-10 rounded-full", width)} />
+          ))}
         </div>
       </section>
 

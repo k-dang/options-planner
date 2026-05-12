@@ -15,6 +15,7 @@ import {
 
 const ROWS = [
   {
+    id: "row-a",
     name: "w-44",
     sub: "w-28",
     pl: "w-20",
@@ -24,6 +25,7 @@ const ROWS = [
     marked: "w-28",
   },
   {
+    id: "row-b",
     name: "w-36",
     sub: "w-32",
     pl: "w-16",
@@ -33,6 +35,7 @@ const ROWS = [
     marked: "w-24",
   },
   {
+    id: "row-c",
     name: "w-48",
     sub: "w-24",
     pl: "w-24",
@@ -42,6 +45,7 @@ const ROWS = [
     marked: "w-28",
   },
   {
+    id: "row-d",
     name: "w-32",
     sub: "w-28",
     pl: "w-20",
@@ -51,6 +55,7 @@ const ROWS = [
     marked: "w-20",
   },
   {
+    id: "row-e",
     name: "w-40",
     sub: "w-32",
     pl: "w-16",
@@ -87,11 +92,8 @@ export function PositionsSkeleton() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {ROWS.map((row, i) => (
-            <TableRow
-              key={`skeleton-row-${i}`}
-              className="hover:bg-transparent"
-            >
+          {ROWS.map((row) => (
+            <TableRow key={row.id} className="hover:bg-transparent">
               <TableCell>
                 <div className="flex flex-col gap-1.5">
                   <Bar className={cn("h-3.5", row.name)} />

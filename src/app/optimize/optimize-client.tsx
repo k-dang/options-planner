@@ -309,4 +309,3 @@ function optimizerCandidateDebug(candidate: OptimizerCandidate) {
     breakevens: candidate.evaluation.breakevens,
   };
 }
-

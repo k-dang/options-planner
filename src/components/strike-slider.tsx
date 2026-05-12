@@ -209,7 +209,7 @@ export function StrikeSlider({
 
           return (
             <div
-              key={`${leg.optionType}-${leg.side}-${index}`}
+              key={`${leg.optionType}-${leg.side}-${leg.strike}`}
               className="absolute -translate-x-1/2"
               style={{ left: `${x}%`, top }}
             >

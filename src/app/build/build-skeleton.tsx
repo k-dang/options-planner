@@ -5,6 +5,8 @@ function Bar({ className }: { className?: string }) {
   return <Skeleton className={cn("rounded-md", className)} />;
 }
 
+const METRIC_TILE_KEYS = ["a", "b", "c", "d", "e"];
+
 export function BuildSkeleton() {
   return (
     <div
@@ -22,8 +24,8 @@ export function BuildSkeleton() {
       </section>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <MetricTileSkeleton key={`metric-${index}`} />
+        {METRIC_TILE_KEYS.map((key) => (
+          <MetricTileSkeleton key={key} />
         ))}
       </section>
 

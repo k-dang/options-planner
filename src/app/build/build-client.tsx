@@ -11,7 +11,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { builderStrategyHref } from "@/lib/hrefs";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { StrikeSlider } from "@/components/strike-slider";
@@ -45,6 +44,7 @@ import {
   saveBuilderStrategy,
 } from "@/lib/build-actions";
 import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
+import { builderStrategyHref } from "@/lib/hrefs";
 import {
   createBuilderState,
   getBuilderOptionLegs,
@@ -361,8 +361,7 @@ export function BuilderClient({
                       content={
                         <ChartTooltipContent
                           labelFormatter={(_, payload) => {
-                            const price =
-                              payload[0]?.payload?.underlyingPrice;
+                            const price = payload[0]?.payload?.underlyingPrice;
 
                             return price
                               ? `Underlying ${formatCurrency(price)}`
@@ -411,8 +410,8 @@ export function BuilderClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {evaluation.legs.map((evaluatedLeg, index) => (
-                      <TableRow key={`${evaluatedLeg.leg.kind}-${index}`}>
+                    {evaluation.legs.map((evaluatedLeg) => (
+                      <TableRow key={legRowKey(evaluatedLeg.leg)}>
                         <TableCell className="font-medium">
                           <LegDescription leg={evaluatedLeg.leg} />
                         </TableCell>
@@ -569,6 +568,11 @@ function strikeInput(index: number, strike: number) {
   if (index === 1) return { strike2: strike };
   if (index === 2) return { strike3: strike };
   return { strike4: strike };
+}
+
+function legRowKey(leg: StrategyState["legs"][number]) {
+  if (leg.kind === "stock") return `stock-${leg.side}`;
+  return `option-${leg.optionType}-${leg.side}-${leg.strike}-${leg.expiration}`;
 }
 
 function formatStrategyName(strategy: StrategyState["strategy"]) {

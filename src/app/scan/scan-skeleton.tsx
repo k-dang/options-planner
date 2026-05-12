@@ -13,25 +13,60 @@ function Bar({ className }: { className?: string }) {
   return <Skeleton className={cn("rounded-md", className)} />;
 }
 
-const STRATEGY_PILL_WIDTHS = [
-  "w-20",
-  "w-24",
-  "w-24",
-  "w-28",
-  "w-20",
-  "w-24",
-  "w-28",
-  "w-20",
-  "w-28",
-  "w-24",
+const STRATEGY_PILLS = [
+  { id: "pill-a", width: "w-20" },
+  { id: "pill-b", width: "w-24" },
+  { id: "pill-c", width: "w-24" },
+  { id: "pill-d", width: "w-28" },
+  { id: "pill-e", width: "w-20" },
+  { id: "pill-f", width: "w-24" },
+  { id: "pill-g", width: "w-28" },
+  { id: "pill-h", width: "w-20" },
+  { id: "pill-i", width: "w-28" },
+  { id: "pill-j", width: "w-24" },
 ];
 
 const ROWS = [
-  { strat: "w-28", strike: "w-24", profit: "w-16", loss: "w-14", ror: "w-12" },
-  { strat: "w-24", strike: "w-28", profit: "w-14", loss: "w-16", ror: "w-14" },
-  { strat: "w-32", strike: "w-20", profit: "w-16", loss: "w-12", ror: "w-12" },
-  { strat: "w-28", strike: "w-32", profit: "w-12", loss: "w-16", ror: "w-14" },
-  { strat: "w-24", strike: "w-24", profit: "w-14", loss: "w-14", ror: "w-10" },
+  {
+    id: "row-a",
+    strat: "w-28",
+    strike: "w-24",
+    profit: "w-16",
+    loss: "w-14",
+    ror: "w-12",
+  },
+  {
+    id: "row-b",
+    strat: "w-24",
+    strike: "w-28",
+    profit: "w-14",
+    loss: "w-16",
+    ror: "w-14",
+  },
+  {
+    id: "row-c",
+    strat: "w-32",
+    strike: "w-20",
+    profit: "w-16",
+    loss: "w-12",
+    ror: "w-12",
+  },
+  {
+    id: "row-d",
+    strat: "w-28",
+    strike: "w-32",
+    profit: "w-12",
+    loss: "w-16",
+    ror: "w-14",
+  },
+  {
+    id: "row-e",
+    strat: "w-24",
+    strike: "w-24",
+    profit: "w-14",
+    loss: "w-14",
+    ror: "w-10",
+  },
 ];
 
 export function ScanSkeleton() {
@@ -65,11 +100,8 @@ export function ScanSkeleton() {
         <div className="relative mt-5">
           <Bar className="mb-2 h-2.5 w-20" />
           <div className="flex flex-wrap gap-2">
-            {STRATEGY_PILL_WIDTHS.map((width, index) => (
-              <Bar
-                key={`strategy-${index}`}
-                className={cn("h-7", width)}
-              />
+            {STRATEGY_PILLS.map(({ id, width }) => (
+              <Bar key={id} className={cn("h-7", width)} />
             ))}
           </div>
         </div>
@@ -107,11 +139,8 @@ export function ScanSkeleton() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ROWS.map((row, index) => (
-              <TableRow
-                key={`scan-row-${index}`}
-                className="hover:bg-transparent"
-              >
+            {ROWS.map((row) => (
+              <TableRow key={row.id} className="hover:bg-transparent">
                 <TableCell>
                   <div className="flex flex-col gap-1.5">
                     <Bar className={cn("h-3.5", row.strat)} />

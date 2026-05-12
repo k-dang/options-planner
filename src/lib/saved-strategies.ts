@@ -8,7 +8,11 @@ import type {
   StrategySnapshotLegMark,
   StrategySnapshotType,
 } from "@/db/schema";
-import { evaluateStrategy, type StrategyState } from "@/lib/options";
+import {
+  evaluateStrategy,
+  type StrategyState,
+  serializeBuilderState,
+} from "@/lib/options";
 import {
   buildEntryLegMarks,
   calculateCapitalAtRisk,
@@ -31,6 +35,7 @@ export type SavedStrategyListItem = {
   daysUntilExpiration: number | null;
   entrySignedMarkValue: number;
   capitalAtRisk: number | null;
+  builderHref: string;
   latestSnapshot: {
     id: string;
     snapshotType: StrategySnapshot["snapshotType"];
@@ -43,6 +48,53 @@ export type SavedStrategyListItem = {
     quoteSource: string;
   } | null;
 };
+
+function buildPositionBuilderHref(strategy: SavedStrategy): string {
+  const base = serializeBuilderState(strategy.entryState);
+  const separator = base.includes("?") ? "&" : "?";
+  return `${base}${separator}positionId=${encodeURIComponent(strategy.id)}`;
+}
+
+function toSavedStrategyListItem(
+  strategy: SavedStrategy,
+  latestSnapshot: StrategySnapshot | null,
+): SavedStrategyListItem {
+  const daysUntilExpiration = getDaysUntilExpiration(strategy.entryState);
+  const displayStatus =
+    strategy.status === "open" &&
+    daysUntilExpiration !== null &&
+    daysUntilExpiration < 0
+      ? "expired"
+      : strategy.status;
+
+  return {
+    id: strategy.id,
+    name: strategy.name,
+    symbol: strategy.symbol,
+    strategyType: strategy.strategyType,
+    status: strategy.status,
+    displayStatus,
+    createdAt: strategy.createdAt,
+    closedAt: strategy.closedAt,
+    daysUntilExpiration,
+    entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
+    capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
+    builderHref: buildPositionBuilderHref(strategy),
+    latestSnapshot: latestSnapshot
+      ? {
+          id: latestSnapshot.id,
+          snapshotType: latestSnapshot.snapshotType,
+          observedAt: latestSnapshot.observedAt,
+          underlyingPrice: toNumber(latestSnapshot.underlyingPrice),
+          signedMarkValue: toNumber(latestSnapshot.signedMarkValue),
+          unrealizedProfitLoss: toNumber(latestSnapshot.unrealizedProfitLoss),
+          returnOnRisk: toNullableNumber(latestSnapshot.returnOnRisk),
+          legMarks: latestSnapshot.legMarks,
+          quoteSource: latestSnapshot.quoteSource,
+        }
+      : null,
+  };
+}
 
 export async function listSavedStrategies(): Promise<SavedStrategyListItem[]> {
   const db = getDb();
@@ -67,43 +119,36 @@ export async function listSavedStrategies(): Promise<SavedStrategyListItem[]> {
     }
   }
 
-  return strategies.map((strategy) => {
-    const daysUntilExpiration = getDaysUntilExpiration(strategy.entryState);
-    const latestSnapshot = latestSnapshots.get(strategy.id) ?? null;
-    const displayStatus =
-      strategy.status === "open" &&
-      daysUntilExpiration !== null &&
-      daysUntilExpiration < 0
-        ? "expired"
-        : strategy.status;
+  return strategies.map((strategy) =>
+    toSavedStrategyListItem(strategy, latestSnapshots.get(strategy.id) ?? null),
+  );
+}
 
-    return {
-      id: strategy.id,
-      name: strategy.name,
-      symbol: strategy.symbol,
-      strategyType: strategy.strategyType,
-      status: strategy.status,
-      displayStatus,
-      createdAt: strategy.createdAt,
-      closedAt: strategy.closedAt,
-      daysUntilExpiration,
-      entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
-      capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
-      latestSnapshot: latestSnapshot
-        ? {
-            id: latestSnapshot.id,
-            snapshotType: latestSnapshot.snapshotType,
-            observedAt: latestSnapshot.observedAt,
-            underlyingPrice: toNumber(latestSnapshot.underlyingPrice),
-            signedMarkValue: toNumber(latestSnapshot.signedMarkValue),
-            unrealizedProfitLoss: toNumber(latestSnapshot.unrealizedProfitLoss),
-            returnOnRisk: toNullableNumber(latestSnapshot.returnOnRisk),
-            legMarks: latestSnapshot.legMarks,
-            quoteSource: latestSnapshot.quoteSource,
-          }
-        : null,
-    };
-  });
+export async function getSavedStrategy(
+  id: string,
+): Promise<SavedStrategyListItem | null> {
+  const db = getDb();
+  const [strategy] = await db
+    .select()
+    .from(savedStrategies)
+    .where(eq(savedStrategies.id, id))
+    .limit(1);
+
+  if (!strategy) {
+    return null;
+  }
+
+  const [latestSnapshot] = await db
+    .select()
+    .from(strategySnapshots)
+    .where(eq(strategySnapshots.strategyId, id))
+    .orderBy(
+      desc(strategySnapshots.observedAt),
+      desc(strategySnapshots.createdAt),
+    )
+    .limit(1);
+
+  return toSavedStrategyListItem(strategy, latestSnapshot ?? null);
 }
 
 export async function createSavedStrategyFromEntry(state: StrategyState) {

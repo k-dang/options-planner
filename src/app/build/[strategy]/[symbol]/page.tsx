@@ -4,6 +4,7 @@ import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { BuilderClient } from "../../build-client";
 import { BuildSkeleton } from "../../build-skeleton";
+import { PositionBanner } from "../../position-banner";
 
 type SearchParams = Promise<{
   exp?: string | string[];
@@ -12,17 +13,20 @@ type SearchParams = Promise<{
   strike3?: string | string[];
   strike4?: string | string[];
   qty?: string | string[];
+  positionId?: string | string[];
 }>;
 
 type Params = Promise<{ strategy: string; symbol: string }>;
 
-export default function BuildStrategyPage({
+export default async function BuildStrategyPage({
   params,
   searchParams,
 }: {
   params: Params;
   searchParams: SearchParams;
 }) {
+  const positionId = singleValue((await searchParams).positionId);
+
   return (
     <main>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -31,6 +35,11 @@ export default function BuildStrategyPage({
             Options Planner · Builder
           </p>
         </header>
+        {positionId ? (
+          <Suspense fallback={null}>
+            <PositionBanner positionId={positionId} />
+          </Suspense>
+        ) : null}
         <Suspense fallback={<BuildSkeleton />}>
           <BuildContent params={params} searchParams={searchParams} />
         </Suspense>

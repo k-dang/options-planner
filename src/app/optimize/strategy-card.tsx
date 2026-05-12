@@ -39,9 +39,9 @@ function StrategyCardImpl({ candidate }: { candidate: OptimizerCandidate }) {
       <CardHeader className="pb-3 text-center">
         <div className="text-base font-semibold">{title}</div>
         <div className="mt-1.5 flex flex-wrap justify-center gap-1">
-          {optionLegs.map((leg, index) => (
+          {optionLegs.map((leg) => (
             <LegBadge
-              key={`${leg.optionType}-${leg.side}-${leg.strike}-${index}`}
+              key={`${leg.optionType}-${leg.side}-${leg.strike}-${leg.expiration}`}
               leg={leg}
             />
           ))}
