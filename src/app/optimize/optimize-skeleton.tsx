@@ -44,7 +44,7 @@ export function OptimizeSkeleton() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Bar className="h-2.5 w-16" />
-            <Bar className="h-[62px] w-full rounded-2xl" />
+            <Bar className="h-15.5 w-full rounded-2xl" />
           </div>
         </div>
 

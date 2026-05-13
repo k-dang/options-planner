@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useMemo, useState } from "react";
 import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
-import { optimizeSymbolHref } from "@/app/optimize/href";
 import { StrategyCard } from "@/app/optimize/strategy-card";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { TickerCombobox } from "@/components/ticker-combobox";
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/input-group";
 import { Slider } from "@/components/ui/slider";
 import { formatCurrency } from "@/lib/format";
+import { optimizeSymbolHref } from "@/lib/hrefs";
 import {
   enumerateOptimizerCandidates,
   type OptimizerCandidate,

@@ -72,59 +72,65 @@ function Bar({ className }: { className?: string }) {
 
 export function PositionsSkeleton() {
   return (
-    <div
-      role="status"
-      aria-busy="true"
-      aria-label="Loading saved strategies"
-      className="overflow-hidden rounded-lg border border-border bg-card"
-    >
-      <Table className={POSITIONS_TABLE_CLASS}>
-        <PositionsTableColGroup />
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Name</TableHead>
-            <TableHead>Total Return</TableHead>
-            <TableHead>Created At</TableHead>
-            <TableHead>Days To Expiration</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Marked</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {ROWS.map((row) => (
-            <TableRow key={row.id} className="hover:bg-transparent">
-              <TableCell>
-                <div className="flex flex-col gap-1.5">
-                  <Bar className={cn("h-3.5", row.name)} />
-                  <Bar className={cn("h-2.5", row.sub)} />
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-col gap-1.5">
-                  <Bar className={cn("h-3.5", row.pl)} />
-                  <Bar className={cn("h-2.5", row.pct)} />
-                </div>
-              </TableCell>
-              <TableCell>
-                <Bar className={cn("h-3", row.created)} />
-              </TableCell>
-              <TableCell>
-                <Bar className={cn("h-3", row.dte)} />
-              </TableCell>
-              <TableCell>
-                <Bar className="h-5 w-16 rounded-full" />
-              </TableCell>
-              <TableCell>
-                <Bar className={cn("h-3", row.marked)} />
-              </TableCell>
-              <TableCell>
-                <Bar className="h-9 w-28 rounded-full" />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <div role="status" aria-busy="true" aria-label="Loading saved strategies">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3">
+          <div className="flex flex-col gap-2">
+            <Bar className="h-3 w-36" />
+            <Bar className="h-3 w-28" />
+          </div>
+          <Bar className="h-8 w-28" />
+        </div>
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <Table className={POSITIONS_TABLE_CLASS}>
+            <PositionsTableColGroup />
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Name</TableHead>
+                <TableHead>Total Return</TableHead>
+                <TableHead>Created At</TableHead>
+                <TableHead>Days To Expiration</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Marked</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ROWS.map((row) => (
+                <TableRow key={row.id} className="hover:bg-transparent">
+                  <TableCell>
+                    <div className="flex flex-col gap-1.5">
+                      <Bar className={cn("h-3.5", row.name)} />
+                      <Bar className={cn("h-2.5", row.sub)} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1.5">
+                      <Bar className={cn("h-3.5", row.pl)} />
+                      <Bar className={cn("h-2.5", row.pct)} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Bar className={cn("h-3", row.created)} />
+                  </TableCell>
+                  <TableCell>
+                    <Bar className={cn("h-3", row.dte)} />
+                  </TableCell>
+                  <TableCell>
+                    <Bar className="h-5 w-16 rounded-full" />
+                  </TableCell>
+                  <TableCell>
+                    <Bar className={cn("h-3", row.marked)} />
+                  </TableCell>
+                  <TableCell>
+                    <Bar className="h-9 w-28 rounded-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
       <span className="sr-only">Loading saved strategies</span>
     </div>
   );

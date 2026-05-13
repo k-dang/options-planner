@@ -1,33 +1,14 @@
 import { Suspense } from "react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  formatCurrency,
-  formatDateTime,
-  formatPercent,
-  formatShortDateTime,
-  formatTitleCaseFromKebab,
-} from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import {
   listSavedStrategies,
   type SavedStrategyListItem,
 } from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
 import { DevSkeletonToggle } from "./dev-skeleton-toggle";
-import { PositionActions, RefreshAllPositionsButton } from "./position-actions";
-import { PositionRowActionsCell, PositionRowLink } from "./position-row";
+import { RefreshAllPositionsButton } from "./position-actions";
 import { PositionsSkeleton } from "./positions-skeleton";
-import {
-  POSITIONS_TABLE_CLASS,
-  PositionsTableColGroup,
-} from "./positions-table-layout";
+import { PositionsTable } from "./positions-table";
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -67,145 +48,75 @@ export default function PositionsPage() {
 
 async function PositionsContent() {
   const strategies = await listSavedStrategies();
+  const realizedProfitLoss = calculateRealizedProfitLoss(strategies);
+  const closedCount = strategies.filter(
+    (strategy) => strategy.status === "closed",
+  ).length;
 
   return (
     <>
       {strategies.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
-          <Table className={POSITIONS_TABLE_CLASS}>
-            <PositionsTableColGroup />
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Name</TableHead>
-                <TableHead>Total Return</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Days To Expiration</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Marked</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {strategies.map((strategy) => (
-                <PositionRow key={strategy.id} strategy={strategy} />
-              ))}
-            </TableBody>
-          </Table>
+        <div className="flex flex-col gap-4">
+          <RealizedProfitLossSummary
+            closedCount={closedCount}
+            realizedProfitLoss={realizedProfitLoss}
+          />
+          <PositionsTable strategies={strategies} />
         </div>
       )}
     </>
   );
 }
 
-function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
-  const snapshot = strategy.latestSnapshot;
+function calculateRealizedProfitLoss(strategies: SavedStrategyListItem[]) {
+  return strategies.reduce((total, strategy) => {
+    if (strategy.status !== "closed") {
+      return total;
+    }
+    const snapshot = strategy.latestSnapshot;
+    const profitLoss =
+      snapshot?.unrealizedProfitLoss ??
+      (snapshot ? snapshot.signedMarkValue - strategy.entrySignedMarkValue : 0);
 
-  return (
-    <PositionRowLink
-      href={strategy.builderHref}
-      className={cn(
-        strategy.displayStatus === "closed" &&
-          "bg-muted/20 text-muted-foreground",
-        strategy.displayStatus === "expired" &&
-          "bg-destructive/5 text-muted-foreground",
-      )}
-    >
-      <TableCell>
-        <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate font-medium text-foreground">
-            {strategy.name}
-          </span>
-          <span className="truncate font-mono text-xs text-muted-foreground">
-            {strategy.symbol} ·{" "}
-            {formatTitleCaseFromKebab(strategy.strategyType)}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell>
-        <TotalReturn strategy={strategy} />
-      </TableCell>
-      <TableCell>{formatDateTime(strategy.createdAt)}</TableCell>
-      <TableCell>
-        {strategy.daysUntilExpiration === null
-          ? "n/a"
-          : strategy.daysUntilExpiration < 0
-            ? "Expired"
-            : strategy.daysUntilExpiration}
-      </TableCell>
-      <TableCell>
-        <StatusBadge status={strategy.displayStatus} />
-      </TableCell>
-      <TableCell>
-        {snapshot ? (
-          <span className="text-sm tabular-nums text-muted-foreground">
-            {formatShortDateTime(snapshot.observedAt)}
-          </span>
-        ) : (
-          <span className="font-mono text-xs uppercase tracking-[0.12em] text-muted-foreground/60">
-            Never
-          </span>
-        )}
-      </TableCell>
-      <PositionRowActionsCell>
-        <PositionActions
-          id={strategy.id}
-          name={strategy.name}
-          disabled={strategy.displayStatus !== "open"}
-        />
-      </PositionRowActionsCell>
-    </PositionRowLink>
-  );
+    return total + profitLoss;
+  }, 0);
 }
 
-function TotalReturn({ strategy }: { strategy: SavedStrategyListItem }) {
-  const snapshot = strategy.latestSnapshot;
-  const profitLoss =
-    snapshot?.unrealizedProfitLoss ??
-    (snapshot ? snapshot.signedMarkValue - strategy.entrySignedMarkValue : 0);
-  const returnOnRisk =
-    snapshot?.returnOnRisk ??
-    (strategy.capitalAtRisk === null
-      ? null
-      : profitLoss / strategy.capitalAtRisk);
-
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-1 font-medium tabular-nums",
-        profitLoss > 0 && "text-profit",
-        profitLoss < 0 && "text-destructive",
-      )}
-    >
-      <span>{formatCurrency(profitLoss)}</span>
-      {returnOnRisk === null ? (
-        <span className="text-xs font-normal text-muted-foreground">
-          No risk basis
-        </span>
-      ) : (
-        <span className="text-xs font-normal">
-          {formatPercent(returnOnRisk)}
-        </span>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({
-  status,
+function RealizedProfitLossSummary({
+  closedCount,
+  realizedProfitLoss,
 }: {
-  status: SavedStrategyListItem["displayStatus"];
+  closedCount: number;
+  realizedProfitLoss: number;
 }) {
-  if (status === "open") {
-    return <Badge className="bg-profit/15 text-profit">Open</Badge>;
-  }
-
-  if (status === "expired") {
-    return <Badge variant="destructive">Expired</Badge>;
-  }
-
-  return <Badge variant="secondary">Closed</Badge>;
+  return (
+    <section
+      aria-label="Closed position P&L summary"
+      className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3"
+    >
+      <div>
+        <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">
+          Closed P&L so far
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {closedCount === 1
+            ? "1 closed position"
+            : `${closedCount} closed positions`}
+        </p>
+      </div>
+      <p
+        className={cn(
+          "text-2xl font-semibold tabular-nums",
+          realizedProfitLoss > 0 && "text-profit",
+          realizedProfitLoss < 0 && "text-destructive",
+        )}
+      >
+        {formatCurrency(realizedProfitLoss)}
+      </p>
+    </section>
+  );
 }
 
 function EmptyState() {
