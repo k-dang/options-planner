@@ -25,8 +25,6 @@ export default async function BuildStrategyPage({
   params: Params;
   searchParams: SearchParams;
 }) {
-  const positionId = singleValue((await searchParams).positionId);
-
   return (
     <main>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -35,17 +33,29 @@ export default async function BuildStrategyPage({
             Options Planner · Builder
           </p>
         </header>
-        {positionId ? (
-          <Suspense fallback={null}>
-            <PositionBanner positionId={positionId} />
-          </Suspense>
-        ) : null}
+        <Suspense fallback={null}>
+          <PositionBannerFromSearchParams searchParams={searchParams} />
+        </Suspense>
         <Suspense fallback={<BuildSkeleton />}>
           <BuildContent params={params} searchParams={searchParams} />
         </Suspense>
       </div>
     </main>
   );
+}
+
+async function PositionBannerFromSearchParams({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const positionId = singleValue((await searchParams).positionId);
+
+  if (!positionId) {
+    return null;
+  }
+
+  return <PositionBanner positionId={positionId} />;
 }
 
 async function BuildContent({
