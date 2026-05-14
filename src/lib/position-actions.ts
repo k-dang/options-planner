@@ -1,12 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getRun, start } from "workflow/api";
+import {
+  disablePositionRefreshWorkflow,
+  enablePositionRefreshWorkflow,
+  getPositionRefreshWorkflowState,
+} from "@/lib/position-refresh-workflow-state";
 import {
   closeSavedStrategyAtMarketMark,
   deleteSavedStrategy,
   refreshOpenSavedStrategies,
   refreshSavedStrategyMark,
 } from "@/lib/saved-strategies";
+import { refreshOpenPositionsWorkflow } from "@/workflows/refresh-open-positions";
 
 export type PositionActionState = {
   ok: boolean;
@@ -125,5 +132,56 @@ export async function refreshAllOpenPositionsAction(
           ? error.message
           : "Could not refresh open strategies.",
     };
+  }
+}
+
+export async function startAutoRefreshPositionsAction() {
+  const existing = await getPositionRefreshWorkflowState();
+  const existingStatus = await getWorkflowStatus(existing.runId);
+
+  if (
+    existing.enabled &&
+    existing.runId &&
+    (existingStatus === "running" || existingStatus === "unknown")
+  ) {
+    revalidatePath("/positions");
+    return;
+  }
+
+  const run = await start(refreshOpenPositionsWorkflow);
+  await enablePositionRefreshWorkflow(run.runId, existing.intervalSeconds);
+
+  await getRun(run.runId)
+    .wakeUp()
+    .catch(() => undefined);
+
+  revalidatePath("/positions");
+}
+
+export async function stopAutoRefreshPositionsAction() {
+  const previous = await disablePositionRefreshWorkflow();
+
+  if (previous?.runId) {
+    await getRun(previous.runId)
+      .cancel()
+      .catch(() => undefined);
+  }
+
+  revalidatePath("/positions");
+}
+
+async function getWorkflowStatus(runId: string | null) {
+  if (!runId) {
+    return null;
+  }
+
+  try {
+    const run = getRun(runId);
+    if (!(await run.exists)) {
+      return "missing";
+    }
+    return await run.status;
+  } catch {
+    return "unknown";
   }
 }

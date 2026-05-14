@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, RefreshCw, Trash2 } from "lucide-react";
+import { Check, RefreshCw, Timer, TimerOff, Trash2 } from "lucide-react";
 import { useActionState } from "react";
 import {
   AlertDialog,
@@ -20,6 +20,8 @@ import {
   type PositionActionState,
   refreshAllOpenPositionsAction,
   refreshPositionAction,
+  startAutoRefreshPositionsAction,
+  stopAutoRefreshPositionsAction,
 } from "@/lib/position-actions";
 import { cn } from "@/lib/utils";
 
@@ -177,4 +179,56 @@ export function RefreshAllPositionsButton() {
       )}
     </div>
   );
+}
+
+export function AutoRefreshPositionsButton({
+  enabled = false,
+  intervalSeconds = 14_400,
+  lastError = null,
+  disabled = false,
+}: {
+  enabled?: boolean;
+  intervalSeconds?: number;
+  lastError?: string | null;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex min-w-56 flex-col items-end gap-1">
+      <form
+        action={
+          enabled
+            ? stopAutoRefreshPositionsAction
+            : startAutoRefreshPositionsAction
+        }
+      >
+        <Button
+          type="submit"
+          variant={enabled ? "default" : "outline"}
+          disabled={disabled}
+        >
+          {enabled ? <TimerOff /> : <Timer />}
+          {enabled ? "Stop auto" : "Auto refresh"}
+        </Button>
+      </form>
+      <p className="min-h-4 text-right text-xs text-muted-foreground">
+        {lastError ? (
+          <span className="text-destructive">{lastError}</span>
+        ) : enabled ? (
+          `Every ${formatInterval(intervalSeconds)}`
+        ) : (
+          "Off"
+        )}
+      </p>
+    </div>
+  );
+}
+
+function formatInterval(intervalSeconds: number) {
+  if (intervalSeconds % 3600 === 0) {
+    const hours = intervalSeconds / 3600;
+    return hours === 1 ? "1 hour" : `${hours} hours`;
+  }
+
+  const minutes = Math.round(intervalSeconds / 60);
+  return minutes === 1 ? "1 min" : `${minutes} min`;
 }

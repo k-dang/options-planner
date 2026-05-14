@@ -1,12 +1,16 @@
 import { Suspense } from "react";
 import { formatCurrency } from "@/lib/format";
+import { getPositionRefreshWorkflowState } from "@/lib/position-refresh-workflow-state";
 import {
   listSavedStrategies,
   type SavedStrategyListItem,
 } from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
 import { DevSkeletonToggle } from "./dev-skeleton-toggle";
-import { RefreshAllPositionsButton } from "./position-actions";
+import {
+  AutoRefreshPositionsButton,
+  RefreshAllPositionsButton,
+} from "./position-actions";
 import { PositionsSkeleton } from "./positions-skeleton";
 import { PositionsTable } from "./positions-table";
 
@@ -31,7 +35,12 @@ export default function PositionsPage() {
               Positions
             </h1>
           </div>
-          <RefreshAllPositionsButton />
+          <div className="flex flex-wrap items-start justify-end gap-3">
+            <Suspense fallback={<AutoRefreshPositionsButton disabled />}>
+              <AutoRefreshControl />
+            </Suspense>
+            <RefreshAllPositionsButton />
+          </div>
         </div>
 
         {IS_DEV ? (
@@ -43,6 +52,18 @@ export default function PositionsPage() {
         )}
       </section>
     </main>
+  );
+}
+
+async function AutoRefreshControl() {
+  const autoRefresh = await getPositionRefreshWorkflowState();
+
+  return (
+    <AutoRefreshPositionsButton
+      enabled={autoRefresh.enabled}
+      intervalSeconds={autoRefresh.intervalSeconds}
+      lastError={autoRefresh.lastError}
+    />
   );
 }
 

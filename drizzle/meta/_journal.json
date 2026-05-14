@@ -8,6 +8,20 @@
       "when": 1778291225680,
       "tag": "0000_orange_logan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1778713864691,
+      "tag": "0002_lively_blindfold",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778714757717,
+      "tag": "0003_position_refresh_interval",
+      "breakpoints": true
     }
   ]
 }
