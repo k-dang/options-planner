@@ -6,6 +6,7 @@ import {
   numeric,
   pgSchema,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -143,9 +144,26 @@ export const positionRefreshWorkflows = optionsPlannerSchema.table(
   ],
 );
 
+export const watchlistSymbols = optionsPlannerSchema.table(
+  "watchlist_symbols",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    symbol: varchar("symbol", { length: 16 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("watchlist_symbols_symbol_unique").on(table.symbol),
+    index("watchlist_symbols_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export type SavedStrategy = typeof savedStrategies.$inferSelect;
 export type NewSavedStrategy = typeof savedStrategies.$inferInsert;
 export type StrategySnapshot = typeof strategySnapshots.$inferSelect;
 export type NewStrategySnapshot = typeof strategySnapshots.$inferInsert;
 export type PositionRefreshWorkflow =
   typeof positionRefreshWorkflows.$inferSelect;
+export type WatchlistSymbol = typeof watchlistSymbols.$inferSelect;
+export type NewWatchlistSymbol = typeof watchlistSymbols.$inferInsert;

@@ -13,10 +13,14 @@ import type { TickerSuggestion } from "@/lib/tickers";
 
 export function TickerCombobox({
   defaultSymbol,
+  inputName,
   onNavigate,
+  resetOnBlur = true,
 }: {
   defaultSymbol: string;
-  onNavigate: (symbol: string) => void;
+  inputName?: string;
+  onNavigate?: (symbol: string) => void;
+  resetOnBlur?: boolean;
 }) {
   const [committedSymbol, setCommittedSymbol] = useState(defaultSymbol);
   const [symbolDraft, setSymbolDraft] = useState(defaultSymbol);
@@ -45,7 +49,7 @@ export function TickerCombobox({
   function commit(symbol: string) {
     setCommittedSymbol(symbol);
     setSymbolDraft(symbol);
-    onNavigate(symbol);
+    onNavigate?.(symbol);
   }
 
   function handleSelect(suggestion: TickerSuggestion | null) {
@@ -54,6 +58,9 @@ export function TickerCombobox({
   }
 
   function handleBlur() {
+    if (!resetOnBlur) {
+      return;
+    }
     setSymbolDraft(committedSymbol);
   }
 
@@ -74,6 +81,7 @@ export function TickerCombobox({
     >
       <ComboboxInput
         aria-label="Symbol"
+        name={inputName}
         showTrigger={false}
         onBlur={handleBlur}
         onKeyDown={(e) => {

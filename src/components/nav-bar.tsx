@@ -25,6 +25,12 @@ export function NavBar() {
         Scan
       </Link>
       <Link
+        href="/watchlist"
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        Watchlist
+      </Link>
+      <Link
         href="/positions"
         className="text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
