@@ -77,6 +77,33 @@ describe("ticker watchlist scan", () => {
     );
   });
 
+  it("applies non-default criteria across multiple symbols", async () => {
+    const result = await scanTickerWatchlist(
+      ["AAPL", "MSFT"],
+      {
+        minDaysToExpiration: 1,
+        maxDaysToExpiration: 30,
+        minProbabilityOfProfit: 0.5,
+        enabledStrategies: ["bull-call-spread"],
+      },
+      new TestProvider(),
+    );
+
+    expect(result.scannedSymbols).toBe(2);
+    expect(result.candidates.length).toBeGreaterThan(0);
+    expect(
+      result.candidates.every(
+        (candidate) =>
+          candidate.state.strategy === "bull-call-spread" &&
+          (candidate.summary.probabilityOfProfit ?? 0) >= 0.5 &&
+          daysToExpiration(
+            candidate.state.asOf,
+            candidate.summary.expiration,
+          ) <= 30,
+      ),
+    ).toBe(true);
+  });
+
   it("returns an empty result when no symbols are provided", async () => {
     const result = await scanTickerWatchlist([], undefined, new TestProvider());
 
@@ -87,3 +114,13 @@ describe("ticker watchlist scan", () => {
     });
   });
 });
+
+function daysToExpiration(asOfIso: string, expirationIso: string) {
+  const start = new Date(asOfIso);
+  const end = new Date(`${expirationIso}T20:00:00.000Z`);
+
+  return Math.max(
+    Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)),
+    0,
+  );
+}

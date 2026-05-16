@@ -8,8 +8,10 @@ import {
 } from "@/lib/ticker-watchlist";
 import {
   scanTickerWatchlist,
+  type WatchlistScanCriteria,
   type WatchlistScanResult,
 } from "@/lib/ticker-watchlist-scan";
+import { BUILDER_STRATEGIES, type StrategyTemplateId } from "./options";
 
 export type WatchlistActionState = {
   ok: boolean;
@@ -72,6 +74,7 @@ export async function removeWatchlistSymbolAction(
 
 export async function scanWatchlistAction(
   _previousState: WatchlistScanActionState,
+  formData: FormData,
 ): Promise<WatchlistScanActionState> {
   const symbols = await listWatchlistSymbols();
 
@@ -84,8 +87,10 @@ export async function scanWatchlistAction(
   }
 
   try {
+    const criteria = scanCriteriaFromFormData(formData);
     const result = await scanTickerWatchlist(
       symbols.map((item) => item.symbol),
+      criteria,
     );
 
     return {
@@ -105,4 +110,41 @@ export async function scanWatchlistAction(
       result: null,
     };
   }
+}
+
+function scanCriteriaFromFormData(formData: FormData): WatchlistScanCriteria {
+  const minDays = numberFromFormData(formData, "minDaysToExpiration", 30);
+  const maxDays = numberFromFormData(formData, "maxDaysToExpiration", 60);
+  const minProbabilityOfProfit =
+    numberFromFormData(formData, "minProbabilityOfProfit", 25) / 100;
+  const enabledStrategies = formData
+    .getAll("enabledStrategies")
+    .filter(
+      (value): value is StrategyTemplateId =>
+        typeof value === "string" &&
+        BUILDER_STRATEGIES.includes(value as StrategyTemplateId),
+    );
+
+  return {
+    minDaysToExpiration: Math.min(minDays, maxDays),
+    maxDaysToExpiration: Math.max(minDays, maxDays),
+    minProbabilityOfProfit,
+    enabledStrategies,
+  };
+}
+
+function numberFromFormData(
+  formData: FormData,
+  name: string,
+  fallback: number,
+) {
+  const value = formData.get(name);
+
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
