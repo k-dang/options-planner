@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createGeneratedChain } from "@/lib/options";
+import {
+  createGeneratedChain,
+  parseBuilderState,
+  scanRiskReward,
+} from "@/lib/options";
 import type {
   OptionChainProvider,
   OptionChainRequest,
@@ -104,6 +108,42 @@ describe("ticker watchlist scan", () => {
     ).toBe(true);
   });
 
+  it("preserves the single-symbol scanner builder handoff state", async () => {
+    const provider = new TestProvider();
+    const [singleSymbolCandidate] = scanRiskReward({
+      symbol: "AAPL",
+      minDaysToExpiration: 30,
+      maxDaysToExpiration: 60,
+      minProbabilityOfProfit: 0.25,
+      enabledStrategies: ["bull-call-spread"],
+    });
+    const result = await scanTickerWatchlist(
+      ["AAPL"],
+      {
+        minDaysToExpiration: 30,
+        maxDaysToExpiration: 60,
+        minProbabilityOfProfit: 0.25,
+        enabledStrategies: ["bull-call-spread"],
+      },
+      provider,
+    );
+    const [watchlistCandidate] = result.candidates;
+
+    expect(singleSymbolCandidate).toBeDefined();
+    expect(watchlistCandidate).toBeDefined();
+
+    if (!singleSymbolCandidate || !watchlistCandidate) {
+      return;
+    }
+
+    expect(watchlistCandidate.summary.builderHref).toBe(
+      singleSymbolCandidate.summary.builderHref,
+    );
+    expect(parseBuilderHref(watchlistCandidate.summary.builderHref)).toEqual(
+      watchlistCandidate.state,
+    );
+  });
+
   it("returns an empty result when no symbols are provided", async () => {
     const result = await scanTickerWatchlist([], undefined, new TestProvider());
 
@@ -114,6 +154,20 @@ describe("ticker watchlist scan", () => {
     });
   });
 });
+
+function parseBuilderHref(builderHref: string) {
+  const url = new URL(builderHref, "https://example.test");
+  const [, , strategy, symbol] = url.pathname.split("/");
+
+  return parseBuilderState({
+    strategy,
+    symbol,
+    expiration: url.searchParams.get("exp") ?? undefined,
+    strike: url.searchParams.get("strike") ?? undefined,
+    strike2: url.searchParams.get("strike2") ?? undefined,
+    quantity: url.searchParams.get("qty") ?? undefined,
+  });
+}
 
 function daysToExpiration(asOfIso: string, expirationIso: string) {
   const start = new Date(asOfIso);

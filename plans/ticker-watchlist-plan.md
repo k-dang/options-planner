@@ -22,7 +22,7 @@ Durable decisions that apply across all phases:
 
 ## Phase 1: Persisted Watchlist Shell
 
-**User stories**: 1-9, 31, 35, 37
+**User stories**: 1-9, 30, 34, 36
 
 ### What To Build
 
@@ -45,7 +45,7 @@ Create the first complete watchlist path: a `/watchlist` page that appears in na
 
 ## Phase 2: Manual Multi-Ticker Scan
 
-**User stories**: 10-13, 17-19, 23-25, 32-34, 36
+**User stories**: 10-13, 17-19, 23-25, 31-33, 35
 
 ### What To Build
 
@@ -91,18 +91,17 @@ Expose scanner-style controls on the watchlist page so the user can adjust the s
 
 ## Phase 4: Builder Handoff and Polish
 
-**User stories**: 20, 22, 26-30
+**User stories**: 20, 22, 26-29
 
 ### What To Build
 
-Bring the combined results table up to the expected Risk/Reward comparison quality and complete the handoff into Builder. The page should make scan scope, result counts, provider/source information, empty states, and failures clear enough for regular use.
+Bring the combined results table up to the expected Risk/Reward comparison quality and complete the handoff into Builder. The page should make scan scope, result counts, empty states, and failures clear enough for regular use.
 
 ### Acceptance Criteria
 
 - [ ] The combined table includes the core Risk/Reward columns needed to compare candidates across tickers.
 - [ ] The table includes ticker, strategy, expiration, strikes, score, max profit, max loss, return on risk, and probability of profit where available.
 - [ ] Result counts make clear how many symbols and candidates were scanned.
-- [ ] Provider freshness or source is visible when available.
 - [ ] Empty states cover no scan run, no symbols, no candidates, and partial failure cases.
 - [ ] Selecting a candidate opens the Builder for the exact strategy setup.
 - [ ] Builder links preserve the same strategy state that the single-symbol scanner would open.

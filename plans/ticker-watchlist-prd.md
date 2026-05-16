@@ -43,14 +43,13 @@ The watchlist scan should tolerate partial failure. If one ticker fails because 
 27. As an options trader, I want the Builder link to preserve the same strategy state that the single-symbol scanner would open, so that watchlist candidates are not lossy.
 28. As an options trader, I want scan results to remain on screen after a scan completes, so that I can inspect them before choosing a candidate.
 29. As an options trader, I want scan errors to avoid destroying existing watchlist symbols, so that a provider problem does not mutate my saved list.
-30. As an options trader, I want provider-specific freshness to be visible when available, so that I can judge whether generated or live data backed a result.
-31. As a developer, I want ticker watchlist persistence isolated behind a small module, so that page code does not duplicate database details.
-32. As a developer, I want watchlist scan orchestration isolated from UI code, so that provider fetching, partial failure handling, top-N selection, and result shaping are testable.
-33. As a developer, I want the watchlist scanner to reuse the existing risk/reward scanning engine, so that candidate generation remains consistent with `/scan`.
-34. As a developer, I want the watchlist page to preserve market data credentials on the server side, so that provider access is not exposed to the client.
-35. As a developer, I want the database model to avoid overfitting to browser-local state, so that user ownership can be added later without rewriting the watchlist table.
-36. As a developer, I want unit tests around scan result shaping and partial failure behavior, so that multi-ticker behavior stays stable as providers evolve.
-37. As a developer, I want persistence tests or integration-style tests around adding, listing, and removing watchlist symbols, so that database behavior is covered.
+30. As a developer, I want ticker watchlist persistence isolated behind a small module, so that page code does not duplicate database details.
+31. As a developer, I want watchlist scan orchestration isolated from UI code, so that provider fetching, partial failure handling, top-N selection, and result shaping are testable.
+32. As a developer, I want the watchlist scanner to reuse the existing risk/reward scanning engine, so that candidate generation remains consistent with `/scan`.
+33. As a developer, I want the watchlist page to preserve market data credentials on the server side, so that provider access is not exposed to the client.
+34. As a developer, I want the database model to avoid overfitting to browser-local state, so that user ownership can be added later without rewriting the watchlist table.
+35. As a developer, I want unit tests around scan result shaping and partial failure behavior, so that multi-ticker behavior stays stable as providers evolve.
+36. As a developer, I want persistence tests or integration-style tests around adding, listing, and removing watchlist symbols, so that database behavior is covered.
 
 ## Implementation Decisions
 

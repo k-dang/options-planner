@@ -1,9 +1,13 @@
 "use client";
 
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
-import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
+import { useActionState, useState } from "react";
+import {
+  defaultRiskRewardSortDirection,
+  RiskRewardCandidatesTable,
+  type RiskRewardSort,
+  type RiskRewardSortColumn,
+} from "@/components/risk-reward-candidates-table";
 import {
   createDefaultScanFilters,
   ScanCriteriaControls,
@@ -12,22 +16,12 @@ import {
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatCurrency, formatPercent } from "@/lib/format";
-import {
   addWatchlistSymbolAction,
   removeWatchlistSymbolAction,
   scanWatchlistAction,
   type WatchlistActionState,
   type WatchlistScanActionState,
 } from "@/lib/ticker-watchlist-actions";
-import type { WatchlistScanCandidate } from "@/lib/ticker-watchlist-scan";
 import { cn } from "@/lib/utils";
 
 const INITIAL_STATE: WatchlistActionState = {
@@ -39,19 +33,6 @@ const INITIAL_SCAN_STATE: WatchlistScanActionState = {
   message: null,
   result: null,
 };
-const RETURN_ON_RISK_SORT_CAP = 5;
-
-type SortColumn =
-  | "ticker"
-  | "strategy"
-  | "expiration"
-  | "score"
-  | "maxProfit"
-  | "maxLoss"
-  | "returnOnRisk"
-  | "probabilityOfProfit";
-type SortDirection = "asc" | "desc";
-
 export function AddWatchlistSymbolForm() {
   const [state, formAction, pending] = useActionState(
     addWatchlistSymbolAction,
@@ -134,17 +115,17 @@ export function WatchlistScanner({ symbolCount }: { symbolCount: number }) {
     INITIAL_SCAN_STATE,
   );
   const [filters, setFilters] = useState<ScanFilters>(createDefaultScanFilters);
-  const [sort, setSort] = useState<{ column: SortColumn; dir: SortDirection }>({
+  const [sort, setSort] = useState<RiskRewardSort>({
     column: "score",
     dir: "desc",
   });
   const result = state.result;
 
-  function setSortColumn(column: SortColumn) {
+  function setSortColumn(column: RiskRewardSortColumn) {
     setSort((current) =>
       current.column === column
         ? { column, dir: current.dir === "asc" ? "desc" : "asc" }
-        : { column, dir: defaultDirection(column) },
+        : { column, dir: defaultRiskRewardSortDirection(column) },
     );
   }
 
@@ -218,10 +199,23 @@ export function WatchlistScanner({ symbolCount }: { symbolCount: number }) {
               </ul>
             </div>
           ) : null}
-          <WatchlistCandidatesTable
+          <RiskRewardCandidatesTable
             candidates={result.candidates}
             sort={sort}
             onSort={setSortColumn}
+            showTicker
+            className="rounded-lg border-border shadow-none"
+            emptyState={
+              <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
+                <div className="max-w-sm">
+                  <h2 className="text-lg font-semibold">No candidates found</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    The saved symbols scanned successfully, but no setups
+                    matched the selected criteria.
+                  </p>
+                </div>
+              </div>
+            }
           />
         </>
       )}
@@ -255,259 +249,4 @@ function ScanMetric({ label, value }: { label: string; value: number }) {
       <p className="mt-2 font-mono text-2xl font-semibold">{value}</p>
     </div>
   );
-}
-
-function WatchlistCandidatesTable({
-  candidates,
-  sort,
-  onSort,
-}: {
-  candidates: WatchlistScanCandidate[];
-  sort: { column: SortColumn; dir: SortDirection };
-  onSort: (column: SortColumn) => void;
-}) {
-  const sortedCandidates = useMemo(() => {
-    return [...candidates].sort((left, right) => compare(left, right, sort));
-  }, [candidates, sort]);
-
-  if (candidates.length === 0) {
-    return (
-      <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
-        <div className="max-w-sm">
-          <h2 className="text-lg font-semibold">No candidates found</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            The saved symbols scanned successfully, but no setups matched the
-            default criteria.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card">
-      <Table>
-        <TableHeader className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-          <TableRow>
-            <SortableHeader column="ticker" sort={sort} onSort={onSort}>
-              Ticker
-            </SortableHeader>
-            <SortableHeader column="strategy" sort={sort} onSort={onSort}>
-              Strategy
-            </SortableHeader>
-            <SortableHeader column="expiration" sort={sort} onSort={onSort}>
-              Expiration
-            </SortableHeader>
-            <TableHead>Strikes</TableHead>
-            <SortableHeader
-              column="score"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Score
-            </SortableHeader>
-            <SortableHeader
-              column="maxProfit"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Max Profit
-            </SortableHeader>
-            <SortableHeader
-              column="maxLoss"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Max Loss
-            </SortableHeader>
-            <SortableHeader
-              column="returnOnRisk"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Return on Risk
-            </SortableHeader>
-            <SortableHeader
-              column="probabilityOfProfit"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Probability of Profit
-            </SortableHeader>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedCandidates.map((candidate) => (
-            <CandidateRow candidate={candidate} key={candidate.id} />
-          ))}
-        </TableBody>
-      </Table>
-    </section>
-  );
-}
-
-function SortableHeader({
-  column,
-  sort,
-  onSort,
-  align = "left",
-  children,
-}: {
-  column: SortColumn;
-  sort: { column: SortColumn; dir: SortDirection };
-  onSort: (column: SortColumn) => void;
-  align?: "left" | "right";
-  children: React.ReactNode;
-}) {
-  const active = sort.column === column;
-
-  return (
-    <TableHead className={align === "right" ? "text-right" : "text-left"}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        onClick={() => onSort(column)}
-        className={cn(
-          "h-auto gap-1 px-0 font-medium uppercase tracking-wider hover:bg-transparent hover:text-foreground",
-          active ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        {children}
-        <span className="text-[9px] opacity-70">
-          {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-        </span>
-      </Button>
-    </TableHead>
-  );
-}
-
-function defaultDirection(column: SortColumn): SortDirection {
-  return column === "ticker" || column === "strategy" || column === "expiration"
-    ? "asc"
-    : "desc";
-}
-
-function compare(
-  left: WatchlistScanCandidate,
-  right: WatchlistScanCandidate,
-  sort: { column: SortColumn; dir: SortDirection },
-) {
-  const sign = sort.dir === "asc" ? 1 : -1;
-
-  switch (sort.column) {
-    case "ticker":
-      return sign * left.ticker.localeCompare(right.ticker);
-    case "strategy":
-      return (
-        sign *
-        left.summary.strategyLabel.localeCompare(right.summary.strategyLabel)
-      );
-    case "expiration":
-      return (
-        sign * left.summary.expiration.localeCompare(right.summary.expiration)
-      );
-    case "score":
-      return sign * compareNullable(left.summary.score, right.summary.score);
-    case "maxProfit":
-      return (
-        sign * compareNullable(left.summary.maxProfit, right.summary.maxProfit)
-      );
-    case "maxLoss":
-      return (
-        sign * compareNullable(left.summary.maxLoss, right.summary.maxLoss)
-      );
-    case "returnOnRisk":
-      return (
-        sign *
-        compareNullable(
-          cappedReturnOnRisk(left.summary.returnOnRisk),
-          cappedReturnOnRisk(right.summary.returnOnRisk),
-        )
-      );
-    case "probabilityOfProfit":
-      return (
-        sign *
-        compareNullable(
-          left.summary.probabilityOfProfit,
-          right.summary.probabilityOfProfit,
-        )
-      );
-    default:
-      return 0;
-  }
-}
-
-function compareNullable(left: number | null, right: number | null) {
-  if (left === null && right === null) return 0;
-  if (left === null) return -1;
-  if (right === null) return 1;
-
-  return left - right;
-}
-
-function cappedReturnOnRisk(value: number | null) {
-  return value === null ? null : Math.min(value, RETURN_ON_RISK_SORT_CAP);
-}
-
-function CandidateRow({ candidate }: { candidate: WatchlistScanCandidate }) {
-  const bias = STRATEGY_BIAS[candidate.state.strategy];
-  const ror = candidate.summary.returnOnRisk;
-
-  return (
-    <TableRow>
-      <TableCell className="font-mono font-semibold">
-        {candidate.ticker}
-      </TableCell>
-      <TableCell className="font-medium">
-        <div className="flex flex-col gap-1">
-          {titleCase(candidate.summary.strategyLabel)}
-          <BiasBadge bias={bias} />
-        </div>
-      </TableCell>
-      <TableCell className="font-mono text-xs text-muted-foreground">
-        {candidate.summary.expiration}
-      </TableCell>
-      <TableCell className="font-mono text-xs">
-        {candidate.summary.strikes.map((strike) => `$${strike}`).join(" / ")}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums">
-        {formatPercent(candidate.summary.score)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums">
-        {formatCurrency(candidate.summary.maxProfit)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums text-destructive">
-        {candidate.summary.maxLoss === null
-          ? "Undefined"
-          : formatCurrency(Math.abs(candidate.summary.maxLoss))}
-      </TableCell>
-      <TableCell className="text-right font-mono font-semibold tabular-nums">
-        {ror === null ? "n/a" : formatPercent(ror)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums text-primary">
-        {formatPercent(candidate.summary.probabilityOfProfit)}
-      </TableCell>
-      <TableCell className="text-right">
-        <Button
-          nativeButton={false}
-          size="sm"
-          variant="outline"
-          render={<Link href={candidate.summary.builderHref} />}
-        >
-          Open
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function titleCase(value: string) {
-  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

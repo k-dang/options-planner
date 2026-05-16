@@ -1,45 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
+import {
+  defaultRiskRewardSortDirection,
+  RiskRewardCandidatesTable,
+  type RiskRewardSort,
+  type RiskRewardSortColumn,
+} from "@/components/risk-reward-candidates-table";
 import {
   createDefaultScanFilters,
   ScanCriteriaControls,
   type ScanFilters,
 } from "@/components/scan-criteria-controls";
 import { TickerCombobox } from "@/components/ticker-combobox";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatCurrency, formatPercent } from "@/lib/format";
+import { formatCurrency } from "@/lib/format";
 import { scanSymbolHref } from "@/lib/hrefs";
-import {
-  type OptimizerCandidate,
-  type OptionChainSnapshot,
-  scanRiskReward,
-} from "@/lib/options";
-import { cn } from "@/lib/utils";
-
-type SortColumn =
-  | "strategy"
-  | "expiration"
-  | "score"
-  | "maxProfit"
-  | "maxLoss"
-  | "returnOnRisk"
-  | "probabilityOfProfit";
-
-type SortDirection = "asc" | "desc";
-
-const RETURN_ON_RISK_SORT_CAP = 5;
+import { type OptionChainSnapshot, scanRiskReward } from "@/lib/options";
 
 export function ScanClient({
   initialChain,
@@ -48,7 +25,7 @@ export function ScanClient({
 }) {
   const router = useRouter();
   const [filters, setFilters] = useState<ScanFilters>(createDefaultScanFilters);
-  const [sort, setSort] = useState<{ column: SortColumn; dir: SortDirection }>({
+  const [sort, setSort] = useState<RiskRewardSort>({
     column: "score",
     dir: "desc",
   });
@@ -68,23 +45,14 @@ export function ScanClient({
     );
   }, [chain, filters]);
 
-  const sortedCandidates = useMemo(() => {
-    return [...candidates].sort((left, right) => compare(left, right, sort));
-  }, [candidates, sort]);
-
   const PAGE_SIZE = 50;
-  const totalPages = Math.ceil(sortedCandidates.length / PAGE_SIZE);
-  const pagedCandidates = sortedCandidates.slice(
-    page * PAGE_SIZE,
-    (page + 1) * PAGE_SIZE,
-  );
 
-  function setSortColumn(column: SortColumn) {
+  function setSortColumn(column: RiskRewardSortColumn) {
     setPage(0);
     setSort((current) =>
       current.column === column
         ? { column, dir: current.dir === "asc" ? "desc" : "asc" }
-        : { column, dir: defaultDirection(column) },
+        : { column, dir: defaultRiskRewardSortDirection(column) },
     );
   }
 
@@ -107,7 +75,7 @@ export function ScanClient({
             {formatCurrency(chain.underlying.price)}
           </div>
           <div className="ml-auto text-xs text-muted-foreground">
-            {sortedCandidates.length} setups
+            {candidates.length} setups
           </div>
         </div>
 
@@ -119,282 +87,25 @@ export function ScanClient({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
-        {sortedCandidates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-lg font-semibold">No setups match</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Try widening the DTE range, lowering PoP floor, or enabling more
-              strategies.
-            </p>
-          </div>
-        ) : (
-          <>
-            <Table>
-              <TableHeader className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                <TableRow>
-                  <SortableHeader
-                    column="strategy"
-                    sort={sort}
-                    onSort={setSortColumn}
-                  >
-                    Strategy
-                  </SortableHeader>
-                  <SortableHeader
-                    column="expiration"
-                    sort={sort}
-                    onSort={setSortColumn}
-                  >
-                    Expiration
-                  </SortableHeader>
-                  <TableHead>Strikes</TableHead>
-                  <SortableHeader
-                    column="score"
-                    sort={sort}
-                    onSort={setSortColumn}
-                    align="right"
-                  >
-                    Score
-                  </SortableHeader>
-                  <SortableHeader
-                    column="maxProfit"
-                    sort={sort}
-                    onSort={setSortColumn}
-                    align="right"
-                  >
-                    Max Profit
-                  </SortableHeader>
-                  <SortableHeader
-                    column="maxLoss"
-                    sort={sort}
-                    onSort={setSortColumn}
-                    align="right"
-                  >
-                    Max Loss
-                  </SortableHeader>
-                  <SortableHeader
-                    column="returnOnRisk"
-                    sort={sort}
-                    onSort={setSortColumn}
-                    align="right"
-                  >
-                    Return on Risk
-                  </SortableHeader>
-                  <SortableHeader
-                    column="probabilityOfProfit"
-                    sort={sort}
-                    onSort={setSortColumn}
-                    align="right"
-                  >
-                    Probability of Profit
-                  </SortableHeader>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pagedCandidates.map((candidate) => (
-                  <CandidateRow candidate={candidate} key={candidate.id} />
-                ))}
-              </TableBody>
-            </Table>
-            <div className="flex items-center justify-between border-t border-border/50 px-4 py-2">
-              <span className="text-xs text-muted-foreground">
-                {page * PAGE_SIZE + 1}–
-                {Math.min((page + 1) * PAGE_SIZE, sortedCandidates.length)} of{" "}
-                {sortedCandidates.length} setups
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs text-muted-foreground">
-                  {page + 1} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  disabled={page >= totalPages - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
+      <RiskRewardCandidatesTable
+        candidates={candidates}
+        sort={sort}
+        onSort={setSortColumn}
+        page={page}
+        pageSize={PAGE_SIZE}
+        onPageChange={setPage}
+        emptyState={
+          <section className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-lg font-semibold">No setups match</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try widening the DTE range, lowering PoP floor, or enabling more
+                strategies.
+              </p>
             </div>
-          </>
-        )}
-      </section>
+          </section>
+        }
+      />
     </>
   );
-}
-
-function CandidateRow({ candidate }: { candidate: OptimizerCandidate }) {
-  const ror = candidate.summary.returnOnRisk;
-  const isGoodRor = ror !== null && ror >= 0.25;
-  const bias = STRATEGY_BIAS[candidate.state.strategy];
-
-  return (
-    <TableRow>
-      <TableCell className="font-medium">
-        <div className="flex flex-col gap-1">
-          {titleCase(candidate.summary.strategyLabel)}
-          <BiasBadge bias={bias} />
-        </div>
-      </TableCell>
-      <TableCell className="font-mono text-xs text-muted-foreground">
-        {candidate.summary.expiration}
-      </TableCell>
-      <TableCell className="font-mono text-xs">
-        {candidate.summary.strikes.map((s) => `$${s}`).join(" / ")}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums">
-        {formatPercent(candidate.summary.score)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums">
-        {formatCurrency(candidate.summary.maxProfit)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums text-destructive">
-        {candidate.summary.maxLoss === null
-          ? "Undefined"
-          : formatCurrency(Math.abs(candidate.summary.maxLoss))}
-      </TableCell>
-      <TableCell
-        className={cn(
-          "text-right font-mono font-semibold tabular-nums",
-          ror === null
-            ? "text-muted-foreground"
-            : isGoodRor
-              ? "text-profit"
-              : "text-foreground",
-        )}
-      >
-        <div>{ror === null ? "n/a" : formatPercent(ror)}</div>
-        {candidate.summary.returnProfitBasisLabel === "target-profit" && (
-          <div className="mt-0.5 text-[10px] font-normal text-muted-foreground">
-            target
-          </div>
-        )}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums text-primary">
-        {formatPercent(candidate.summary.probabilityOfProfit)}
-      </TableCell>
-      <TableCell className="text-right">
-        <Button
-          nativeButton={false}
-          size="sm"
-          variant="outline"
-          render={<Link href={candidate.summary.builderHref} />}
-        >
-          Open
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-}
-
-function SortableHeader({
-  column,
-  sort,
-  onSort,
-  align = "left",
-  children,
-}: {
-  column: SortColumn;
-  sort: { column: SortColumn; dir: SortDirection };
-  onSort: (column: SortColumn) => void;
-  align?: "left" | "right";
-  children: React.ReactNode;
-}) {
-  const active = sort.column === column;
-
-  return (
-    <TableHead className={align === "right" ? "text-right" : "text-left"}>
-      <Button
-        variant="ghost"
-        size="xs"
-        onClick={() => onSort(column)}
-        className={cn(
-          "h-auto gap-1 px-0 font-medium uppercase tracking-wider hover:bg-transparent hover:text-foreground",
-          active ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        {children}
-        <span className="text-[9px] opacity-70">
-          {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-        </span>
-      </Button>
-    </TableHead>
-  );
-}
-
-function defaultDirection(column: SortColumn): SortDirection {
-  return column === "strategy" || column === "expiration" ? "asc" : "desc";
-}
-
-function compare(
-  left: OptimizerCandidate,
-  right: OptimizerCandidate,
-  sort: { column: SortColumn; dir: SortDirection },
-) {
-  const sign = sort.dir === "asc" ? 1 : -1;
-
-  switch (sort.column) {
-    case "strategy":
-      return (
-        sign *
-        left.summary.strategyLabel.localeCompare(right.summary.strategyLabel)
-      );
-    case "expiration":
-      return (
-        sign * left.summary.expiration.localeCompare(right.summary.expiration)
-      );
-    case "score":
-      return sign * compareNullable(left.summary.score, right.summary.score);
-    case "maxProfit":
-      return (
-        sign * compareNullable(left.summary.maxProfit, right.summary.maxProfit)
-      );
-    case "maxLoss":
-      return (
-        sign * compareNullable(left.summary.maxLoss, right.summary.maxLoss)
-      );
-    case "returnOnRisk":
-      return (
-        sign *
-        compareNullable(
-          cappedReturnOnRisk(left.summary.returnOnRisk),
-          cappedReturnOnRisk(right.summary.returnOnRisk),
-        )
-      );
-    case "probabilityOfProfit":
-      return (
-        sign *
-        compareNullable(
-          left.summary.probabilityOfProfit,
-          right.summary.probabilityOfProfit,
-        )
-      );
-    default:
-      return 0;
-  }
-}
-
-function compareNullable(left: number | null, right: number | null) {
-  if (left === null && right === null) return 0;
-  if (left === null) return -1;
-  if (right === null) return 1;
-
-  return left - right;
-}
-
-function cappedReturnOnRisk(value: number | null) {
-  return value === null ? null : Math.min(value, RETURN_ON_RISK_SORT_CAP);
-}
-
-function titleCase(value: string) {
-  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
