@@ -1,3 +1,4 @@
+import { normalizeWatchlistSymbol } from "@/db/ticker-watchlist";
 import {
   BUILDER_STRATEGIES,
   type OptimizerCandidate,
@@ -6,7 +7,6 @@ import {
 } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import type { OptionChainProvider } from "@/lib/options/types";
-import { normalizeWatchlistSymbol } from "./ticker-watchlist";
 
 export type WatchlistScanCriteria = Pick<
   ScanInputs,

@@ -11,6 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { SavedStrategyListItem } from "@/db/saved-strategies";
 import {
   formatCurrency,
   formatDateTime,
@@ -18,7 +19,6 @@ import {
   formatShortDateTime,
   formatTitleCaseFromKebab,
 } from "@/lib/format";
-import type { SavedStrategyListItem } from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
 import { PositionActions } from "./position-actions";
 import { PositionRowActionsCell, PositionRowLink } from "./position-row";

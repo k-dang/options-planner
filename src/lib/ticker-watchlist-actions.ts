@@ -5,7 +5,7 @@ import {
   addWatchlistSymbol,
   listWatchlistSymbols,
   removeWatchlistSymbol,
-} from "@/lib/ticker-watchlist";
+} from "@/db/ticker-watchlist";
 import {
   scanTickerWatchlist,
   type WatchlistScanCriteria,

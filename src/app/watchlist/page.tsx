@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { listWatchlistSymbols } from "@/lib/ticker-watchlist";
+import { listWatchlistSymbols } from "@/db/ticker-watchlist";
 import {
   AddWatchlistSymbolForm,
   RemoveWatchlistSymbolButton,

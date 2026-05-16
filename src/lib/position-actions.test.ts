@@ -12,7 +12,7 @@ vi.mock("next/cache", () => ({
   revalidatePath: mocks.revalidatePath,
 }));
 
-vi.mock("@/lib/saved-strategies", () => ({
+vi.mock("@/db/saved-strategies", () => ({
   closeSavedStrategyAtMarketMark: mocks.closeSavedStrategyAtMarketMark,
   deleteSavedStrategy: mocks.deleteSavedStrategy,
   refreshOpenSavedStrategies: mocks.refreshOpenSavedStrategies,

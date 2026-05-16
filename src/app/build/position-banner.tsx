@@ -1,14 +1,14 @@
 import { Badge } from "@/components/ui/badge";
 import {
+  getSavedStrategy,
+  type SavedStrategyListItem,
+} from "@/db/saved-strategies";
+import {
   formatCurrency,
   formatPercent,
   formatShortDateTime,
   formatTitleCaseFromKebab,
 } from "@/lib/format";
-import {
-  getSavedStrategy,
-  type SavedStrategyListItem,
-} from "@/lib/saved-strategies";
 import { cn } from "@/lib/utils";
 
 export async function PositionBanner({ positionId }: { positionId: string }) {
