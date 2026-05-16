@@ -3,12 +3,13 @@ import { listWatchlistSymbols } from "@/lib/ticker-watchlist";
 import {
   AddWatchlistSymbolForm,
   RemoveWatchlistSymbolButton,
+  WatchlistScanner,
 } from "./watchlist-actions";
 
 export default function WatchlistPage() {
   return (
     <main>
-      <section className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-8">
+      <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">
@@ -22,7 +23,6 @@ export default function WatchlistPage() {
               from saved strategy positions.
             </p>
           </div>
-          <AddWatchlistSymbolForm />
         </div>
 
         <Suspense fallback={<WatchlistSkeleton />}>
@@ -37,38 +37,50 @@ async function WatchlistContent() {
   const symbols = await listWatchlistSymbols();
 
   if (symbols.length === 0) {
-    return <EmptyState />;
+    return (
+      <>
+        <AddWatchlistSymbolForm />
+        <EmptyState />
+        <WatchlistScanner symbolCount={0} />
+      </>
+    );
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div>
-          <h2 className="text-sm font-semibold">Saved tickers</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {symbols.length === 1
-              ? "1 symbol in the watchlist"
-              : `${symbols.length} symbols in the watchlist`}
-          </p>
+    <>
+      <AddWatchlistSymbolForm />
+      <section className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold">Saved tickers</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {symbols.length === 1
+                ? "1 symbol in the watchlist"
+                : `${symbols.length} symbols in the watchlist`}
+            </p>
+          </div>
         </div>
-      </div>
-      <ul className="divide-y divide-border">
-        {symbols.map((item) => (
-          <li
-            key={item.id}
-            className="flex items-center justify-between gap-4 px-4 py-3"
-          >
-            <div>
-              <p className="font-mono text-base font-semibold">{item.symbol}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Added {item.createdAt.toLocaleDateString()}
-              </p>
-            </div>
-            <RemoveWatchlistSymbolButton id={item.id} symbol={item.symbol} />
-          </li>
-        ))}
-      </ul>
-    </section>
+        <ul className="divide-y divide-border">
+          {symbols.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-center justify-between gap-4 px-4 py-3"
+            >
+              <div>
+                <p className="font-mono text-base font-semibold">
+                  {item.symbol}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Added {item.createdAt.toLocaleDateString()}
+                </p>
+              </div>
+              <RemoveWatchlistSymbolButton id={item.id} symbol={item.symbol} />
+            </li>
+          ))}
+        </ul>
+      </section>
+      <WatchlistScanner symbolCount={symbols.length} />
+    </>
   );
 }
 
