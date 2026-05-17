@@ -109,6 +109,8 @@ export function RemoveWatchlistSymbolButton({
   );
 }
 
+const WATCHLIST_PAGE_SIZE = 30;
+
 export function WatchlistScanner({ symbolCount }: { symbolCount: number }) {
   const [state, action, pending] = useActionState(
     scanWatchlistAction,
@@ -119,9 +121,11 @@ export function WatchlistScanner({ symbolCount }: { symbolCount: number }) {
     column: "score",
     dir: "desc",
   });
+  const [page, setPage] = useState(0);
   const result = state.result;
 
   function setSortColumn(column: RiskRewardSortColumn) {
+    setPage(0);
     setSort((current) =>
       current.column === column
         ? { column, dir: current.dir === "asc" ? "desc" : "asc" }
@@ -204,6 +208,9 @@ export function WatchlistScanner({ symbolCount }: { symbolCount: number }) {
             sort={sort}
             onSort={setSortColumn}
             showTicker
+            page={page}
+            pageSize={WATCHLIST_PAGE_SIZE}
+            onPageChange={setPage}
             className="rounded-lg border-border shadow-none"
             emptyState={
               <div className="flex min-h-48 items-center justify-center rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">

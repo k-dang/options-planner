@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,8 +29,10 @@ import {
 
 export function PositionsTable({
   strategies,
+  autoRefreshControl,
 }: {
   strategies: SavedStrategyListItem[];
+  autoRefreshControl?: ReactNode;
 }) {
   const [showClosed, setShowClosed] = useState(false);
   const closedCount = useMemo(
@@ -47,17 +49,20 @@ export function PositionsTable({
         <p className="text-sm text-muted-foreground">
           Showing {visibleStrategies.length} of {strategies.length} positions
         </p>
-        {closedCount > 0 ? (
-          <Button
-            type="button"
-            variant={showClosed ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setShowClosed((value) => !value)}
-            aria-pressed={showClosed}
-          >
-            {showClosed ? "Hide closed" : `Show closed (${closedCount})`}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {autoRefreshControl}
+          {closedCount > 0 ? (
+            <Button
+              type="button"
+              variant={showClosed ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setShowClosed((value) => !value)}
+              aria-pressed={showClosed}
+            >
+              {showClosed ? "Hide closed" : `Show closed (${closedCount})`}
+            </Button>
+          ) : null}
+        </div>
       </div>
       <Table className={POSITIONS_TABLE_CLASS}>
         <PositionsTableColGroup />

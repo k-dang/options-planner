@@ -45,7 +45,7 @@ export function ScanClient({
     );
   }, [chain, filters]);
 
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 30;
 
   function setSortColumn(column: RiskRewardSortColumn) {
     setPage(0);

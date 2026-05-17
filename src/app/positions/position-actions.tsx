@@ -186,12 +186,50 @@ export function AutoRefreshPositionsButton({
   intervalSeconds = 14_400,
   lastError = null,
   disabled = false,
+  compact = false,
 }: {
   enabled?: boolean;
   intervalSeconds?: number;
   lastError?: string | null;
   disabled?: boolean;
+  compact?: boolean;
 }) {
+  const statusText = lastError ? (
+    <span className="text-destructive">{lastError}</span>
+  ) : enabled ? (
+    `Every ${formatInterval(intervalSeconds)}`
+  ) : (
+    "Off"
+  );
+
+  if (compact) {
+    return (
+      <form
+        action={
+          enabled
+            ? stopAutoRefreshPositionsAction
+            : startAutoRefreshPositionsAction
+        }
+      >
+        <Button
+          type="submit"
+          variant={enabled ? "default" : "outline"}
+          size="sm"
+          disabled={disabled}
+          title={
+            lastError ??
+            (enabled
+              ? `Auto refresh every ${formatInterval(intervalSeconds)}`
+              : "Auto refresh off")
+          }
+        >
+          {enabled ? <TimerOff /> : <Timer />}
+          {enabled ? "Stop auto" : "Auto refresh"}
+        </Button>
+      </form>
+    );
+  }
+
   return (
     <div className="flex min-w-56 flex-col items-end gap-1">
       <form
@@ -211,13 +249,7 @@ export function AutoRefreshPositionsButton({
         </Button>
       </form>
       <p className="min-h-4 text-right text-xs text-muted-foreground">
-        {lastError ? (
-          <span className="text-destructive">{lastError}</span>
-        ) : enabled ? (
-          `Every ${formatInterval(intervalSeconds)}`
-        ) : (
-          "Off"
-        )}
+        {statusText}
       </p>
     </div>
   );

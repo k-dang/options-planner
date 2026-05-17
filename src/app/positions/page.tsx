@@ -36,9 +36,6 @@ export default function PositionsPage() {
             </h1>
           </div>
           <div className="flex flex-wrap items-start justify-end gap-3">
-            <Suspense fallback={<AutoRefreshPositionsButton disabled />}>
-              <AutoRefreshControl />
-            </Suspense>
             <RefreshAllPositionsButton />
           </div>
         </div>
@@ -55,7 +52,7 @@ export default function PositionsPage() {
   );
 }
 
-async function AutoRefreshControl() {
+async function AutoRefreshControl({ compact }: { compact?: boolean }) {
   const autoRefresh = await getPositionRefreshWorkflowState();
 
   return (
@@ -63,6 +60,7 @@ async function AutoRefreshControl() {
       enabled={autoRefresh.enabled}
       intervalSeconds={autoRefresh.intervalSeconds}
       lastError={autoRefresh.lastError}
+      compact={compact}
     />
   );
 }
@@ -74,6 +72,12 @@ async function PositionsContent() {
     (strategy) => strategy.status === "closed",
   ).length;
 
+  const autoRefreshControl = (
+    <Suspense fallback={<AutoRefreshPositionsButton disabled compact />}>
+      <AutoRefreshControl compact />
+    </Suspense>
+  );
+
   return (
     <>
       {strategies.length === 0 ? (
@@ -84,7 +88,10 @@ async function PositionsContent() {
             closedCount={closedCount}
             realizedProfitLoss={realizedProfitLoss}
           />
-          <PositionsTable strategies={strategies} />
+          <PositionsTable
+            strategies={strategies}
+            autoRefreshControl={autoRefreshControl}
+          />
         </div>
       )}
     </>
