@@ -100,12 +100,77 @@ function EmptyState() {
 
 function WatchlistSkeleton() {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="h-4 w-32 rounded bg-muted" />
-      <div className="mt-4 space-y-3">
-        <div className="h-12 rounded bg-muted/60" />
-        <div className="h-12 rounded bg-muted/40" />
+    <>
+      {/* AddWatchlistSymbolForm */}
+      <div className="flex w-full max-w-md flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <div className="h-9 flex-1 rounded-md bg-muted" />
+          <div className="h-9 w-20 rounded-md bg-muted" />
+        </div>
+        <div className="h-3 w-0" />
       </div>
-    </div>
+
+      {/* Saved tickers card */}
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="space-y-1.5">
+            <div className="h-3.5 w-24 rounded bg-muted" />
+            <div className="h-3 w-36 rounded bg-muted/60" />
+          </div>
+        </div>
+        <ul className="divide-y divide-border">
+          {[0, 1, 2].map((i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between gap-4 px-4 py-3"
+            >
+              <div className="space-y-1.5">
+                <div className="h-4 w-14 rounded bg-muted" />
+                <div className="h-3 w-28 rounded bg-muted/60" />
+              </div>
+              <div className="h-7 w-7 rounded bg-muted/40" />
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* WatchlistScanner card */}
+      <div className="flex flex-col gap-4">
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1.5">
+              <div className="h-3.5 w-28 rounded bg-muted" />
+              <div className="h-3 w-64 rounded bg-muted/60" />
+            </div>
+            <div className="h-9 w-36 rounded-md bg-muted" />
+          </div>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <div className="h-3 w-48 rounded bg-muted/60" />
+              <div className="h-11 rounded-2xl bg-muted/40" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="h-3 w-48 rounded bg-muted/60" />
+              <div className="h-11 rounded-2xl bg-muted/40" />
+            </div>
+          </div>
+          <div className="mt-5">
+            <div className="mb-2 flex items-center gap-3">
+              <div className="h-3 w-20 rounded bg-muted/60" />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[80, 72, 64, 80, 72].map((w, i) => (
+                <div
+                  key={i}
+                  className="h-6 rounded bg-muted/50"
+                  style={{ width: `${w}px` }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="min-h-48 rounded-lg border border-dashed border-border bg-card/40" />
+      </div>
+    </>
   );
 }

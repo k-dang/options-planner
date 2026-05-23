@@ -23,7 +23,13 @@ export const DEFAULT_SCAN_FILTERS = {
 export function createDefaultScanFilters(): ScanFilters {
   return {
     ...DEFAULT_SCAN_FILTERS,
-    enabled: new Set(BUILDER_STRATEGIES),
+    enabled: new Set<StrategyTemplateId>([
+      "bull-call-spread",
+      "bear-put-spread",
+      "bull-put-spread",
+      "bear-call-spread",
+      "iron-condor",
+    ]),
   };
 }
 
