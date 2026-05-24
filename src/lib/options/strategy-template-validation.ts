@@ -1,3 +1,4 @@
+import { isPositiveNumber } from "@/lib/utils";
 import type {
   StrategyTemplate,
   StrategyTemplateLegSpec,
@@ -18,7 +19,7 @@ export function validateStrategyStateForTemplate(
   if (!state.symbol.trim()) {
     errors.push("Symbol is required.");
   }
-  if (!positiveNumber(state.underlyingPrice)) {
+  if (!isPositiveNumber(state.underlyingPrice)) {
     errors.push("Underlying price must be positive.");
   }
   if (state.legs.length === 0) {
@@ -26,22 +27,22 @@ export function validateStrategyStateForTemplate(
   }
 
   for (const [index, leg] of state.legs.entries()) {
-    if (!positiveNumber(leg.quantity)) {
+    if (!isPositiveNumber(leg.quantity)) {
       errors.push(`Leg ${index + 1} quantity must be positive.`);
     }
 
-    if (leg.kind === "stock" && !positiveNumber(leg.entryPrice)) {
+    if (leg.kind === "stock" && !isPositiveNumber(leg.entryPrice)) {
       errors.push(`Stock leg ${index + 1} entry price must be positive.`);
     }
 
     if (leg.kind === "option") {
-      if (!positiveNumber(leg.strike)) {
+      if (!isPositiveNumber(leg.strike)) {
         errors.push(`Option leg ${index + 1} strike must be positive.`);
       }
-      if (!positiveNumber(leg.premium)) {
+      if (!isPositiveNumber(leg.premium)) {
         errors.push(`Option leg ${index + 1} premium must be positive.`);
       }
-      if (!positiveNumber(leg.impliedVolatility)) {
+      if (!isPositiveNumber(leg.impliedVolatility)) {
         errors.push(
           `Option leg ${index + 1} implied volatility must be positive.`,
         );
@@ -53,7 +54,6 @@ export function validateStrategyStateForTemplate(
   }
 
   errors.push(...validateTemplateShape(template, state));
-  errors.push(...(template.validate?.(state) ?? []));
 
   return { valid: errors.length === 0, errors };
 }
@@ -147,10 +147,6 @@ function validateTemplateShape(
 
 function getOptionLegs(state: StrategyState): OptionLeg[] {
   return state.legs.filter((leg): leg is OptionLeg => leg.kind === "option");
-}
-
-function positiveNumber(value: number) {
-  return Number.isFinite(value) && value > 0;
 }
 
 function mapTemplateRoles(

@@ -9,6 +9,10 @@ export function singleValue(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+export function isPositiveNumber(value: number) {
+  return Number.isFinite(value) && value > 0;
+}
+
 export function parsePositiveNumber(value?: string | null) {
   if (!value) {
     return undefined;
@@ -16,5 +20,5 @@ export function parsePositiveNumber(value?: string | null) {
 
   const parsed = Number(value);
 
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  return isPositiveNumber(parsed) ? parsed : undefined;
 }

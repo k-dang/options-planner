@@ -43,12 +43,6 @@ export type BuildStrategyInput = {
   strike4?: number;
 };
 
-export type StrategyTemplateDefaults = {
-  optionType?: OptionType;
-  optionSide?: PositionSide;
-  stockSide?: PositionSide;
-};
-
 export type StrategyTemplateLegSpec =
   | {
       kind: "stock";
@@ -64,6 +58,8 @@ export type StrategyTemplateLegSpec =
       relativeTo?: TemplateRole;
       direction?: "above" | "below";
     };
+
+type OptionLegSpec = Extract<StrategyTemplateLegSpec, { kind: "option" }>;
 
 export type StrategySummary = {
   strategyLabel: string;
@@ -139,11 +135,9 @@ export type StrategyTemplate = {
   optimizerTheses: readonly OptimizerThesis[];
   scanMode: "single-strike" | "template-variants";
   defaultScanEnabled?: boolean;
-  defaults: StrategyTemplateDefaults;
   legs: readonly StrategyTemplateLegSpec[];
   positionalStrikeRoles?: readonly TemplateRole[];
   validation?: StrategyTemplateValidationRules;
-  validate?: (state: StrategyState) => string[];
   evaluation?: StrategyTemplateEvaluationHooks;
   monitoring?: StrategyTemplateMonitoringHooks;
   optimizer?: StrategyTemplateOptimizerHooks;
@@ -173,7 +167,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["bullish"],
     optimizerTheses: ["bullish"],
     scanMode: "single-strike",
-    defaults: { optionType: "call", optionSide: "long" },
     evaluation: {
       breakevens: singleOptionBreakeven("above", "debit"),
       probabilityRange: "above",
@@ -196,7 +189,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["bearish"],
     optimizerTheses: ["bearish"],
     scanMode: "single-strike",
-    defaults: { optionType: "put", optionSide: "long" },
     evaluation: {
       breakevens: singleOptionBreakeven("below", "debit"),
       probabilityRange: "below",
@@ -217,7 +209,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["bearish", "income"],
     optimizerTheses: ["bearish"],
     scanMode: "single-strike",
-    defaults: { optionType: "call", optionSide: "short" },
     evaluation: {
       breakevens: singleOptionBreakeven("above", "credit"),
       probabilityRange: "below",
@@ -240,7 +231,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["bullish", "income"],
     optimizerTheses: ["bullish"],
     scanMode: "single-strike",
-    defaults: { optionType: "put", optionSide: "short" },
     evaluation: {
       breakevens: singleOptionBreakeven("below", "credit"),
       probabilityRange: "above",
@@ -263,7 +253,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["income"],
     optimizerTheses: ["income"],
     scanMode: "single-strike",
-    defaults: { optionType: "call", optionSide: "short", stockSide: "long" },
     evaluation: {
       breakevens: coveredCallBreakeven,
       probabilityRange: "below",
@@ -288,7 +277,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["bullish", "income"],
     optimizerTheses: ["bullish", "income"],
     scanMode: "single-strike",
-    defaults: { optionType: "put", optionSide: "short" },
     evaluation: {
       breakevens: singleOptionBreakeven("below", "credit"),
       probabilityRange: "above",
@@ -313,7 +301,6 @@ const templates: readonly StrategyTemplate[] = [
     optimizerTheses: ["bullish"],
     scanMode: "template-variants",
     defaultScanEnabled: true,
-    defaults: {},
     validation: {
       strikeOrder: ["longCall", "shortCall"],
       strikeOrderMessage:
@@ -359,7 +346,6 @@ const templates: readonly StrategyTemplate[] = [
     optimizerTheses: ["bearish"],
     scanMode: "template-variants",
     defaultScanEnabled: true,
-    defaults: {},
     validation: {
       strikeOrder: ["shortPut", "longPut"],
       strikeOrderMessage:
@@ -395,7 +381,6 @@ const templates: readonly StrategyTemplate[] = [
     optimizerTheses: ["bullish"],
     scanMode: "template-variants",
     defaultScanEnabled: true,
-    defaults: {},
     validation: {
       strikeOrder: ["longPut", "shortPut"],
       strikeOrderMessage:
@@ -442,7 +427,6 @@ const templates: readonly StrategyTemplate[] = [
     optimizerTheses: ["bearish"],
     scanMode: "template-variants",
     defaultScanEnabled: true,
-    defaults: {},
     validation: {
       strikeOrder: ["shortCall", "longCall"],
       strikeOrderMessage:
@@ -479,7 +463,6 @@ const templates: readonly StrategyTemplate[] = [
     optimizerTheses: ["income"],
     scanMode: "template-variants",
     defaultScanEnabled: true,
-    defaults: {},
     validation: {
       strikeOrder: ["longPut", "shortPut", "shortCall", "longCall"],
       strikeOrderMessage:
@@ -545,7 +528,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["neutral", "income"],
     optimizerTheses: ["income"],
     scanMode: "single-strike",
-    defaults: {},
     validation: {
       sameStrike: ["shortCall", "shortPut"],
       sameStrikeMessage:
@@ -574,7 +556,6 @@ const templates: readonly StrategyTemplate[] = [
     biases: ["neutral", "income"],
     optimizerTheses: ["income"],
     scanMode: "template-variants",
-    defaults: {},
     validation: {
       strikeOrder: ["shortPut", "shortCall"],
       strikeOrderMessage:
@@ -642,10 +623,6 @@ export const strategyTemplates: StrategyTemplateCatalog = {
   optimizerSeeds: buildOptimizerSeeds,
 };
 
-export function getTemplateOptionLegs(state: StrategyState): OptionLeg[] {
-  return state.legs.filter((leg): leg is OptionLeg => leg.kind === "option");
-}
-
 function buildStrategy(input?: BuildStrategyInput): StrategyState {
   const symbol = (input?.symbol ?? DEFAULT_SYMBOL).trim().toUpperCase();
   const template = strategyTemplates.get(input?.strategy);
@@ -709,10 +686,7 @@ function normalizeStrikeRoles(
     return { ...input.strikes };
   }
 
-  const optionSpecs = template.legs.filter(
-    (leg): leg is Extract<StrategyTemplateLegSpec, { kind: "option" }> =>
-      leg.kind === "option",
-  );
+  const optionSpecs = templateOptionSpecs(template);
   const positionalRoles =
     template.positionalStrikeRoles ?? optionSpecs.map((spec) => spec.role);
 
@@ -730,29 +704,9 @@ function findNearestQuote(
   expirationValue?: string,
   strikeValue?: number,
 ): OptionQuote {
-  const expiration =
-    chain.expirations.find(
-      (candidate) => candidate.expiration === expirationValue,
-    ) ??
-    chain.expirations[3] ??
-    chain.expirations[0];
-
-  if (!expiration) {
-    throw new Error("Generated chain did not include expirations.");
-  }
-
-  const quotes = optionType === "put" ? expiration.puts : expiration.calls;
+  const quotes = quotesForExpiration(chain, optionType, expirationValue);
   const targetStrike = strikeValue ?? chain.underlying.price;
-  const quote = quotes.reduce<OptionQuote | null>((nearest, candidate) => {
-    if (!nearest) {
-      return candidate;
-    }
-
-    return Math.abs(candidate.strike - targetStrike) <
-      Math.abs(nearest.strike - targetStrike)
-      ? candidate
-      : nearest;
-  }, null);
+  const quote = nearestQuoteByStrike(quotes, targetStrike);
 
   if (!quote) {
     throw new Error("Generated chain did not include option quotes.");
@@ -773,6 +727,25 @@ function findSpreadQuote(
     return findNearestQuote(chain, optionType, expirationValue, strikeValue);
   }
 
+  const quotes = quotesForExpiration(chain, optionType, expirationValue);
+
+  const candidates = quotes.filter((quote) =>
+    direction === "above"
+      ? quote.strike > anchorStrike
+      : quote.strike < anchorStrike,
+  );
+
+  return (
+    nearestQuoteByStrike(candidates, anchorStrike) ??
+    findNearestQuote(chain, optionType, expirationValue, anchorStrike)
+  );
+}
+
+function quotesForExpiration(
+  chain: OptionChainSnapshot,
+  optionType: OptionType,
+  expirationValue?: string,
+) {
   const expiration =
     chain.expirations.find(
       (candidate) => candidate.expiration === expirationValue,
@@ -785,25 +758,20 @@ function findSpreadQuote(
     throw new Error("Generated chain did not include option quotes.");
   }
 
-  const candidates = quotes.filter((quote) =>
-    direction === "above"
-      ? quote.strike > anchorStrike
-      : quote.strike < anchorStrike,
-  );
+  return quotes;
+}
 
-  return (
-    candidates.reduce<OptionQuote | null>((nearest, candidate) => {
-      if (!nearest) {
-        return candidate;
-      }
+function nearestQuoteByStrike(quotes: readonly OptionQuote[], target: number) {
+  return quotes.reduce<OptionQuote | null>((nearest, candidate) => {
+    if (!nearest) {
+      return candidate;
+    }
 
-      return Math.abs(candidate.strike - anchorStrike) <
-        Math.abs(nearest.strike - anchorStrike)
-        ? candidate
-        : nearest;
-    }, null) ??
-    findNearestQuote(chain, optionType, expirationValue, anchorStrike)
-  );
+    return Math.abs(candidate.strike - target) <
+      Math.abs(nearest.strike - target)
+      ? candidate
+      : nearest;
+  }, null);
 }
 
 function optionLegFromQuote(
@@ -884,10 +852,7 @@ function candidateInputToRoles(
   targetPrice: number,
   input: CandidateInput,
 ): Partial<Record<TemplateRole, number>> {
-  const optionSpecs = template.legs.filter(
-    (leg): leg is Extract<StrategyTemplateLegSpec, { kind: "option" }> =>
-      leg.kind === "option",
-  );
+  const optionSpecs = templateOptionSpecs(template);
   const positional = [
     strikeForInput(
       strikes,
@@ -971,9 +936,9 @@ function strikeAt(strikes: number[], underlyingPrice: number, offset: number) {
 
 function summarizeStrategy(state: StrategyState): StrategySummary {
   const expirations = [
-    ...new Set(getTemplateOptionLegs(state).map((leg) => leg.expiration)),
+    ...new Set(optionLegs(state).map((leg) => leg.expiration)),
   ];
-  const strikes = getTemplateOptionLegs(state).map((leg) => leg.strike);
+  const strikes = optionLegs(state).map((leg) => leg.strike);
   const strategyLabel = strategyTemplates.get(state.strategy).label;
   const expiration =
     expirations.length === 1
@@ -1012,6 +977,12 @@ function cashSecuredPutCapitalAtRisk(state: StrategyState) {
 
 function optionLegs(state: StrategyState) {
   return state.legs.filter((leg): leg is OptionLeg => leg.kind === "option");
+}
+
+function templateOptionSpecs(template: StrategyTemplate): OptionLegSpec[] {
+  return template.legs.filter(
+    (leg): leg is OptionLegSpec => leg.kind === "option",
+  );
 }
 
 function premiumPerShare(netPremium: number, quantity: number) {
