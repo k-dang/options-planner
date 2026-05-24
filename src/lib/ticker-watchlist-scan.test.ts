@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   createGeneratedChain,
-  parseBuilderState,
   scanRiskReward,
+  strategyTemplates,
 } from "@/lib/options";
 import type {
   OptionChainProvider,
   OptionChainRequest,
   OptionChainSnapshot,
 } from "@/lib/options/types";
+import { parsePositiveNumber } from "@/lib/utils";
 import { scanTickerWatchlist } from "./ticker-watchlist-scan";
 
 class TestProvider implements OptionChainProvider {
@@ -159,13 +160,13 @@ function parseBuilderHref(builderHref: string) {
   const url = new URL(builderHref, "https://example.test");
   const [, , strategy, symbol] = url.pathname.split("/");
 
-  return parseBuilderState({
-    strategy,
+  return strategyTemplates.build({
+    strategy: strategyTemplates.coerce(strategy),
     symbol,
     expiration: url.searchParams.get("exp") ?? undefined,
-    strike: url.searchParams.get("strike") ?? undefined,
-    strike2: url.searchParams.get("strike2") ?? undefined,
-    quantity: url.searchParams.get("qty") ?? undefined,
+    strike: parsePositiveNumber(url.searchParams.get("strike")),
+    strike2: parsePositiveNumber(url.searchParams.get("strike2")),
+    quantity: parsePositiveNumber(url.searchParams.get("qty")),
   });
 }
 

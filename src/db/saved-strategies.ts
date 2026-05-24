@@ -8,17 +8,17 @@ import type {
   StrategySnapshotLegMark,
   StrategySnapshotType,
 } from "@/db/schema";
+import { strategyBuilderHref } from "@/lib/hrefs";
 import {
   evaluateStrategy,
   type StrategyState,
-  serializeBuilderState,
+  strategyTemplates,
 } from "@/lib/options";
 import {
   buildEntryLegMarks,
   calculateCapitalAtRisk,
   calculateCurrentMarkSnapshot,
   calculateSignedMarkValue,
-  generateSavedStrategyName,
   getDaysUntilExpiration,
 } from "@/lib/options/monitoring";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
@@ -50,7 +50,7 @@ export type SavedStrategyListItem = {
 };
 
 function buildPositionBuilderHref(strategy: SavedStrategy): string {
-  const base = serializeBuilderState(strategy.entryState);
+  const base = strategyBuilderHref(strategy.entryState);
   const separator = base.includes("?") ? "&" : "?";
   return `${base}${separator}positionId=${encodeURIComponent(strategy.id)}`;
 }
@@ -160,7 +160,7 @@ export async function createSavedStrategyFromEntry(state: StrategyState) {
   const [saved] = await db
     .insert(savedStrategies)
     .values({
-      name: generateSavedStrategyName(state),
+      name: strategyTemplates.summarize(state).savedName,
       symbol: state.symbol.toUpperCase(),
       strategyType: state.strategy,
       status: "open",

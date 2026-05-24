@@ -44,17 +44,16 @@ import {
   saveBuilderStrategy,
 } from "@/lib/build-actions";
 import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
-import { builderStrategyHref } from "@/lib/hrefs";
+import { builderStrategyHref, strategyBuilderHref } from "@/lib/hrefs";
 import {
-  createBuilderState,
-  getBuilderOptionLegs,
+  type BuildStrategyInput,
   type OptionChainSnapshot,
   type OptionExpiration,
   type OptionLeg,
   type OptionQuote,
   type StrategyState,
   safeEvaluateStrategy,
-  serializeBuilderState,
+  strategyTemplates,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +72,9 @@ export function BuilderClient({
   const [saveResult, setSaveResult] = useState<SaveStrategyResult | null>(null);
   const [isSaving, startSaving] = useTransition();
   const chain = initialChain;
-  const optionLegs = getBuilderOptionLegs(state);
+  const optionLegs = state.legs.filter(
+    (leg): leg is OptionLeg => leg.kind === "option",
+  );
   const primaryLeg = optionLegs[0];
   const secondaryLeg = optionLegs[1];
   const expiration =
@@ -137,11 +138,11 @@ export function BuilderClient({
 
   function commitState(next: StrategyState) {
     setState(next);
-    window.history.replaceState(null, "", serializeBuilderState(next));
+    window.history.replaceState(null, "", strategyBuilderHref(next));
   }
 
-  function updateFromInputs(input: Parameters<typeof createBuilderState>[0]) {
-    const next = createBuilderState({
+  function updateFromInputs(input: BuildStrategyInput) {
+    const next = strategyTemplates.build({
       symbol: state.symbol,
       expiration: primaryLeg?.expiration,
       strike: primaryLeg?.strike,
@@ -576,9 +577,7 @@ function legRowKey(leg: StrategyState["legs"][number]) {
 }
 
 function formatStrategyName(strategy: StrategyState["strategy"]) {
-  return strategy
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return strategyTemplates.get(strategy).label;
 }
 
 function describeLegText(leg: StrategyState["legs"][number]) {

@@ -1,24 +1,18 @@
 import { Badge } from "@/components/ui/badge";
-import type { StrategyTemplateId } from "@/lib/options";
+import { type StrategyTemplateId, strategyTemplates } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
 export type StrategyBias = "bullish" | "bearish" | "neutral";
 
-export const STRATEGY_BIAS: Record<StrategyTemplateId, StrategyBias> = {
-  "long-call": "bullish",
-  "short-put": "bullish",
-  "cash-secured-put": "bullish",
-  "bull-call-spread": "bullish",
-  "bull-put-spread": "bullish",
-  "covered-call": "bullish",
-  "long-put": "bearish",
-  "short-call": "bearish",
-  "bear-put-spread": "bearish",
-  "bear-call-spread": "bearish",
-  "iron-condor": "neutral",
-  "short-straddle": "neutral",
-  "short-strangle": "neutral",
-};
+export const STRATEGY_BIAS = Object.fromEntries(
+  strategyTemplates
+    .all()
+    .map((template) => [
+      template.id,
+      template.biases.find((bias): bias is StrategyBias => bias !== "income") ??
+        "neutral",
+    ]),
+) as Record<StrategyTemplateId, StrategyBias>;
 
 export function BiasBadge({ bias }: { bias: StrategyBias }) {
   const className =

@@ -1,9 +1,9 @@
 import { normalizeWatchlistSymbol } from "@/db/ticker-watchlist";
 import {
-  BUILDER_STRATEGIES,
   type OptimizerCandidate,
   type ScanInputs,
   scanRiskReward,
+  strategyTemplates,
 } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import type { OptionChainProvider } from "@/lib/options/types";
@@ -34,7 +34,7 @@ export const DEFAULT_WATCHLIST_SCAN_CRITERIA: WatchlistScanCriteria = {
   minDaysToExpiration: 30,
   maxDaysToExpiration: 60,
   minProbabilityOfProfit: 0.25,
-  enabledStrategies: [...BUILDER_STRATEGIES],
+  enabledStrategies: [...strategyTemplates.ids()],
 };
 
 const MAX_CANDIDATES_PER_TICKER = 10;

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Slider } from "@/components/ui/slider";
 import { formatPercent } from "@/lib/format";
-import { BUILDER_STRATEGIES, type StrategyTemplateId } from "@/lib/options";
+import { type StrategyTemplateId, strategyTemplates } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
 export type ScanFilters = {
@@ -23,13 +23,9 @@ export const DEFAULT_SCAN_FILTERS = {
 export function createDefaultScanFilters(): ScanFilters {
   return {
     ...DEFAULT_SCAN_FILTERS,
-    enabled: new Set<StrategyTemplateId>([
-      "bull-call-spread",
-      "bear-put-spread",
-      "bull-put-spread",
-      "bear-call-spread",
-      "iron-condor",
-    ]),
+    enabled: new Set<StrategyTemplateId>(
+      strategyTemplates.defaultScanStrategies(),
+    ),
   };
 }
 
@@ -63,7 +59,7 @@ export function ScanCriteriaControls({
   function setAllStrategies(value: boolean) {
     updateFilters((current) => ({
       ...current,
-      enabled: value ? new Set(BUILDER_STRATEGIES) : new Set(),
+      enabled: value ? new Set(strategyTemplates.ids()) : new Set(),
     }));
   }
 
@@ -168,7 +164,7 @@ export function ScanCriteriaControls({
           </Button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {BUILDER_STRATEGIES.map((strategy) => {
+          {strategyTemplates.ids().map((strategy) => {
             const enabled = filters.enabled.has(strategy);
 
             return (
@@ -185,7 +181,7 @@ export function ScanCriteriaControls({
                     : "border-border/60 bg-white/60 text-muted-foreground hover:border-primary/30 dark:bg-white/5",
                 )}
               >
-                {titleCase(strategy.replaceAll("-", " "))}
+                {strategyTemplates.get(strategy).label}
               </Button>
             );
           })}
@@ -203,8 +199,4 @@ export function ScanCriteriaControls({
       </div>
     </>
   );
-}
-
-function titleCase(value: string) {
-  return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

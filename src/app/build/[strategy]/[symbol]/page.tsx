@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { parseBuilderState } from "@/lib/options";
+import { strategyTemplates } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
-import { singleValue } from "@/lib/utils";
+import { parsePositiveNumber, singleValue } from "@/lib/utils";
 import { BuilderClient } from "../../build-client";
 import { BuildSkeleton } from "../../build-skeleton";
 import { PositionBanner } from "../../position-banner";
@@ -70,19 +70,17 @@ async function BuildContent({
   const chain = await getOptionChainProvider().getChain({
     symbol: route.symbol,
   });
-  const initialState = parseBuilderState(
-    {
-      strategy: route.strategy,
-      symbol: chain.underlying.symbol,
-      expiration: singleValue(query.exp),
-      strike: singleValue(query.strike),
-      strike2: singleValue(query.strike2),
-      strike3: singleValue(query.strike3),
-      strike4: singleValue(query.strike4),
-      quantity: singleValue(query.qty),
-    },
+  const initialState = strategyTemplates.build({
+    strategy: strategyTemplates.coerce(route.strategy),
+    symbol: chain.underlying.symbol,
+    expiration: singleValue(query.exp),
+    strike: parsePositiveNumber(singleValue(query.strike)),
+    strike2: parsePositiveNumber(singleValue(query.strike2)),
+    strike3: parsePositiveNumber(singleValue(query.strike3)),
+    strike4: parsePositiveNumber(singleValue(query.strike4)),
+    quantity: parsePositiveNumber(singleValue(query.qty)),
     chain,
-  );
+  });
 
   return <BuilderClient initialChain={chain} initialState={initialState} />;
 }

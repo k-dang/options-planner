@@ -1,41 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { createBuilderState, evaluateStrategy } from "./index";
+import { evaluateStrategy, strategyTemplates } from "./index";
 import {
   calculateCapitalAtRisk,
   calculateCurrentMarkSnapshot,
   calculateSignedMarkValue,
-  generateSavedStrategyName,
   getDaysUntilExpiration,
   selectOptionMark,
 } from "./monitoring";
 import type { OptionQuote, StrategyState } from "./types";
 
 describe("saved strategy monitoring", () => {
-  it("generates readable names from symbol, expiration, strikes, and strategy", () => {
-    const vertical = createBuilderState({
-      symbol: "SPY",
-      strategy: "bull-call-spread",
-      expiration: "2026-05-24",
-      strike: 510,
-      strike2: 520,
-    });
-    const condor = createBuilderState({
-      symbol: "AAPL",
-      strategy: "iron-condor",
-      strike: 160,
-      strike2: 165,
-      strike3: 180,
-      strike4: 185,
-    });
-
-    expect(generateSavedStrategyName(vertical)).toBe(
-      "SPY 2026-05-24 510/520 Bull Call Spread",
-    );
-    expect(generateSavedStrategyName(condor)).toBe(
-      "AAPL 2026-05-24 160/165/180/185 Iron Condor",
-    );
-  });
-
   it("signs entry marks positive for long legs and negative for short legs", () => {
     const state: StrategyState = {
       version: 1,
@@ -62,7 +36,7 @@ describe("saved strategy monitoring", () => {
   });
 
   it("uses finite max loss as capital at risk", () => {
-    const state = createBuilderState({
+    const state = strategyTemplates.build({
       symbol: "SPY",
       strategy: "bull-call-spread",
       strike: 510,
@@ -97,7 +71,7 @@ describe("saved strategy monitoring", () => {
   });
 
   it("does not invent a risk basis for undefined-risk short calls", () => {
-    const state = createBuilderState({
+    const state = strategyTemplates.build({
       symbol: "AAPL",
       strategy: "short-call",
       strike: 175,

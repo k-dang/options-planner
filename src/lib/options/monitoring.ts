@@ -1,5 +1,6 @@
 import type { StrategySnapshotLegMark } from "@/db/schema";
 import { blackScholes } from "./pricing";
+import { strategyTemplates } from "./strategy-templates";
 import type { StrategyEvaluation, StrategyState } from "./types";
 import {
   CONTRACT_MULTIPLIER,
@@ -24,29 +25,6 @@ export type CurrentMarkSnapshotResult = {
   legMarks: StrategySnapshotLegMark[];
   quoteSource: string;
 };
-
-export function generateSavedStrategyName(state: StrategyState) {
-  const expirations = [
-    ...new Set(
-      state.legs
-        .filter((leg) => leg.kind === "option")
-        .map((leg) => leg.expiration),
-    ),
-  ];
-  const strikes = state.legs
-    .filter((leg) => leg.kind === "option")
-    .map((leg) => formatStrike(leg.strike));
-  const strategyLabel = formatStrategyLabel(state.strategy);
-  const expirationLabel =
-    expirations.length === 1
-      ? expirations[0]
-      : expirations.length > 1
-        ? "multi-exp"
-        : "stock";
-  const strikeLabel = strikes.length > 0 ? strikes.join("/") : "shares";
-
-  return `${state.symbol.toUpperCase()} ${expirationLabel} ${strikeLabel} ${strategyLabel}`;
-}
 
 export function calculateSignedMarkValue(state: StrategyState) {
   return roundMoney(
@@ -187,46 +165,11 @@ export function calculateCapitalAtRisk(
     return roundMoney(Math.abs(evaluation.maxLoss));
   }
 
-  if (state.strategy === "cash-secured-put") {
-    const shortPut = state.legs.find(
-      (leg) =>
-        leg.kind === "option" &&
-        leg.optionType === "put" &&
-        leg.side === "short",
-    );
-
-    if (!shortPut || shortPut.kind !== "option") {
-      return null;
-    }
-
-    return roundMoney(
-      shortPut.strike * CONTRACT_MULTIPLIER * shortPut.quantity -
-        shortPut.premium * CONTRACT_MULTIPLIER * shortPut.quantity,
-    );
-  }
-
-  if (state.strategy === "covered-call") {
-    const stockLeg = state.legs.find((leg) => leg.kind === "stock");
-    const shortCall = state.legs.find(
-      (leg) =>
-        leg.kind === "option" &&
-        leg.optionType === "call" &&
-        leg.side === "short",
-    );
-
-    if (!stockLeg || stockLeg.kind !== "stock") {
-      return null;
-    }
-
-    const callCredit =
-      shortCall && shortCall.kind === "option"
-        ? shortCall.premium * CONTRACT_MULTIPLIER * shortCall.quantity
-        : 0;
-
-    return roundMoney(stockLeg.entryPrice * stockLeg.quantity - callCredit);
-  }
-
-  return null;
+  return (
+    strategyTemplates
+      .get(state.strategy)
+      .monitoring?.capitalAtRisk?.(state, evaluation) ?? null
+  );
 }
 
 export function getDaysUntilExpiration(
@@ -292,16 +235,6 @@ function yearsUntilExpiration(expiration: string, asOf: Date) {
     (expirationDate.getTime() - asOf.getTime()) / (365 * 86_400_000),
     1 / 365,
   );
-}
-
-function formatStrategyLabel(strategy: StrategyState["strategy"]) {
-  return strategy
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatStrike(strike: number) {
-  return Number.isInteger(strike) ? String(strike) : strike.toFixed(2);
 }
 
 function roundMoney(value: number) {

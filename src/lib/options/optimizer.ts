@@ -1,10 +1,11 @@
-import {
-  createBuilderState,
-  getBuilderChain,
-  serializeBuilderState,
-} from "./builder";
+import { strategyBuilderHref } from "@/lib/hrefs";
 import { evaluateStrategy } from "./evaluate";
-import { validateStrategyState } from "./strategy";
+import { createGeneratedChain } from "./providers/generated";
+import {
+  type BuildStrategyInput,
+  type OptimizerThesis,
+  strategyTemplates,
+} from "./strategy-templates";
 import type {
   OptionChainSnapshot,
   StrategyEvaluation,
@@ -12,7 +13,7 @@ import type {
   StrategyTemplateId,
 } from "./types";
 
-export type OptimizerThesis = "bullish" | "bearish" | "income";
+export type { OptimizerThesis } from "./strategy-templates";
 
 export type OptimizerInputs = {
   symbol: string;
@@ -67,26 +68,8 @@ export type OptimizerResultRow = {
   builderHref: string;
 };
 
-const THESIS_STRATEGIES: Record<OptimizerThesis, StrategyTemplateId[]> = {
-  bullish: [
-    "long-call",
-    "bull-call-spread",
-    "short-put",
-    "bull-put-spread",
-    "cash-secured-put",
-  ],
-  bearish: ["long-put", "bear-put-spread", "short-call", "bear-call-spread"],
-  income: [
-    "covered-call",
-    "cash-secured-put",
-    "iron-condor",
-    "short-straddle",
-    "short-strangle",
-  ],
-};
-
 function strategyLabel(strategy: StrategyTemplateId) {
-  return strategy.replaceAll("-", " ");
+  return strategyTemplates.get(strategy).label.toLowerCase();
 }
 
 function optionLegs(state: StrategyState) {
@@ -272,7 +255,7 @@ function makeCandidate(
   inputs: OptimizerInputs,
   state: StrategyState,
 ): OptimizerCandidate | null {
-  const validation = validateStrategyState(state);
+  const validation = strategyTemplates.validate(state);
 
   if (!validation.valid) {
     return null;
@@ -313,7 +296,7 @@ function makeCandidate(
       riskDenominator: metrics.riskDenominator,
       returnOnRisk: metrics.returnOnRisk,
       score: 0,
-      builderHref: serializeBuilderState(state),
+      builderHref: strategyBuilderHref(state),
     },
   };
 }
@@ -348,228 +331,35 @@ function rankCandidatesByFamily(
   return scored.sort((left, right) => right.summary.score - left.summary.score);
 }
 
-type CandidateInput = {
-  strikeOffset: number;
-  strike2Offset?: number;
-  strike3Offset?: number;
-  strike4Offset?: number;
-  strikeTargetRatio?: number;
-  strike2TargetRatio?: number;
-  strike3TargetRatio?: number;
-  strike4TargetRatio?: number;
-};
-
-function candidateInputs(strategy: StrategyTemplateId): CandidateInput[] {
-  if (strategy === "long-call") {
-    return [
-      { strikeOffset: 0, strikeTargetRatio: 0.92 },
-      { strikeOffset: 0, strikeTargetRatio: 0.94 },
-      { strikeOffset: 0, strikeTargetRatio: 0.96 },
-    ];
-  }
-
-  if (strategy === "bull-call-spread") {
-    return [
-      {
-        strikeOffset: 0,
-        strike2Offset: 0,
-        strikeTargetRatio: 0.94,
-        strike2TargetRatio: 1.01,
-      },
-      {
-        strikeOffset: 0,
-        strike2Offset: 0,
-        strikeTargetRatio: 0.96,
-        strike2TargetRatio: 1.03,
-      },
-    ];
-  }
-
-  if (strategy === "bear-put-spread") {
-    return [
-      { strikeOffset: 1, strike2Offset: -1 },
-      { strikeOffset: 0, strike2Offset: -2 },
-    ];
-  }
-
-  if (strategy === "bull-put-spread") {
-    return [
-      {
-        strikeOffset: 0,
-        strike2Offset: 0,
-        strikeTargetRatio: 0.95,
-        strike2TargetRatio: 0.92,
-      },
-      {
-        strikeOffset: 0,
-        strike2Offset: 0,
-        strikeTargetRatio: 0.97,
-        strike2TargetRatio: 0.94,
-      },
-    ];
-  }
-
-  if (strategy === "bear-call-spread") {
-    return [
-      { strikeOffset: 1, strike2Offset: 3 },
-      { strikeOffset: 0, strike2Offset: 2 },
-    ];
-  }
-
-  if (strategy === "iron-condor") {
-    return [
-      {
-        strikeOffset: -3,
-        strike2Offset: -1,
-        strike3Offset: 1,
-        strike4Offset: 3,
-      },
-      {
-        strikeOffset: -4,
-        strike2Offset: -2,
-        strike3Offset: 2,
-        strike4Offset: 4,
-      },
-    ];
-  }
-
-  if (strategy === "covered-call") {
-    return [{ strikeOffset: 1 }, { strikeOffset: 2 }, { strikeOffset: 3 }];
-  }
-
-  if (strategy === "cash-secured-put" || strategy === "short-put") {
-    return [
-      { strikeOffset: 0, strikeTargetRatio: 0.9 },
-      { strikeOffset: 0, strikeTargetRatio: 0.92 },
-      { strikeOffset: 0, strikeTargetRatio: 0.95 },
-    ];
-  }
-
-  if (strategy === "short-call") {
-    return [{ strikeOffset: 1 }, { strikeOffset: 2 }, { strikeOffset: 3 }];
-  }
-
-  if (strategy === "short-strangle") {
-    return [
-      { strikeOffset: -2, strike2Offset: 2 },
-      { strikeOffset: -3, strike2Offset: 3 },
-    ];
-  }
-
-  return [{ strikeOffset: -1 }, { strikeOffset: 0 }, { strikeOffset: 1 }];
-}
-
-function strikeAt(strikes: number[], underlyingPrice: number, offset: number) {
-  const sorted = [...strikes].sort((left, right) => left - right);
-  const atTheMoneyIndex = sorted.reduce((nearestIndex, strike, index) => {
-    const nearest = sorted[nearestIndex] ?? strike;
-
-    return Math.abs(strike - underlyingPrice) <
-      Math.abs(nearest - underlyingPrice)
-      ? index
-      : nearestIndex;
-  }, 0);
-  const nextIndex = Math.min(
-    Math.max(atTheMoneyIndex + offset, 0),
-    sorted.length - 1,
-  );
-
-  return sorted[nextIndex] ?? underlyingPrice;
-}
-
-function strikeForInput(
-  strikes: number[],
-  targetPrice: number,
-  input: CandidateInput,
-  offsetKey: keyof Pick<
-    CandidateInput,
-    "strikeOffset" | "strike2Offset" | "strike3Offset" | "strike4Offset"
-  >,
-  ratioKey: keyof Pick<
-    CandidateInput,
-    | "strikeTargetRatio"
-    | "strike2TargetRatio"
-    | "strike3TargetRatio"
-    | "strike4TargetRatio"
-  >,
-) {
-  const offset = input[offsetKey];
-
-  if (offset === undefined) {
-    return undefined;
-  }
-
-  const anchorPrice = targetPrice * (input[ratioKey] ?? 1);
-
-  return strikeAt(strikes, anchorPrice, offset);
-}
-
 export function enumerateOptimizerCandidates(
   inputs: OptimizerInputs,
   chainInput?: OptionChainSnapshot,
 ): OptimizerCandidate[] {
   const symbol = inputs.symbol.trim().toUpperCase() || "AAPL";
-  const chain = chainInput ?? getBuilderChain(createBuilderState({ symbol }));
+  const chain = chainInput ?? createGeneratedChain(symbol);
   const targetPrice = targetUnderlyingPrice(inputs, chain.underlying.price);
-  const strategies = THESIS_STRATEGIES[inputs.thesis];
   const candidates = new Map<string, OptimizerCandidate>();
 
-  for (const expirationGroup of chain.expirations) {
-    const expirationIso = expirationGroup.expiration;
+  for (const seed of strategyTemplates.optimizerSeeds({
+    thesis: inputs.thesis,
+    chain,
+    targetUnderlyingPrice: targetPrice,
+    minDaysToExpiration: inputs.minDaysToExpiration,
+    maxDaysToExpiration: inputs.maxDaysToExpiration,
+    expiration: inputs.expiration,
+  })) {
+    const state = strategyTemplates.build({
+      symbol,
+      strategy: seed.strategy,
+      expiration: seed.expiration,
+      strikes: seed.strikes,
+      quantity: seed.quantity,
+      chain,
+    });
+    const candidate = makeCandidate(inputs, state);
 
-    if (
-      inputs.expiration !== undefined &&
-      expirationIso !== inputs.expiration
-    ) {
-      continue;
-    }
-
-    const strikes = expirationGroup.calls.map((quote) => quote.strike);
-
-    for (const strategy of strategies) {
-      for (const input of candidateInputs(strategy)) {
-        const strike = strikeForInput(
-          strikes,
-          targetPrice,
-          input,
-          "strikeOffset",
-          "strikeTargetRatio",
-        );
-        const strike2 = strikeForInput(
-          strikes,
-          targetPrice,
-          input,
-          "strike2Offset",
-          "strike2TargetRatio",
-        );
-        const state = createBuilderState({
-          symbol,
-          strategy,
-          expiration: expirationIso,
-          strike,
-          strike2,
-          strike3: strikeForInput(
-            strikes,
-            targetPrice,
-            input,
-            "strike3Offset",
-            "strike3TargetRatio",
-          ),
-          strike4: strikeForInput(
-            strikes,
-            targetPrice,
-            input,
-            "strike4Offset",
-            "strike4TargetRatio",
-          ),
-          chain,
-        });
-        const candidate = makeCandidate(inputs, state);
-
-        if (candidate) {
-          candidates.set(candidate.id, candidate);
-        }
-      }
+    if (candidate) {
+      candidates.set(candidate.id, candidate);
     }
   }
 
@@ -588,7 +378,7 @@ export function optimizeStrategies(
   chainInput?: OptionChainSnapshot,
 ): OptimizerCandidate[] {
   const candidates = enumerateOptimizerCandidates(inputs, chainInput);
-  const strategies = THESIS_STRATEGIES[inputs.thesis];
+  const strategies = strategyTemplates.optimizerStrategies(inputs.thesis);
   const ranked = rankCandidatesByFamily(inputs.returnChanceWeight, candidates);
   const selected = new Map<string, OptimizerCandidate>();
 
@@ -615,16 +405,6 @@ export function optimizeStrategies(
   );
 }
 
-const SINGLE_STRIKE_SCAN_STRATEGIES: StrategyTemplateId[] = [
-  "long-call",
-  "long-put",
-  "short-call",
-  "short-put",
-  "cash-secured-put",
-  "covered-call",
-  "short-straddle",
-];
-
 export type ScanInputs = {
   symbol: string;
   minDaysToExpiration: number;
@@ -650,7 +430,7 @@ export function scanRiskReward(
   chainInput?: OptionChainSnapshot,
 ): OptimizerCandidate[] {
   const symbol = inputs.symbol.trim().toUpperCase() || "AAPL";
-  const chain = chainInput ?? getBuilderChain(createBuilderState({ symbol }));
+  const chain = chainInput ?? createGeneratedChain(symbol);
   const candidates = new Map<string, OptimizerCandidate>();
   const baseInputs: OptimizerInputs = {
     symbol,
@@ -680,52 +460,37 @@ export function scanRiskReward(
     );
 
     for (const strategy of inputs.enabledStrategies) {
-      if (SINGLE_STRIKE_SCAN_STRATEGIES.includes(strategy)) {
+      if (strategyTemplates.get(strategy).scanMode === "single-strike") {
         for (const strike of denseStrikes) {
           tryAddCandidate(candidates, baseInputs, {
             symbol,
             strategy,
             expiration: expirationIso,
-            strike,
+            strikes: { option: strike, shortCall: strike, shortPut: strike },
             chain,
           });
         }
       } else {
-        const targetPrice = chain.underlying.price;
+        for (const seed of strategyTemplates.optimizerSeeds({
+          thesis: baseInputs.thesis,
+          chain: {
+            ...chain,
+            expirations: [expirationGroup],
+          },
+          targetUnderlyingPrice: chain.underlying.price,
+          minDaysToExpiration: inputs.minDaysToExpiration,
+          maxDaysToExpiration: inputs.maxDaysToExpiration,
+          expiration: expirationIso,
+        })) {
+          if (seed.strategy !== strategy) {
+            continue;
+          }
 
-        for (const input of candidateInputs(strategy)) {
           tryAddCandidate(candidates, baseInputs, {
             symbol,
             strategy,
             expiration: expirationIso,
-            strike: strikeForInput(
-              allStrikes,
-              targetPrice,
-              input,
-              "strikeOffset",
-              "strikeTargetRatio",
-            ),
-            strike2: strikeForInput(
-              allStrikes,
-              targetPrice,
-              input,
-              "strike2Offset",
-              "strike2TargetRatio",
-            ),
-            strike3: strikeForInput(
-              allStrikes,
-              targetPrice,
-              input,
-              "strike3Offset",
-              "strike3TargetRatio",
-            ),
-            strike4: strikeForInput(
-              allStrikes,
-              targetPrice,
-              input,
-              "strike4Offset",
-              "strike4TargetRatio",
-            ),
+            strikes: seed.strikes,
             chain,
           });
         }
@@ -741,12 +506,12 @@ export function scanRiskReward(
 function tryAddCandidate(
   candidates: Map<string, OptimizerCandidate>,
   baseInputs: OptimizerInputs,
-  builderInput: Parameters<typeof createBuilderState>[0],
+  builderInput: BuildStrategyInput,
 ) {
   let state: StrategyState;
 
   try {
-    state = createBuilderState(builderInput);
+    state = strategyTemplates.build(builderInput);
   } catch {
     return;
   }

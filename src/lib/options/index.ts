@@ -1,12 +1,4 @@
 export {
-  BUILDER_STRATEGIES,
-  createBuilderState,
-  getBuilderChain,
-  getBuilderOptionLegs,
-  parseBuilderState,
-  serializeBuilderState,
-} from "./builder";
-export {
   evaluateStrategy,
   type StrategyEvaluationResult,
   StrategyValidationError,
@@ -29,6 +21,14 @@ export {
   createGeneratedChain,
   GeneratedChainProvider,
 } from "./providers/generated";
-export { validateStrategyState } from "./strategy";
+export {
+  type BuildStrategyInput,
+  type StrategySummary,
+  type StrategyTemplate,
+  type StrategyTemplateCatalog,
+  strategyTemplates,
+  type TemplateRole,
+  type ValidationResult,
+} from "./strategy-templates";
 export type * from "./types";
 export { CONTRACT_MULTIPLIER } from "./types";

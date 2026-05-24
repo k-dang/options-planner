@@ -11,7 +11,7 @@ import {
   type WatchlistScanCriteria,
   type WatchlistScanResult,
 } from "@/lib/ticker-watchlist-scan";
-import { BUILDER_STRATEGIES, type StrategyTemplateId } from "./options";
+import { type StrategyTemplateId, strategyTemplates } from "./options";
 
 export type WatchlistActionState = {
   ok: boolean;
@@ -122,7 +122,7 @@ function scanCriteriaFromFormData(formData: FormData): WatchlistScanCriteria {
     .filter(
       (value): value is StrategyTemplateId =>
         typeof value === "string" &&
-        BUILDER_STRATEGIES.includes(value as StrategyTemplateId),
+        strategyTemplates.ids().includes(value as StrategyTemplateId),
     );
 
   return {

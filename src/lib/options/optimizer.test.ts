@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { parsePositiveNumber } from "@/lib/utils";
 import {
   type OptimizerInputs,
   type OptionChainSnapshot,
   type OptionQuote,
   optimizeStrategies,
-  parseBuilderState,
   scanRiskReward,
+  strategyTemplates,
   toOptimizerResultRows,
-  validateStrategyState,
 } from "./index";
 
 const baseInputs: OptimizerInputs = {
@@ -76,7 +76,7 @@ describe("optimizer", () => {
     expect(strategies.has("cash-secured-put")).toBe(true);
     expect(
       results.every(
-        (candidate) => validateStrategyState(candidate.state).valid,
+        (candidate) => strategyTemplates.validate(candidate.state).valid,
       ),
     ).toBe(true);
   });
@@ -274,13 +274,13 @@ describe("optimizer", () => {
 
     const url = new URL(candidate.summary.builderHref, "https://example.test");
     const [, , strategy, symbol] = url.pathname.split("/");
-    const restored = parseBuilderState({
-      strategy,
+    const restored = strategyTemplates.build({
+      strategy: strategyTemplates.coerce(strategy),
       symbol,
       expiration: url.searchParams.get("exp") ?? undefined,
-      strike: url.searchParams.get("strike") ?? undefined,
-      strike2: url.searchParams.get("strike2") ?? undefined,
-      quantity: url.searchParams.get("qty") ?? undefined,
+      strike: parsePositiveNumber(url.searchParams.get("strike")),
+      strike2: parsePositiveNumber(url.searchParams.get("strike2")),
+      quantity: parsePositiveNumber(url.searchParams.get("qty")),
     });
 
     expect(restored.strategy).toBe(candidate.state.strategy);
