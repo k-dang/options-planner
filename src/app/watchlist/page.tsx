@@ -6,6 +6,11 @@ import {
   WatchlistScanner,
 } from "./watchlist-actions";
 
+const SKELETON_TAG_WIDTHS = [80, 72, 64, 80, 72].map((width, index) => ({
+  id: `skeleton-tag-${index}-${width}`,
+  width,
+}));
+
 export default function WatchlistPage() {
   return (
     <main>
@@ -159,11 +164,11 @@ function WatchlistSkeleton() {
               <div className="h-3 w-20 rounded bg-muted/60" />
             </div>
             <div className="flex flex-wrap gap-2">
-              {[80, 72, 64, 80, 72].map((w, i) => (
+              {SKELETON_TAG_WIDTHS.map(({ id, width }) => (
                 <div
-                  key={i}
+                  key={id}
                   className="h-6 rounded bg-muted/50"
-                  style={{ width: `${w}px` }}
+                  style={{ width: `${width}px` }}
                 />
               ))}
             </div>
