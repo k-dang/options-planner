@@ -14,7 +14,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Options Planner",
+  title: {
+    default: "Options Planner",
+    template: "%s · Options Planner",
+  },
   description: "Build and share options strategy scenarios.",
 };
 

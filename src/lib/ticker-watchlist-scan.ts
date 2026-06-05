@@ -93,5 +93,12 @@ export async function scanTickerWatchlist(
 }
 
 function uniqueSymbols(symbols: string[]) {
-  return [...new Set(symbols.map(normalizeWatchlistSymbol).filter(Boolean))];
+  return [
+    ...new Set(
+      symbols.flatMap((symbol) => {
+        const normalized = normalizeWatchlistSymbol(symbol);
+        return normalized ? [normalized] : [];
+      }),
+    ),
+  ];
 }

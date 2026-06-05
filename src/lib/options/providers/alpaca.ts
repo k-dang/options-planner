@@ -186,8 +186,7 @@ function firstString(source: Record<string, unknown>, keys: string[]) {
 
 function estimateUnderlyingPrice(quotes: OptionQuote[]) {
   const candidates = quotes
-    .filter(hasPremium)
-    .map((quote) => quote.strike)
+    .flatMap((quote) => (hasPremium(quote) ? [quote.strike] : []))
     .sort((left, right) => left - right);
 
   if (candidates.length === 0) {

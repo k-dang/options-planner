@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { listWatchlistSymbols } from "@/db/ticker-watchlist";
 import {
@@ -5,6 +6,10 @@ import {
   RemoveWatchlistSymbolButton,
   WatchlistScanner,
 } from "./watchlist-actions";
+
+export const metadata: Metadata = {
+  title: "Watchlist",
+};
 
 const SKELETON_TAG_WIDTHS = [80, 72, 64, 80, 72].map((width, index) => ({
   id: `skeleton-tag-${index}-${width}`,

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,9 +59,9 @@ export function RiskRewardCandidatesTable({
   emptyState?: React.ReactNode;
   className?: string;
 }) {
-  const sortedCandidates = useMemo(() => {
-    return [...candidates].sort((left, right) => compare(left, right, sort));
-  }, [candidates, sort]);
+  const sortedCandidates = candidates.toSorted((left, right) =>
+    compare(left, right, sort),
+  );
   const shouldPage =
     page !== undefined && pageSize !== undefined && onPageChange !== undefined;
   const totalPages = shouldPage

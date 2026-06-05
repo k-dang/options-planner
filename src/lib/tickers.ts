@@ -58,13 +58,11 @@ async function getAlpacaAssets(): Promise<TickerSuggestion[]> {
     assetClass: "us_equity",
   });
 
-  return assets
-    .filter((asset) => asset.tradable)
-    .map((asset) => ({
-      symbol: asset.symbol,
-      name: asset.name,
-      type: "stock" as const,
-    }));
+  return assets.flatMap((asset) =>
+    asset.tradable
+      ? [{ symbol: asset.symbol, name: asset.name, type: "stock" as const }]
+      : [],
+  );
 }
 
 export async function searchAlpacaTickers(

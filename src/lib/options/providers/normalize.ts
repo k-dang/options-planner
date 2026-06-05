@@ -115,7 +115,7 @@ export function groupQuotesByExpiration(input: {
 }
 
 function sortQuotes(quotes: OptionQuote[]) {
-  return [...quotes].sort((left, right) => left.strike - right.strike);
+  return quotes.toSorted((left, right) => left.strike - right.strike);
 }
 
 export function optionTypeFromContractSymbol(

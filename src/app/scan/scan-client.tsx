@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   defaultRiskRewardSortDirection,
   RiskRewardCandidatesTable,
@@ -32,18 +32,16 @@ export function ScanClient({
   const [page, setPage] = useState(0);
   const chain = initialChain;
 
-  const candidates = useMemo(() => {
-    return scanRiskReward(
-      {
-        symbol: chain.underlying.symbol,
-        minDaysToExpiration: filters.minDays,
-        maxDaysToExpiration: filters.maxDays,
-        minProbabilityOfProfit: filters.minPop,
-        enabledStrategies: [...filters.enabled],
-      },
-      chain,
-    );
-  }, [chain, filters]);
+  const candidates = scanRiskReward(
+    {
+      symbol: chain.underlying.symbol,
+      minDaysToExpiration: filters.minDays,
+      maxDaysToExpiration: filters.maxDays,
+      minProbabilityOfProfit: filters.minPop,
+      enabledStrategies: [...filters.enabled],
+    },
+    chain,
+  );
 
   const PAGE_SIZE = 30;
 

@@ -2,7 +2,7 @@
 
 import { Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   CartesianGrid,
   Line,
@@ -81,7 +81,7 @@ export function BuilderClient({
     chain.expirations.find(
       (candidate) => candidate.expiration === primaryLeg?.expiration,
     ) ?? chain.expirations[0];
-  const evaluationResult = useMemo(() => safeEvaluateStrategy(state), [state]);
+  const evaluationResult = safeEvaluateStrategy(state);
   const evaluation = evaluationResult.evaluation;
   const netPremiumLabel =
     evaluation === null
@@ -91,50 +91,45 @@ export function BuilderClient({
         : evaluation.netPremium < 0
           ? "Net debit"
           : "Net premium";
-  const initialChainDebugJson = useMemo(
-    () => (debugOpen ? JSON.stringify(initialChain, null, 2) : ""),
-    [debugOpen, initialChain],
-  );
-  const currentValuesDebugJson = useMemo(
-    () =>
-      debugOpen
-        ? JSON.stringify(
-            {
-              strategy: state.strategy,
-              symbol: state.symbol,
-              underlyingPrice: state.underlyingPrice,
-              asOf: state.asOf,
-              selectedExpiration: expiration
-                ? {
-                    expiration: expiration.expiration,
-                    daysToExpiration: expiration.daysToExpiration,
-                    callCount: expiration.calls.length,
-                    putCount: expiration.puts.length,
-                  }
-                : null,
-              selectedLegs: optionLegs.map((leg) => ({
-                stateLeg: leg,
-                chainQuote:
-                  quotesForLeg(expiration, leg).find(
-                    (quote) => quote.strike === leg.strike,
-                  ) ?? null,
-              })),
-              evaluation: {
-                valid: evaluationResult.valid,
-                errors: evaluationResult.errors,
-                netPremium: evaluation?.netPremium ?? null,
-                maxProfit: evaluation?.maxProfit ?? null,
-                maxLoss: evaluation?.maxLoss ?? null,
-                breakevens: evaluation?.breakevens ?? [],
-                probabilityOfProfit: evaluation?.probabilityOfProfit ?? null,
-              },
-            },
-            null,
-            2,
-          )
-        : "",
-    [debugOpen, state, expiration, optionLegs, evaluation, evaluationResult],
-  );
+  const initialChainDebugJson = debugOpen
+    ? JSON.stringify(initialChain, null, 2)
+    : "";
+  const currentValuesDebugJson = debugOpen
+    ? JSON.stringify(
+        {
+          strategy: state.strategy,
+          symbol: state.symbol,
+          underlyingPrice: state.underlyingPrice,
+          asOf: state.asOf,
+          selectedExpiration: expiration
+            ? {
+                expiration: expiration.expiration,
+                daysToExpiration: expiration.daysToExpiration,
+                callCount: expiration.calls.length,
+                putCount: expiration.puts.length,
+              }
+            : null,
+          selectedLegs: optionLegs.map((leg) => ({
+            stateLeg: leg,
+            chainQuote:
+              quotesForLeg(expiration, leg).find(
+                (quote) => quote.strike === leg.strike,
+              ) ?? null,
+          })),
+          evaluation: {
+            valid: evaluationResult.valid,
+            errors: evaluationResult.errors,
+            netPremium: evaluation?.netPremium ?? null,
+            maxProfit: evaluation?.maxProfit ?? null,
+            maxLoss: evaluation?.maxLoss ?? null,
+            breakevens: evaluation?.breakevens ?? [],
+            probabilityOfProfit: evaluation?.probabilityOfProfit ?? null,
+          },
+        },
+        null,
+        2,
+      )
+    : "";
 
   function commitState(next: StrategyState) {
     setState(next);

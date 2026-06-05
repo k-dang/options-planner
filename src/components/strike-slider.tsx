@@ -4,7 +4,6 @@ import {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -36,45 +35,24 @@ export function StrikeSlider({
   const trackRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const callStrikes = useMemo(
-    () => uniqueSorted(expiration?.calls.map((c) => c.strike) ?? []),
-    [expiration],
+  const callStrikes = uniqueSorted(
+    expiration?.calls.map((c) => c.strike) ?? [],
   );
-  const putStrikes = useMemo(
-    () => uniqueSorted(expiration?.puts.map((p) => p.strike) ?? []),
-    [expiration],
-  );
-  const allStrikes = useMemo(
-    () => uniqueSorted([...callStrikes, ...putStrikes]),
-    [callStrikes, putStrikes],
-  );
+  const putStrikes = uniqueSorted(expiration?.puts.map((p) => p.strike) ?? []);
+  const allStrikes = uniqueSorted([...callStrikes, ...putStrikes]);
 
-  const { min, max } = useMemo(
-    () => computeDomain(allStrikes, underlyingPrice),
-    [allStrikes, underlyingPrice],
-  );
+  const { min, max } = computeDomain(allStrikes, underlyingPrice);
 
   const priceToPct = (price: number) => ((price - min) / (max - min)) * 100;
 
-  const tickInterval = useMemo(() => niceTickInterval(max - min), [min, max]);
-  const majorTicks = useMemo(() => {
-    const ticks: number[] = [];
-    const start = Math.ceil(min / tickInterval) * tickInterval;
-    for (let v = start; v <= max + 1e-6; v += tickInterval) {
-      ticks.push(Number(v.toFixed(4)));
-    }
-    return ticks;
-  }, [min, max, tickInterval]);
+  const tickInterval = niceTickInterval(max - min);
+  const majorTicks = computeMajorTicks(min, max, tickInterval);
 
-  const pillRowByIndex = useMemo(
-    () =>
-      assignPillRows(
-        legs.map((leg, index) => ({
-          index,
-          x: ((leg.strike - min) / (max - min)) * 100,
-        })),
-      ),
-    [legs, min, max],
+  const pillRowByIndex = assignPillRows(
+    legs.map((leg, index) => ({
+      index,
+      x: ((leg.strike - min) / (max - min)) * 100,
+    })),
   );
 
   function snapPriceForLeg(leg: OptionLeg, targetPrice: number): number {
@@ -361,6 +339,15 @@ function computeDomain(strikes: number[], spot: number) {
   return { min: lo - leftPad, max: hi + rightPad };
 }
 
+function computeMajorTicks(min: number, max: number, tickInterval: number) {
+  const ticks: number[] = [];
+  const start = Math.ceil(min / tickInterval) * tickInterval;
+  for (let v = start; v <= max + 1e-6; v += tickInterval) {
+    ticks.push(Number(v.toFixed(4)));
+  }
+  return ticks;
+}
+
 function niceTickInterval(range: number) {
   const target = Math.max(range, 1) / 7;
   const mag = 10 ** Math.floor(Math.log10(target));
@@ -387,7 +374,7 @@ function assignPillRows(
   pills: { index: number; x: number }[],
 ): Map<number, number> {
   const rows = new Map<number, number>();
-  const sorted = [...pills].sort((a, b) => a.x - b.x);
+  const sorted = pills.toSorted((a, b) => a.x - b.x);
   let row0X = -Infinity;
   let row1X = -Infinity;
   for (const pill of sorted) {

@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { ScanClient } from "./scan-client";
 import { ScanSkeleton } from "./scan-skeleton";
+
+export const metadata: Metadata = {
+  title: "Scan",
+};
 
 export default function ScanPage({
   searchParams,

@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,9 @@ export function PositionsTable({
   autoRefreshControl?: ReactNode;
 }) {
   const [showClosed, setShowClosed] = useState(false);
-  const closedCount = useMemo(
-    () => strategies.filter((strategy) => strategy.status === "closed").length,
-    [strategies],
-  );
+  const closedCount = strategies.filter(
+    (strategy) => strategy.status === "closed",
+  ).length;
   const visibleStrategies = showClosed
     ? strategies
     : strategies.filter((strategy) => strategy.status !== "closed");

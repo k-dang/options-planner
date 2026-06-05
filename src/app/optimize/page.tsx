@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { OptimizeClient } from "./optimize-client";
 import { OptimizeSkeleton } from "./optimize-skeleton";
+
+export const metadata: Metadata = {
+  title: "Optimize",
+};
 
 export default function OptimizePage({
   searchParams,

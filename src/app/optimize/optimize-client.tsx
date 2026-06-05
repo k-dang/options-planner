@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
 import { StrategyCard } from "@/app/optimize/strategy-card";
 import { DebugDrawer } from "@/components/debug-drawer";
@@ -62,43 +62,24 @@ export function OptimizeClient({
   );
   const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
-  const candidates = useMemo(
-    () => enumerateOptimizerCandidates(inputs, chain),
-    [chain, inputs],
-  );
+  const candidates = enumerateOptimizerCandidates(inputs, chain);
   const deferredWeight = useDeferredValue(inputs.returnChanceWeight);
-  const strategyCards = useMemo(() => {
-    const ranked = rankOptimizerCandidates(deferredWeight, candidates);
-    const byStrategy = new Map<string, OptimizerCandidate>();
-
-    for (const candidate of ranked) {
-      if (!byStrategy.has(candidate.state.strategy)) {
-        byStrategy.set(candidate.state.strategy, candidate);
-      }
-    }
-
-    return [...byStrategy.values()];
-  }, [candidates, deferredWeight]);
-  const optimizerDebugJson = useMemo(
-    () =>
-      debugOpen
-        ? JSON.stringify(
-            {
-              inputs,
-              selectedCards: strategyCards.map((candidate) =>
-                optimizerCandidateDebug(candidate),
-              ),
-            },
-            null,
-            2,
-          )
-        : "",
-    [debugOpen, inputs, strategyCards],
-  );
-  const initialChainDebugJson = useMemo(
-    () => (debugOpen ? JSON.stringify(initialChain, null, 2) : ""),
-    [debugOpen, initialChain],
-  );
+  const strategyCards = selectTopStrategyCards(deferredWeight, candidates);
+  const optimizerDebugJson = debugOpen
+    ? JSON.stringify(
+        {
+          inputs,
+          selectedCards: strategyCards.map((candidate) =>
+            optimizerCandidateDebug(candidate),
+          ),
+        },
+        null,
+        2,
+      )
+    : "";
+  const initialChainDebugJson = debugOpen
+    ? JSON.stringify(initialChain, null, 2)
+    : "";
   function updateInputs(next: Partial<OptimizerInputs>) {
     setInputs((current) => {
       for (const key of Object.keys(next) as (keyof OptimizerInputs)[]) {
@@ -277,6 +258,22 @@ export function OptimizeClient({
       ) : null}
     </>
   );
+}
+
+function selectTopStrategyCards(
+  weight: number | undefined,
+  candidates: OptimizerCandidate[],
+) {
+  const ranked = rankOptimizerCandidates(weight, candidates);
+  const byStrategy = new Map<string, OptimizerCandidate>();
+
+  for (const candidate of ranked) {
+    if (!byStrategy.has(candidate.state.strategy)) {
+      byStrategy.set(candidate.state.strategy, candidate);
+    }
+  }
+
+  return [...byStrategy.values()];
 }
 
 function optimizerCandidateDebug(candidate: OptimizerCandidate) {

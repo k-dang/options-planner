@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getPositionRefreshWorkflowState } from "@/db/position-refresh-workflow-state";
 import {
@@ -15,6 +16,10 @@ import { PositionsSkeleton } from "./positions-skeleton";
 import { PositionsTable } from "./positions-table";
 
 const IS_DEV = process.env.NODE_ENV === "development";
+
+export const metadata: Metadata = {
+  title: "Positions",
+};
 
 export default function PositionsPage() {
   const body = (

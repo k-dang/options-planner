@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { OptionExpiration } from "@/lib/options";
 import { cn } from "@/lib/utils";
@@ -23,36 +22,7 @@ export function ExpirationTimeline({
   onChange: (expiration: string) => void;
 }) {
   const selected = expirations.find((e) => e.expiration === value);
-  const groups = useMemo<Group[]>(() => {
-    const map = new Map<string, Group>();
-    const currentYear = new Date().getFullYear();
-    for (const exp of expirations) {
-      const [yearStr, monthStr] = exp.expiration.split("-");
-      const year = Number(yearStr);
-      const month = Number(monthStr);
-      const key = `${year}-${month}`;
-      let group = map.get(key);
-      if (!group) {
-        const monthLabel = new Date(year, month - 1, 1).toLocaleString(
-          "en-US",
-          { month: "short" },
-        );
-        group = {
-          key,
-          year,
-          month,
-          label:
-            year === currentYear
-              ? monthLabel
-              : `${monthLabel} '${String(year).slice(2)}`,
-          items: [],
-        };
-        map.set(key, group);
-      }
-      group.items.push(exp);
-    }
-    return [...map.values()];
-  }, [expirations]);
+  const groups = groupExpirationsByMonth(expirations);
 
   return (
     <div className="flex flex-col gap-3">
@@ -143,4 +113,34 @@ export function ExpirationTimeline({
       </div>
     </div>
   );
+}
+
+function groupExpirationsByMonth(expirations: OptionExpiration[]): Group[] {
+  const map = new Map<string, Group>();
+  const currentYear = new Date().getFullYear();
+  for (const exp of expirations) {
+    const [yearStr, monthStr] = exp.expiration.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const key = `${year}-${month}`;
+    let group = map.get(key);
+    if (!group) {
+      const monthLabel = new Date(year, month - 1, 1).toLocaleString("en-US", {
+        month: "short",
+      });
+      group = {
+        key,
+        year,
+        month,
+        label:
+          year === currentYear
+            ? monthLabel
+            : `${monthLabel} '${String(year).slice(2)}`,
+        items: [],
+      };
+      map.set(key, group);
+    }
+    group.items.push(exp);
+  }
+  return [...map.values()];
 }

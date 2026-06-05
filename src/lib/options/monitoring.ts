@@ -176,15 +176,20 @@ export function getDaysUntilExpiration(
   state: Pick<StrategyState, "legs">,
   asOf: Date = new Date(),
 ) {
-  const expirations = state.legs
-    .filter((leg) => leg.kind === "option")
-    .map((leg) => leg.expiration);
+  let earliestExpiration: string | null = null;
+  for (const leg of state.legs) {
+    if (leg.kind !== "option") {
+      continue;
+    }
+    if (earliestExpiration === null || leg.expiration < earliestExpiration) {
+      earliestExpiration = leg.expiration;
+    }
+  }
 
-  if (expirations.length === 0) {
+  if (earliestExpiration === null) {
     return null;
   }
 
-  const earliestExpiration = expirations.sort()[0];
   const expirationDate = new Date(`${earliestExpiration}T00:00:00.000Z`);
   const asOfDate = Date.UTC(
     asOf.getUTCFullYear(),

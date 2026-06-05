@@ -611,14 +611,14 @@ export const strategyTemplates: StrategyTemplateCatalog = {
   },
   summarize: summarizeStrategy,
   defaultScanStrategies() {
-    return templates
-      .filter((template) => template.defaultScanEnabled === true)
-      .map((template) => template.id);
+    return templates.flatMap((template) =>
+      template.defaultScanEnabled === true ? [template.id] : [],
+    );
   },
   optimizerStrategies(thesis) {
-    return templates
-      .filter((template) => template.optimizerTheses.includes(thesis))
-      .map((template) => template.id);
+    return templates.flatMap((template) =>
+      template.optimizerTheses.includes(thesis) ? [template.id] : [],
+    );
   },
   optimizerSeeds: buildOptimizerSeeds,
 };
@@ -917,7 +917,7 @@ function strikeForInput(
 }
 
 function strikeAt(strikes: number[], underlyingPrice: number, offset: number) {
-  const sorted = [...strikes].sort((left, right) => left - right);
+  const sorted = strikes.toSorted((left, right) => left - right);
   const atTheMoneyIndex = sorted.reduce((nearestIndex, strike, index) => {
     const nearest = sorted[nearestIndex] ?? strike;
 

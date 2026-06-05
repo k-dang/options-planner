@@ -1,19 +1,43 @@
+const currencyFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
+const decimalFormat = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+});
+
+const percentFormat = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 1,
+  style: "percent",
+});
+
+const dateTimeFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+const shortDateTimeFormat = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export function formatCurrency(value: number | null) {
   if (value === null) {
     return "Unlimited";
   }
 
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return currencyFormat.format(value);
 }
 
 export function formatDecimal(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 2,
-  }).format(value);
+  return decimalFormat.format(value);
 }
 
 export function formatPercent(value: number | null) {
@@ -21,29 +45,15 @@ export function formatPercent(value: number | null) {
     return "n/a";
   }
 
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 1,
-    style: "percent",
-  }).format(value);
+  return percentFormat.format(value);
 }
 
 export function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return dateTimeFormat.format(date);
 }
 
 export function formatShortDateTime(date: Date) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date);
+  return shortDateTimeFormat.format(date);
 }
 
 export function formatTitleCaseFromKebab(value: string) {

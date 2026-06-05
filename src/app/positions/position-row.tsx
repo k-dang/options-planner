@@ -47,10 +47,10 @@ export function PositionRowLink({
   );
 }
 
-export function PositionRowActionsCell({ children }: { children: ReactNode }) {
-  function stopPropagation(event: MouseEvent<HTMLTableCellElement>) {
-    event.stopPropagation();
-  }
+function stopPropagation(event: MouseEvent<HTMLTableCellElement>) {
+  event.stopPropagation();
+}
 
+export function PositionRowActionsCell({ children }: { children: ReactNode }) {
   return <TableCell onClick={stopPropagation}>{children}</TableCell>;
 }

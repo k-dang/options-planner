@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { strategyTemplates } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
@@ -17,6 +18,10 @@ type SearchParams = Promise<{
 }>;
 
 type Params = Promise<{ strategy: string; symbol: string }>;
+
+export const metadata: Metadata = {
+  title: "Builder",
+};
 
 export default async function BuildStrategyPage({
   params,
@@ -65,8 +70,7 @@ async function BuildContent({
   params: Params;
   searchParams: SearchParams;
 }) {
-  const route = await params;
-  const query = await searchParams;
+  const [route, query] = await Promise.all([params, searchParams]);
   const chain = await getOptionChainProvider().getChain({
     symbol: route.symbol,
   });

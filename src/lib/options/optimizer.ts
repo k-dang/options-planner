@@ -382,10 +382,15 @@ export function optimizeStrategies(
   const ranked = rankCandidatesByFamily(inputs.returnChanceWeight, candidates);
   const selected = new Map<string, OptimizerCandidate>();
 
+  const bestByStrategy = new Map<string, OptimizerCandidate>();
+  for (const candidate of ranked) {
+    if (!bestByStrategy.has(candidate.state.strategy)) {
+      bestByStrategy.set(candidate.state.strategy, candidate);
+    }
+  }
+
   for (const strategy of strategies) {
-    const bestForStrategy = ranked.find(
-      (candidate) => candidate.state.strategy === strategy,
-    );
+    const bestForStrategy = bestByStrategy.get(strategy);
 
     if (bestForStrategy) {
       selected.set(bestForStrategy.id, bestForStrategy);
@@ -400,7 +405,7 @@ export function optimizeStrategies(
     selected.set(candidate.id, candidate);
   }
 
-  return [...selected.values()].sort(
+  return [...selected.values()].toSorted(
     (left, right) => right.summary.score - left.summary.score,
   );
 }
