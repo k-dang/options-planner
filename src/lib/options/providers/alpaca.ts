@@ -2,6 +2,7 @@ import type {
   AlpacaChainResponse,
   AlpacaClient,
   AlpacaOptionSnapshot,
+  AlpacaStockSnapshotResponse,
 } from "@/lib/alpaca/client";
 import type {
   OptionChainProvider,
@@ -89,27 +90,30 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
   }
 
   private async fetchUnderlyingPrice(symbol: string) {
-    const snapshot = await this.client.getStockSnapshot(symbol);
-
-    if (!snapshot) {
-      return null;
-    }
-
-    const latestQuote = snapshot.latestQuote ?? {};
-    const latestTrade = snapshot.latestTrade ?? {};
-    const minuteBar = snapshot.minuteBar ?? {};
-    const dailyBar = snapshot.dailyBar ?? {};
-
-    return (
-      firstNumber(latestTrade, ["p", "price"]) ??
-      midFromBidAsk(
-        firstNumber(latestQuote, ["bp", "bidPrice", "bid_price"]),
-        firstNumber(latestQuote, ["ap", "askPrice", "ask_price"]),
-      ) ??
-      firstNumber(minuteBar, ["c", "close"]) ??
-      firstNumber(dailyBar, ["c", "close"])
+    return underlyingPriceFromStockSnapshot(
+      await this.client.getStockSnapshot(symbol),
     );
   }
+}
+
+export function underlyingPriceFromStockSnapshot(
+  snapshot: AlpacaStockSnapshotResponse | null,
+): number | null {
+  if (!snapshot) {
+    return null;
+  }
+
+  const latestQuote = snapshot.latestQuote ?? {};
+  const latestTrade = snapshot.latestTrade ?? {};
+  const minuteBar = snapshot.minuteBar ?? {};
+  const dailyBar = snapshot.dailyBar ?? {};
+
+  return (
+    safeNumber(latestTrade.p) ??
+    midFromBidAsk(safeNumber(latestQuote.bp), safeNumber(latestQuote.ap)) ??
+    safeNumber(minuteBar.c) ??
+    safeNumber(dailyBar.c)
+  );
 }
 
 export function normalizeAlpacaSnapshot(input: {
@@ -127,9 +131,9 @@ export function normalizeAlpacaSnapshot(input: {
   const latestQuote = input.snapshot.latestQuote ?? {};
   const latestTrade = input.snapshot.latestTrade ?? {};
   const greeks = input.snapshot.greeks ?? {};
-  const bid = firstNumber(latestQuote, ["bp", "bidPrice", "bid_price"]);
-  const ask = firstNumber(latestQuote, ["ap", "askPrice", "ask_price"]);
-  const last = firstNumber(latestTrade, ["p", "price"]);
+  const bid = safeNumber(latestQuote.bp);
+  const ask = safeNumber(latestQuote.ap);
+  const last = safeNumber(latestTrade.p);
   const mid = midFromBidAsk(bid, ask) ?? last;
 
   return {
@@ -142,46 +146,20 @@ export function normalizeAlpacaSnapshot(input: {
     ask,
     mid,
     last,
-    volume: firstNumber(latestTrade, ["s", "size"]),
+    volume: safeNumber(latestTrade.s),
     openInterest: null,
     impliedVolatility: safeNumber(input.snapshot.impliedVolatility),
-    delta: firstGreek(greeks, "delta"),
-    gamma: firstGreek(greeks, "gamma"),
-    theta: firstGreek(greeks, "theta"),
-    vega: firstGreek(greeks, "vega"),
-    rho: firstGreek(greeks, "rho"),
-    updatedAt:
-      firstString(latestQuote, ["t", "timestamp"]) ??
-      firstString(latestTrade, ["t", "timestamp"]),
+    delta: safeNumber(greeks.delta),
+    gamma: safeNumber(greeks.gamma),
+    theta: safeNumber(greeks.theta),
+    vega: safeNumber(greeks.vega),
+    rho: safeNumber(greeks.rho),
+    updatedAt: nonEmptyString(latestQuote.t) ?? nonEmptyString(latestTrade.t),
   };
 }
 
-function firstGreek(greeks: Record<string, unknown>, key: string) {
-  return firstNumber(greeks, [key, key[0] ?? key]);
-}
-
-function firstNumber(source: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = safeNumber(source[key]);
-
-    if (value !== null) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function firstString(source: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = source[key];
-
-    if (typeof value === "string" && value.trim() !== "") {
-      return value;
-    }
-  }
-
-  return null;
+function nonEmptyString(value: string | undefined): string | null {
+  return value !== undefined && value.trim() !== "" ? value : null;
 }
 
 function estimateUnderlyingPrice(quotes: OptionQuote[]) {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeAlpacaSnapshot } from "./alpaca";
+import {
+  normalizeAlpacaSnapshot,
+  underlyingPriceFromStockSnapshot,
+} from "./alpaca";
 
 describe("normalizeAlpacaSnapshot", () => {
   it("normalizes Alpaca snapshot fields into app option quotes", () => {
@@ -73,5 +76,41 @@ describe("normalizeAlpacaSnapshot", () => {
         snapshot: {},
       }),
     ).toBeNull();
+  });
+});
+
+describe("underlyingPriceFromStockSnapshot", () => {
+  it("prefers the latest trade price", () => {
+    expect(
+      underlyingPriceFromStockSnapshot({
+        latestTrade: { p: 182.5 },
+        latestQuote: { bp: 182.1, ap: 182.3 },
+        minuteBar: { c: 181.9 },
+        dailyBar: { c: 180 },
+      }),
+    ).toBe(182.5);
+  });
+
+  it("falls back to the quote midpoint when no trade is present", () => {
+    expect(
+      underlyingPriceFromStockSnapshot({
+        latestQuote: { bp: 182.1, ap: 182.3 },
+        minuteBar: { c: 181.9 },
+      }),
+    ).toBe(182.2);
+  });
+
+  it("falls back to the minute bar then daily bar close", () => {
+    expect(underlyingPriceFromStockSnapshot({ minuteBar: { c: 181.9 } })).toBe(
+      181.9,
+    );
+    expect(underlyingPriceFromStockSnapshot({ dailyBar: { c: 180 } })).toBe(
+      180,
+    );
+  });
+
+  it("returns null when the snapshot is missing or empty", () => {
+    expect(underlyingPriceFromStockSnapshot(null)).toBeNull();
+    expect(underlyingPriceFromStockSnapshot({})).toBeNull();
   });
 });

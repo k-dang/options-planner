@@ -13,11 +13,50 @@ export type AlpacaAsset = {
   tradable: boolean;
 };
 
+export type AlpacaQuote = {
+  ap?: number; // ask price
+  as?: number; // ask size
+  ax?: string; // ask exchange
+  bp?: number; // bid price
+  bs?: number; // bid size
+  bx?: string; // bid exchange
+  t?: string; // timestamp (RFC-3339)
+};
+
+export type AlpacaTrade = {
+  p?: number; // price
+  s?: number; // size
+  t?: string; // timestamp (RFC-3339)
+  x?: string; // exchange
+};
+
+export type AlpacaBar = {
+  o?: number; // open
+  h?: number; // high
+  l?: number; // low
+  c?: number; // close
+  v?: number; // volume
+  n?: number; // trade count
+  vw?: number; // volume-weighted average price
+  t?: string; // timestamp (RFC-3339)
+};
+
+export type AlpacaOptionGreeks = {
+  delta?: number;
+  gamma?: number;
+  theta?: number;
+  vega?: number;
+  rho?: number;
+};
+
 export type AlpacaOptionSnapshot = {
-  latestQuote?: Record<string, unknown>;
-  latestTrade?: Record<string, unknown>;
-  greeks?: Record<string, unknown>;
-  impliedVolatility?: unknown;
+  latestQuote?: AlpacaQuote;
+  latestTrade?: AlpacaTrade;
+  greeks?: AlpacaOptionGreeks;
+  impliedVolatility?: number;
+  dailyBar?: AlpacaBar;
+  minuteBar?: AlpacaBar;
+  prevDailyBar?: AlpacaBar;
 };
 
 export type AlpacaChainResponse = {
@@ -26,10 +65,11 @@ export type AlpacaChainResponse = {
 };
 
 export type AlpacaStockSnapshotResponse = {
-  latestQuote?: Record<string, unknown>;
-  latestTrade?: Record<string, unknown>;
-  minuteBar?: Record<string, unknown>;
-  dailyBar?: Record<string, unknown>;
+  latestQuote?: AlpacaQuote;
+  latestTrade?: AlpacaTrade;
+  minuteBar?: AlpacaBar;
+  dailyBar?: AlpacaBar;
+  prevDailyBar?: AlpacaBar;
 };
 
 export type GetAssetsParams = {
