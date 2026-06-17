@@ -33,9 +33,9 @@ export async function PositionBanner({ positionId }: { positionId: string }) {
       aria-label="Saved position context"
       className={cn(
         "flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4 shadow-sm",
-        position.displayStatus === "closed" && "border-border bg-muted/30",
-        position.displayStatus === "expired" &&
-          "border-destructive/30 bg-destructive/5",
+        (position.displayStatus === "closed" ||
+          position.displayStatus === "expired") &&
+          "border-border bg-muted/30",
       )}
     >
       <div className="flex min-w-0 flex-col gap-1">
@@ -59,7 +59,7 @@ export async function PositionBanner({ positionId }: { positionId: string }) {
       <dl className="flex items-center gap-6">
         <div className="flex flex-col items-end gap-0.5">
           <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Unrealized P/L
+            {position.status === "open" ? "Unrealized" : "Realized"} P/L
           </dt>
           <dd
             className={cn(
@@ -100,7 +100,7 @@ function StatusBadge({
   }
 
   if (status === "expired") {
-    return <Badge variant="destructive">Expired</Badge>;
+    return <Badge variant="outline">Expired</Badge>;
   }
 
   return <Badge variant="secondary">Closed</Badge>;

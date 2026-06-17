@@ -73,9 +73,7 @@ async function AutoRefreshControl({ compact }: { compact?: boolean }) {
 async function PositionsContent() {
   const strategies = await listSavedStrategies();
   const realizedProfitLoss = calculateRealizedProfitLoss(strategies);
-  const closedCount = strategies.filter(
-    (strategy) => strategy.status === "closed",
-  ).length;
+  const realizedCount = strategies.filter(isRealized).length;
 
   const autoRefreshControl = (
     <Suspense fallback={<AutoRefreshPositionsButton disabled compact />}>
@@ -90,7 +88,7 @@ async function PositionsContent() {
       ) : (
         <div className="flex flex-col gap-4">
           <RealizedProfitLossSummary
-            closedCount={closedCount}
+            realizedCount={realizedCount}
             realizedProfitLoss={realizedProfitLoss}
           />
           <PositionsTable
@@ -103,9 +101,13 @@ async function PositionsContent() {
   );
 }
 
+function isRealized(strategy: SavedStrategyListItem) {
+  return strategy.status === "closed" || strategy.status === "expired";
+}
+
 function calculateRealizedProfitLoss(strategies: SavedStrategyListItem[]) {
   return strategies.reduce((total, strategy) => {
-    if (strategy.status !== "closed") {
+    if (!isRealized(strategy)) {
       return total;
     }
     const snapshot = strategy.latestSnapshot;
@@ -118,25 +120,25 @@ function calculateRealizedProfitLoss(strategies: SavedStrategyListItem[]) {
 }
 
 function RealizedProfitLossSummary({
-  closedCount,
+  realizedCount,
   realizedProfitLoss,
 }: {
-  closedCount: number;
+  realizedCount: number;
   realizedProfitLoss: number;
 }) {
   return (
     <section
-      aria-label="Closed position P&L summary"
+      aria-label="Realized P&L summary"
       className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card px-4 py-3"
     >
       <div>
         <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">
-          Closed P&L so far
+          Realized P&L
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {closedCount === 1
-            ? "1 closed position"
-            : `${closedCount} closed positions`}
+          {realizedCount === 1
+            ? "1 realized position"
+            : `${realizedCount} realized positions`}
         </p>
       </div>
       <p

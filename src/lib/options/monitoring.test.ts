@@ -3,6 +3,7 @@ import { evaluateStrategy, strategyTemplates } from "./index";
 import {
   calculateCapitalAtRisk,
   calculateCurrentMarkSnapshot,
+  calculateSettlementSnapshot,
   calculateSignedMarkValue,
   getDaysUntilExpiration,
   selectOptionMark,
@@ -190,6 +191,104 @@ describe("saved strategy monitoring", () => {
     expect(mark.unrealizedProfitLoss).toBe(100);
     expect(mark.returnOnRisk).toBe(0.333333);
     expect(mark.legMarks.map((leg) => leg.source)).toEqual(["mid", "mid"]);
+  });
+
+  it("settles a short put expiring out of the money to keep the full credit", () => {
+    const state: StrategyState = {
+      version: 1,
+      strategy: "cash-secured-put",
+      symbol: "AAPL",
+      underlyingPrice: 172,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        {
+          kind: "option",
+          optionType: "put",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-22",
+          strike: 170,
+          premium: 6,
+          impliedVolatility: 0.28,
+        },
+      ],
+    };
+
+    const settlement = calculateSettlementSnapshot({
+      state,
+      underlyingPrice: 175,
+      entrySignedMarkValue: -600,
+      capitalAtRisk: 16_400,
+      observedAt: new Date("2026-05-23T16:00:00.000Z"),
+    });
+
+    expect(settlement.signedMarkValue).toBe(0);
+    expect(settlement.unrealizedProfitLoss).toBe(600);
+    expect(settlement.legMarks).toHaveLength(1);
+    expect(settlement.legMarks[0].markPrice).toBe(0);
+  });
+
+  it("settles an assigned covered call at the strike price", () => {
+    const state: StrategyState = {
+      version: 1,
+      strategy: "covered-call",
+      symbol: "AAPL",
+      underlyingPrice: 172,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [
+        { kind: "stock", side: "long", quantity: 100, entryPrice: 172 },
+        {
+          kind: "option",
+          optionType: "call",
+          side: "short",
+          quantity: 1,
+          expiration: "2026-05-22",
+          strike: 175,
+          premium: 5,
+          impliedVolatility: 0.28,
+        },
+      ],
+    };
+
+    const settlement = calculateSettlementSnapshot({
+      state,
+      underlyingPrice: 180,
+      entrySignedMarkValue: 16_700,
+      capitalAtRisk: null,
+      observedAt: new Date("2026-05-23T16:00:00.000Z"),
+    });
+
+    // Stock 100 * 180 = 18,000; short call intrinsic -(180-175) * 100 = -500 → 17,500 (called away at strike).
+    expect(settlement.signedMarkValue).toBe(17_500);
+    expect(settlement.unrealizedProfitLoss).toBe(800);
+    expect(settlement.returnOnRisk).toBeNull();
+    expect(settlement.legMarks.map((leg) => leg.source)).toEqual([
+      "underlying",
+      "model",
+    ]);
+  });
+
+  it("settles a long call expiring out of the money to a total loss of premium", () => {
+    const state: StrategyState = {
+      version: 1,
+      strategy: "long-call",
+      symbol: "AAPL",
+      underlyingPrice: 172,
+      asOf: "2026-04-24T16:00:00.000Z",
+      legs: [optionLeg({ side: "long", strike: 175, premium: 4 })],
+    };
+
+    const settlement = calculateSettlementSnapshot({
+      state,
+      underlyingPrice: 170,
+      entrySignedMarkValue: 400,
+      capitalAtRisk: 400,
+      observedAt: new Date("2026-05-25T16:00:00.000Z"),
+    });
+
+    expect(settlement.signedMarkValue).toBe(0);
+    expect(settlement.unrealizedProfitLoss).toBe(-400);
+    expect(settlement.returnOnRisk).toBe(-1);
   });
 });
 

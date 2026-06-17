@@ -93,10 +93,9 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
     <PositionRowLink
       href={strategy.builderHref}
       className={cn(
-        strategy.displayStatus === "closed" &&
+        (strategy.displayStatus === "closed" ||
+          strategy.displayStatus === "expired") &&
           "bg-muted/20 text-muted-foreground",
-        strategy.displayStatus === "expired" &&
-          "bg-destructive/5 text-muted-foreground",
       )}
     >
       <TableCell>
@@ -189,7 +188,7 @@ function StatusBadge({
   }
 
   if (status === "expired") {
-    return <Badge variant="destructive">Expired</Badge>;
+    return <Badge variant="outline">Expired</Badge>;
   }
 
   return <Badge variant="secondary">Closed</Badge>;

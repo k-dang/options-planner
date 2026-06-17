@@ -1,5 +1,5 @@
 import type { StrategySnapshotLegMark } from "@/db/schema";
-import { blackScholes } from "./pricing";
+import { blackScholes, intrinsicValue } from "./pricing";
 import { strategyTemplates } from "./strategy-templates";
 import type { StrategyEvaluation, StrategyState } from "./types";
 import {
@@ -51,51 +51,68 @@ export function buildEntryLegMarks(
   });
 }
 
-export function calculateCurrentMarkSnapshot(
-  input: CurrentMarkSnapshotInput,
-): CurrentMarkSnapshotResult {
-  const observedAt = input.observedAt ?? new Date();
-  const underlyingPrice = input.chain.underlying.price;
-  const legMarks = input.state.legs.map((leg, index) => {
-    if (leg.kind === "stock") {
+type OptionLegMark = {
+  markPrice: number;
+  source: StrategySnapshotLegMark["source"];
+  providerSymbol?: string;
+  updatedAt?: string | null;
+};
+
+type SnapshotBuildInput = {
+  state: StrategyState;
+  underlyingPrice: number;
+  underlyingAsOf: string;
+  entrySignedMarkValue: number;
+  capitalAtRisk: number | null;
+  observedAt: Date;
+  priceOption: (
+    leg: Extract<StrategyState["legs"][number], { kind: "option" }>,
+  ) => OptionLegMark;
+};
+
+// Shared snapshot assembly. The only thing that differs between a live mark and
+// an expiry settlement is how each option leg is priced, so that is the single
+// injected policy; stock legs, signing, P/L, and return-on-risk are identical.
+function buildSnapshot(input: SnapshotBuildInput): CurrentMarkSnapshotResult {
+  const { underlyingPrice, underlyingAsOf } = input;
+
+  const legMarks = input.state.legs.map(
+    (leg, index): StrategySnapshotLegMark => {
       const direction = leg.side === "long" ? 1 : -1;
-      const signedMarkValue = direction * underlyingPrice * leg.quantity;
+
+      if (leg.kind === "stock") {
+        return {
+          legIndex: index,
+          kind: leg.kind,
+          side: leg.side,
+          quantity: leg.quantity,
+          markPrice: underlyingPrice,
+          signedMarkValue: roundMoney(
+            direction * underlyingPrice * leg.quantity,
+          ),
+          source: "underlying",
+          updatedAt: underlyingAsOf,
+        };
+      }
+
+      const priced = input.priceOption(leg);
 
       return {
         legIndex: index,
         kind: leg.kind,
         side: leg.side,
         quantity: leg.quantity,
-        markPrice: underlyingPrice,
-        signedMarkValue: roundMoney(signedMarkValue),
-        source: "underlying" as const,
-        updatedAt: input.chain.underlying.asOf,
+        markPrice: priced.markPrice,
+        signedMarkValue: roundMoney(
+          direction * priced.markPrice * CONTRACT_MULTIPLIER * leg.quantity,
+        ),
+        source: priced.source,
+        providerSymbol: priced.providerSymbol,
+        updatedAt: priced.updatedAt,
       };
-    }
+    },
+  );
 
-    const quote = findOptionQuote(input.chain, leg);
-    const selected = selectOptionMark({
-      quote,
-      leg,
-      underlyingPrice,
-      observedAt,
-    });
-    const direction = leg.side === "long" ? 1 : -1;
-
-    return {
-      legIndex: index,
-      kind: leg.kind,
-      side: leg.side,
-      quantity: leg.quantity,
-      markPrice: selected.markPrice,
-      signedMarkValue: roundMoney(
-        direction * selected.markPrice * CONTRACT_MULTIPLIER * leg.quantity,
-      ),
-      source: selected.source,
-      providerSymbol: quote?.providerSymbol,
-      updatedAt: quote?.updatedAt ?? input.chain.underlying.asOf,
-    };
-  });
   const signedMarkValue = roundMoney(
     legMarks.reduce((total, leg) => total + leg.signedMarkValue, 0),
   );
@@ -104,7 +121,7 @@ export function calculateCurrentMarkSnapshot(
   );
 
   return {
-    observedAt,
+    observedAt: input.observedAt,
     underlyingPrice,
     signedMarkValue,
     unrealizedProfitLoss,
@@ -115,6 +132,69 @@ export function calculateCurrentMarkSnapshot(
     legMarks,
     quoteSource: summarizeQuoteSources(legMarks),
   };
+}
+
+export function calculateCurrentMarkSnapshot(
+  input: CurrentMarkSnapshotInput,
+): CurrentMarkSnapshotResult {
+  const observedAt = input.observedAt ?? new Date();
+  const { underlying } = input.chain;
+
+  return buildSnapshot({
+    state: input.state,
+    underlyingPrice: underlying.price,
+    underlyingAsOf: underlying.asOf,
+    entrySignedMarkValue: input.entrySignedMarkValue,
+    capitalAtRisk: input.capitalAtRisk,
+    observedAt,
+    priceOption: (leg) => {
+      const quote = findOptionQuote(input.chain, leg);
+      const selected = selectOptionMark({
+        quote,
+        leg,
+        underlyingPrice: underlying.price,
+        observedAt,
+      });
+
+      return {
+        markPrice: selected.markPrice,
+        source: selected.source,
+        providerSymbol: quote?.providerSymbol,
+        updatedAt: quote?.updatedAt ?? underlying.asOf,
+      };
+    },
+  });
+}
+
+export type SettlementSnapshotInput = {
+  state: StrategyState;
+  underlyingPrice: number;
+  entrySignedMarkValue: number;
+  capitalAtRisk: number | null;
+  observedAt?: Date;
+};
+
+export function calculateSettlementSnapshot(
+  input: SettlementSnapshotInput,
+): CurrentMarkSnapshotResult {
+  const observedAt = input.observedAt ?? new Date();
+  const settledAt = observedAt.toISOString();
+
+  return buildSnapshot({
+    state: input.state,
+    underlyingPrice: input.underlyingPrice,
+    underlyingAsOf: settledAt,
+    entrySignedMarkValue: input.entrySignedMarkValue,
+    capitalAtRisk: input.capitalAtRisk,
+    observedAt,
+    priceOption: (leg) => ({
+      markPrice: roundMoney(
+        intrinsicValue(leg.optionType, input.underlyingPrice, leg.strike),
+      ),
+      source: "model",
+      updatedAt: settledAt,
+    }),
+  });
 }
 
 export function selectOptionMark(input: {

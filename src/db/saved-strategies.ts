@@ -16,8 +16,10 @@ import {
 } from "@/lib/options";
 import {
   buildEntryLegMarks,
+  type CurrentMarkSnapshotResult,
   calculateCapitalAtRisk,
   calculateCurrentMarkSnapshot,
+  calculateSettlementSnapshot,
   calculateSignedMarkValue,
   getDaysUntilExpiration,
 } from "@/lib/options/monitoring";
@@ -200,7 +202,7 @@ export async function refreshSavedStrategyMark(id: string) {
     id,
     "Closed and expired strategies cannot be refreshed.",
   );
-  return insertMarkSnapshot(strategy);
+  return refreshStrategySnapshot(strategy);
 }
 
 export async function closeSavedStrategyAtMarketMark(id: string) {
@@ -209,40 +211,7 @@ export async function closeSavedStrategyAtMarketMark(id: string) {
     "Only open strategies can be closed.",
   );
   const mark = await fetchMarkForStrategy(strategy);
-  const db = getDb();
-
-  const [insertResult, updateResult] = await db.batch([
-    db
-      .insert(strategySnapshots)
-      .values(buildSnapshotValues(strategy, mark, "close"))
-      .returning({ id: strategySnapshots.id }),
-    db
-      .update(savedStrategies)
-      .set({
-        status: "closed",
-        closedAt: mark.observedAt,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(eq(savedStrategies.id, id), eq(savedStrategies.status, "open")),
-      )
-      .returning({
-        id: savedStrategies.id,
-        closedAt: savedStrategies.closedAt,
-      }),
-  ]);
-
-  const snapshot = insertResult[0];
-  const closed = updateResult[0];
-
-  if (!snapshot) {
-    throw new Error("Strategy close snapshot insert did not return a row.");
-  }
-  if (!closed) {
-    throw new Error("Saved strategy could not be closed.");
-  }
-
-  return { strategy: closed, snapshot };
+  return recordTerminalSnapshot(strategy, mark, "closed");
 }
 
 export async function deleteSavedStrategy(id: string) {
@@ -267,7 +236,7 @@ export async function refreshOpenSavedStrategies() {
     .where(eq(savedStrategies.status, "open"));
 
   const settled = await Promise.allSettled(
-    strategies.map((strategy) => insertMarkSnapshot(strategy)),
+    strategies.map((strategy) => refreshStrategySnapshot(strategy)),
   );
 
   return settled.map((result, index) => {
@@ -306,7 +275,12 @@ async function loadOpenStrategy(
   return strategy;
 }
 
-async function insertMarkSnapshot(strategy: SavedStrategy) {
+async function refreshStrategySnapshot(strategy: SavedStrategy) {
+  const daysUntilExpiration = getDaysUntilExpiration(strategy.entryState);
+  if (daysUntilExpiration !== null && daysUntilExpiration < 0) {
+    return settleExpiredStrategy(strategy);
+  }
+
   const mark = await fetchMarkForStrategy(strategy);
   const db = getDb();
   const [snapshot] = await db
@@ -320,31 +294,98 @@ async function insertMarkSnapshot(strategy: SavedStrategy) {
   return snapshot;
 }
 
-async function fetchMarkForStrategy(strategy: SavedStrategy) {
-  const state = strategy.entryState;
-  const optionLegs = state.legs.filter((leg) => leg.kind === "option");
-  const expirations = optionLegs.map((leg) => leg.expiration).sort();
-  const strikes = optionLegs.map((leg) => leg.strike).sort((a, b) => a - b);
-  const provider = getOptionChainProvider();
-  const chain = await provider.getChain({
-    symbol: strategy.symbol,
-    expirationGte: expirations[0],
-    expirationLte: expirations.at(-1),
-    strikeGte: strikes[0],
-    strikeLte: strikes.at(-1),
+// A strategy past expiration settles once at intrinsic value and never marks
+// again. Settlement is computed from the latest underlying price and frozen; if
+// that price is unavailable we throw so the next refresh retries instead of
+// recording a bogus settlement. See docs/adr/0001-expiry-settlement-uses-latest-price.md.
+async function settleExpiredStrategy(strategy: SavedStrategy) {
+  const chain = await fetchChainForStrategy(strategy);
+  const underlyingPrice = chain.underlying.price;
+
+  if (!Number.isFinite(underlyingPrice) || underlyingPrice <= 0) {
+    throw new Error("Underlying price unavailable for expiry settlement.");
+  }
+
+  const settlement = calculateSettlementSnapshot({
+    state: strategy.entryState,
+    underlyingPrice,
+    entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
+    capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
   });
 
+  return recordTerminalSnapshot(strategy, settlement, "expired");
+}
+
+// Atomically records a terminal snapshot and flips an open strategy to its
+// terminal status in one batch. The `open` status guard makes the update a
+// no-op (surfaced as a thrown error) if the strategy already left the open
+// state, so a snapshot is never written without the matching transition.
+async function recordTerminalSnapshot(
+  strategy: SavedStrategy,
+  snapshot: CurrentMarkSnapshotResult,
+  status: "closed" | "expired",
+) {
+  const db = getDb();
+  const [insertResult, updateResult] = await db.batch([
+    db
+      .insert(strategySnapshots)
+      .values(buildSnapshotValues(strategy, snapshot, "close"))
+      .returning({ id: strategySnapshots.id }),
+    db
+      .update(savedStrategies)
+      .set({
+        status,
+        closedAt: status === "closed" ? snapshot.observedAt : null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(savedStrategies.id, strategy.id),
+          eq(savedStrategies.status, "open"),
+        ),
+      )
+      .returning({ id: savedStrategies.id }),
+  ]);
+
+  if (!insertResult[0]) {
+    throw new Error("Strategy terminal snapshot insert did not return a row.");
+  }
+  if (!updateResult[0]) {
+    throw new Error(`Saved strategy could not be marked ${status}.`);
+  }
+  return insertResult[0];
+}
+
+async function fetchMarkForStrategy(strategy: SavedStrategy) {
+  const chain = await fetchChainForStrategy(strategy);
+
   return calculateCurrentMarkSnapshot({
-    state,
+    state: strategy.entryState,
     chain,
     entrySignedMarkValue: toNumber(strategy.entrySignedMarkValue),
     capitalAtRisk: toNullableNumber(strategy.capitalAtRisk),
   });
 }
 
+async function fetchChainForStrategy(strategy: SavedStrategy) {
+  const state = strategy.entryState;
+  const optionLegs = state.legs.filter((leg) => leg.kind === "option");
+  const expirations = optionLegs.map((leg) => leg.expiration).sort();
+  const strikes = optionLegs.map((leg) => leg.strike).sort((a, b) => a - b);
+  const provider = getOptionChainProvider();
+
+  return provider.getChain({
+    symbol: strategy.symbol,
+    expirationGte: expirations[0],
+    expirationLte: expirations.at(-1),
+    strikeGte: strikes[0],
+    strikeLte: strikes.at(-1),
+  });
+}
+
 function buildSnapshotValues(
   strategy: SavedStrategy,
-  mark: ReturnType<typeof calculateCurrentMarkSnapshot>,
+  mark: CurrentMarkSnapshotResult,
   snapshotType: StrategySnapshotType,
 ): NewStrategySnapshot {
   return {
