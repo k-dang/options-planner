@@ -76,7 +76,10 @@ async function PositionsContent() {
   const realizedCount = strategies.filter(isRealized).length;
 
   const autoRefreshControl = (
-    <Suspense fallback={<AutoRefreshPositionsButton disabled compact />}>
+    <Suspense
+      key="auto-refresh-control"
+      fallback={<AutoRefreshPositionsButton disabled compact />}
+    >
       <AutoRefreshControl compact />
     </Suspense>
   );
