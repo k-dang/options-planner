@@ -23,7 +23,12 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field";
 import {
   Select,
   SelectContent,
@@ -171,12 +176,65 @@ export function BuilderClient({
 
   return (
     <>
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {formatStrategyName(state.strategy)}
-          </h1>
-          <BiasBadge bias={STRATEGY_BIAS[state.strategy]} />
+      <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {formatStrategyName(state.strategy)}
+            </h1>
+            <BiasBadge bias={STRATEGY_BIAS[state.strategy]} />
+          </div>
+          <FieldGroup className="gap-3 sm:grid sm:grid-cols-[minmax(9rem,12rem)_auto_minmax(13rem,17rem)] sm:items-end">
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
+              <TickerCombobox
+                defaultSymbol={state.symbol}
+                onNavigate={navigateToSymbol}
+              />
+            </Field>
+
+            <Field className="gap-1.5">
+              <FieldTitle>Price</FieldTitle>
+              <div className="flex h-9 items-center gap-2 rounded-md border border-input bg-background px-3">
+                <span className="font-mono text-lg font-bold leading-none tabular-nums">
+                  {formatCurrency(chain.underlying.price)}
+                </span>
+                <Badge variant="secondary" className="text-xs">
+                  {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
+                </Badge>
+              </div>
+            </Field>
+
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
+              <Select
+                id="expiration"
+                value={primaryLeg?.expiration}
+                onValueChange={(value) => {
+                  if (value !== null) {
+                    updateFromInputs({ expiration: value });
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {chain.expirations.map((candidate) => (
+                    <SelectItem
+                      key={candidate.expiration}
+                      value={candidate.expiration}
+                    >
+                      {candidate.expiration}{" "}
+                      <span className="text-muted-foreground">
+                        ({candidate.daysToExpiration}d)
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </FieldGroup>
         </div>
         <div className="flex flex-col items-start gap-1.5 sm:items-end">
           <Button
@@ -245,61 +303,7 @@ export function BuilderClient({
         />
       )}
 
-      <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <aside>
-          <Card className="h-fit" size="sm">
-            <CardContent>
-              <FieldGroup className="gap-4">
-                <Field>
-                  <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
-                  <TickerCombobox
-                    defaultSymbol={state.symbol}
-                    onNavigate={navigateToSymbol}
-                  />
-                  <div className="flex items-center gap-2 pt-1.5">
-                    <span className="font-mono text-lg font-bold tabular-nums">
-                      {formatCurrency(chain.underlying.price)}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {chain.expirations[0]?.calls[0]?.provider ?? "generated"}
-                    </Badge>
-                  </div>
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
-                  <Select
-                    id="expiration"
-                    value={primaryLeg?.expiration}
-                    onValueChange={(value) => {
-                      if (value !== null) {
-                        updateFromInputs({ expiration: value });
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-full font-mono">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {chain.expirations.map((candidate) => (
-                        <SelectItem
-                          key={candidate.expiration}
-                          value={candidate.expiration}
-                        >
-                          {candidate.expiration}{" "}
-                          <span className="text-muted-foreground">
-                            ({candidate.daysToExpiration}d)
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </FieldGroup>
-            </CardContent>
-          </Card>
-        </aside>
-
+      <section>
         {evaluation ? (
           <section className="flex flex-col gap-5">
             <Card>

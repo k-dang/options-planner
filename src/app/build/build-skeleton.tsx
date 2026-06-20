@@ -15,10 +15,26 @@ export function BuildSkeleton() {
       aria-label="Loading strategy builder"
       className="flex flex-col gap-6"
     >
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <Bar className="h-9 w-56" />
-          <Bar className="h-5 w-20 rounded-full" />
+      <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Bar className="h-9 w-56" />
+            <Bar className="h-5 w-20 rounded-full" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[minmax(9rem,12rem)_auto_minmax(13rem,17rem)] sm:items-end">
+            <div className="flex flex-col gap-1.5">
+              <Bar className="h-3 w-16" />
+              <Bar className="h-9 w-full rounded-md" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Bar className="h-3 w-12" />
+              <Bar className="h-9 w-36 rounded-md" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Bar className="h-3 w-20" />
+              <Bar className="h-9 w-full rounded-md" />
+            </div>
+          </div>
         </div>
         <Bar className="h-9 w-36 self-start sm:self-auto" />
       </section>
@@ -34,22 +50,7 @@ export function BuildSkeleton() {
         <Bar className="h-12 w-full rounded-full" />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
-        <aside className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-col gap-2">
-            <Bar className="h-3 w-16" />
-            <Bar className="h-9 w-full rounded-md" />
-            <div className="flex items-center gap-2 pt-1">
-              <Bar className="h-5 w-20" />
-              <Bar className="h-5 w-16 rounded-full" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Bar className="h-3 w-20" />
-            <Bar className="h-9 w-full rounded-md" />
-          </div>
-        </aside>
-
+      <section>
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6 shadow-sm">
             <Bar className="h-5 w-40" />
