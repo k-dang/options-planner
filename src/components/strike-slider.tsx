@@ -184,10 +184,11 @@ export function StrikeSlider({
           const top = row === 0 ? PILL_ROW_NEAR : PILL_ROW_FAR;
           const leaderHeight = TRACK_TOP - top - PILL_HEIGHT;
           const list = leg.optionType === "call" ? callStrikes : putStrikes;
+          const pillKey = `${index}-${leg.optionType}-${leg.side}-${leg.quantity}`;
 
           return (
             <div
-              key={`${leg.optionType}-${leg.side}-${leg.strike}`}
+              key={pillKey}
               className="absolute -translate-x-1/2"
               style={{ left: `${x}%`, top }}
             >
