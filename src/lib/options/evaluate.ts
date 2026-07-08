@@ -4,6 +4,7 @@ import {
   normalCdf,
   scaleGreeks,
 } from "./pricing";
+import { profitRangeProbability } from "./profit-range";
 import { strategyTemplates } from "./strategy-templates";
 import {
   CONTRACT_MULTIPLIER,
@@ -232,25 +233,9 @@ function estimateProbabilityOfProfit(
   const range = strategyTemplates.get(state.strategy).evaluation
     ?.probabilityRange;
 
-  if (range === "above") {
-    return 1 - probabilityBelow(breakevens[0] ?? state.underlyingPrice);
-  }
-
-  if (range === "below") {
-    return probabilityBelow(breakevens[0] ?? state.underlyingPrice);
-  }
-
-  if (range === "between") {
-    const [lower, upper] = breakevens;
-
-    if (lower === undefined || upper === undefined) {
-      return null;
-    }
-
-    return probabilityBelow(upper) - probabilityBelow(lower);
-  }
-
-  return null;
+  return range === undefined
+    ? null
+    : profitRangeProbability(range, breakevens, probabilityBelow);
 }
 
 function evaluateValidatedStrategy(state: StrategyState): StrategyEvaluation {

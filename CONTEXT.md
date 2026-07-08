@@ -36,6 +36,10 @@ _Avoid_: Paper P&L, floating P&L
 A strategy setup produced by scanning an option chain for a ticker against the trader's filters.
 _Avoid_: Position, saved trade
 
+**Expected Move Cushion**:
+A signed risk/reward candidate metric that compares the distance to the nearest adverse breakeven against the option-chain-implied expected move for the same expiration window. Positive values mean current cushion before breakeven; negative values mean the setup needs favorable movement before breakeven.
+_Avoid_: Breakeven cushion, cushion score
+
 **Watchlist Scan Result**:
 The combined set of risk/reward candidates produced by scanning all watchlist symbols.
 _Avoid_: Per-ticker result table
@@ -58,6 +62,11 @@ _Avoid_: Per-symbol filters
 - A **Ticker Watchlist** uses the same option-chain provider path as the single-symbol scanner.
 - A **Saved Strategy** may originate from a **Risk/Reward Candidate**, but it is not part of the **Ticker Watchlist**.
 - A selected **Risk/Reward Candidate** opens in the Builder for detailed modeling.
+- **Expected Move Cushion** is first surfaced as a comparative metric on risk/reward candidate tables.
+- **Expected Move Cushion** appears consistently wherever the shared risk/reward candidate table is used, including single-symbol scans and ticker watchlist scan results.
+- Candidate tables display **Expected Move Cushion** as only its final signed expected-move multiple.
+- Candidate tables sort **Expected Move Cushion** by descending signed value with unavailable values last.
+- **Expected Move Cushion** does not contribute to a Risk/Reward Candidate's score in its first version.
 - A **Saved Strategy** is open until it becomes terminal by being either Closed (the trader closes it at the market mark) or **Expired** (its options pass expiration).
 - An **Expired** Saved Strategy is settled once, at its **Settlement Value**, and is never marked again.
 - A terminal Saved Strategy contributes its **Realized P&L** to the positions scorecard, whether it is Closed or **Expired**.

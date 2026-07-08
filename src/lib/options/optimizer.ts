@@ -1,5 +1,6 @@
 import { strategyBuilderHref } from "@/lib/hrefs";
 import { evaluateStrategy } from "./evaluate";
+import { calculateExpectedMoveCushion } from "./metrics";
 import { createGeneratedChain } from "./providers/generated";
 import {
   type BuildStrategyInput,
@@ -45,6 +46,7 @@ export type OptimizerCandidate = {
     returnProfitBasisLabel: "max-profit" | "target-profit";
     riskDenominator: number | null;
     returnOnRisk: number | null;
+    expectedMoveCushion: number | null;
     score: number;
     builderHref: string;
   };
@@ -65,6 +67,7 @@ export type OptimizerResultRow = {
   returnProfitBasisLabel: "max-profit" | "target-profit";
   riskDenominator: number | null;
   returnOnRisk: number | null;
+  expectedMoveCushion: number | null;
   builderHref: string;
 };
 
@@ -295,6 +298,7 @@ function makeCandidate(
       returnProfitBasisLabel: metrics.returnProfitBasisLabel,
       riskDenominator: metrics.riskDenominator,
       returnOnRisk: metrics.returnOnRisk,
+      expectedMoveCushion: calculateExpectedMoveCushion(state, evaluation),
       score: 0,
       builderHref: strategyBuilderHref(state),
     },
@@ -548,6 +552,7 @@ export function toOptimizerResultRows(
     returnProfitBasisLabel: candidate.summary.returnProfitBasisLabel,
     riskDenominator: candidate.summary.riskDenominator,
     returnOnRisk: candidate.summary.returnOnRisk,
+    expectedMoveCushion: candidate.summary.expectedMoveCushion,
     builderHref: candidate.summary.builderHref,
   }));
 }

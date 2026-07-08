@@ -2,12 +2,12 @@
 
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useActionState, useState } from "react";
+import { RiskRewardCandidatesTable } from "@/components/risk-reward-candidates-table";
 import {
   defaultRiskRewardSortDirection,
-  RiskRewardCandidatesTable,
   type RiskRewardSort,
   type RiskRewardSortColumn,
-} from "@/components/risk-reward-candidates-table";
+} from "@/components/risk-reward-candidates-table-model";
 import {
   createDefaultScanFilters,
   ScanCriteriaControls,

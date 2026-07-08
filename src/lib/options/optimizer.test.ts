@@ -63,6 +63,29 @@ function testChainWithStrikes(strikes: number[]): OptionChainSnapshot {
   };
 }
 
+function testChainAtUnderlying(
+  underlyingPrice: number,
+  strikes: number[],
+): OptionChainSnapshot {
+  const expiration = "2026-07-11";
+
+  return {
+    underlying: {
+      symbol: "AAPL",
+      price: underlyingPrice,
+      asOf: "2026-07-07T16:00:00.000Z",
+    },
+    expirations: [
+      {
+        expiration,
+        daysToExpiration: 4,
+        calls: strikes.map((strike) => testQuote("call", expiration, strike)),
+        puts: strikes.map((strike) => testQuote("put", expiration, strike)),
+      },
+    ],
+  };
+}
+
 describe("optimizer", () => {
   it("generates valid candidates across multiple bullish strategy families", () => {
     const results = optimizeStrategies(baseInputs);
@@ -286,5 +309,75 @@ describe("optimizer", () => {
     expect(restored.strategy).toBe(candidate.state.strategy);
     expect(restored.symbol).toBe(candidate.state.symbol);
     expect(restored.legs).toEqual(candidate.state.legs);
+  });
+
+  it("calculates signed Expected Move Cushion for candidates that profit above breakeven", () => {
+    const results = scanRiskReward(
+      {
+        symbol: "AAPL",
+        minDaysToExpiration: 1,
+        maxDaysToExpiration: 10,
+        minProbabilityOfProfit: 0,
+        enabledStrategies: ["long-call"],
+      },
+      testChainAtUnderlying(100, [95, 100, 105]),
+    );
+    const inTheMoneyCall = results.find(
+      (candidate) => candidate.summary.strikes[0] === 95,
+    );
+    const outOfTheMoneyCall = results.find(
+      (candidate) => candidate.summary.strikes[0] === 105,
+    );
+
+    expect(inTheMoneyCall?.summary.expectedMoveCushion).toBeGreaterThan(0);
+    expect(outOfTheMoneyCall?.summary.expectedMoveCushion).toBeLessThan(0);
+  });
+
+  it("calculates signed Expected Move Cushion for candidates that profit below breakeven", () => {
+    const results = scanRiskReward(
+      {
+        symbol: "AAPL",
+        minDaysToExpiration: 1,
+        maxDaysToExpiration: 10,
+        minProbabilityOfProfit: 0,
+        enabledStrategies: ["long-put"],
+      },
+      testChainAtUnderlying(100, [95, 100, 105]),
+    );
+    const inTheMoneyPut = results.find(
+      (candidate) => candidate.summary.strikes[0] === 105,
+    );
+    const outOfTheMoneyPut = results.find(
+      (candidate) => candidate.summary.strikes[0] === 95,
+    );
+
+    expect(inTheMoneyPut?.summary.expectedMoveCushion).toBeGreaterThan(0);
+    expect(outOfTheMoneyPut?.summary.expectedMoveCushion).toBeLessThan(0);
+  });
+
+  it("calculates signed Expected Move Cushion for candidates that profit between breakevens", () => {
+    const results = scanRiskReward(
+      {
+        symbol: "AAPL",
+        minDaysToExpiration: 1,
+        maxDaysToExpiration: 10,
+        minProbabilityOfProfit: 0,
+        enabledStrategies: ["short-straddle"],
+      },
+      testChainAtUnderlying(100, [95, 100, 105]),
+    );
+    const centeredStraddle = results.find(
+      (candidate) => candidate.summary.strikes[0] === 100,
+    );
+    const highStraddle = results.find(
+      (candidate) => candidate.summary.strikes[0] === 105,
+    );
+    const lowStraddle = results.find(
+      (candidate) => candidate.summary.strikes[0] === 95,
+    );
+
+    expect(centeredStraddle?.summary.expectedMoveCushion).toBeGreaterThan(0);
+    expect(highStraddle?.summary.expectedMoveCushion).toBeLessThan(0);
+    expect(lowStraddle?.summary.expectedMoveCushion).toBeLessThan(0);
   });
 });

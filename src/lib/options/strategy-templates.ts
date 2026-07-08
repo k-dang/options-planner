@@ -1,3 +1,4 @@
+import type { ProfitRange } from "./profit-range";
 import { createGeneratedChain } from "./providers/generated";
 import {
   fallbackImpliedVolatility,
@@ -99,7 +100,7 @@ export type OptimizerSeed = {
 
 export type StrategyTemplateEvaluationHooks = {
   breakevens?: (state: StrategyState, netPremium: number) => number[];
-  probabilityRange?: "above" | "below" | "between";
+  probabilityRange?: ProfitRange;
 };
 
 export type StrategyTemplateMonitoringHooks = {

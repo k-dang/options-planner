@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
+import {
+  formatExpectedMoveCushion,
+  type RiskRewardCandidate,
+  type RiskRewardSort,
+  type RiskRewardSortColumn,
+  sortRiskRewardCandidates,
+} from "@/components/risk-reward-candidates-table-model";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -12,31 +19,108 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatPercent } from "@/lib/format";
-import type { OptimizerCandidate } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
-export type RiskRewardSortColumn =
-  | "ticker"
-  | "strategy"
-  | "expiration"
-  | "score"
-  | "maxProfit"
-  | "maxLoss"
-  | "returnOnRisk"
-  | "probabilityOfProfit";
-
-export type RiskRewardSortDirection = "asc" | "desc";
-
-export type RiskRewardSort = {
-  column: RiskRewardSortColumn;
-  dir: RiskRewardSortDirection;
+type RiskRewardTableColumn = {
+  key: string;
+  label?: string;
+  sortColumn?: RiskRewardSortColumn;
+  align?: "left" | "right";
+  visible?: (input: { showTicker: boolean }) => boolean;
+  cellClassName?:
+    | string
+    | ((candidate: RiskRewardCandidate) => string | undefined);
+  Cell: React.ComponentType<CandidateCellProps>;
 };
 
-export type RiskRewardCandidate = OptimizerCandidate & {
-  ticker?: string;
+type CandidateCellProps = {
+  candidate: RiskRewardCandidate;
 };
 
-const RETURN_ON_RISK_SORT_CAP = 5;
+const RISK_REWARD_TABLE_COLUMNS: RiskRewardTableColumn[] = [
+  {
+    key: "ticker",
+    label: "Ticker",
+    sortColumn: "ticker",
+    visible: ({ showTicker }) => showTicker,
+    cellClassName: "font-mono font-semibold",
+    Cell: TickerCell,
+  },
+  {
+    key: "strategy",
+    label: "Strategy",
+    sortColumn: "strategy",
+    cellClassName: "font-medium",
+    Cell: StrategyCell,
+  },
+  {
+    key: "expiration",
+    label: "Expiration",
+    sortColumn: "expiration",
+    cellClassName: "font-mono text-xs text-muted-foreground",
+    Cell: ExpirationCell,
+  },
+  {
+    key: "strikes",
+    label: "Strikes",
+    cellClassName: "font-mono text-xs",
+    Cell: StrikesCell,
+  },
+  {
+    key: "score",
+    label: "Score",
+    sortColumn: "score",
+    align: "right",
+    cellClassName: "text-right font-mono tabular-nums",
+    Cell: ScoreCell,
+  },
+  {
+    key: "maxProfit",
+    label: "Max Profit",
+    sortColumn: "maxProfit",
+    align: "right",
+    cellClassName: "text-right font-mono tabular-nums",
+    Cell: MaxProfitCell,
+  },
+  {
+    key: "maxLoss",
+    label: "Max Loss",
+    sortColumn: "maxLoss",
+    align: "right",
+    cellClassName: "text-right font-mono tabular-nums text-destructive",
+    Cell: MaxLossCell,
+  },
+  {
+    key: "returnOnRisk",
+    label: "Return on Risk",
+    sortColumn: "returnOnRisk",
+    align: "right",
+    cellClassName: returnOnRiskClassName,
+    Cell: ReturnOnRiskCell,
+  },
+  {
+    key: "expectedMoveCushion",
+    label: "EM Cushion",
+    sortColumn: "expectedMoveCushion",
+    align: "right",
+    cellClassName: expectedMoveCushionClassName,
+    Cell: ExpectedMoveCushionCell,
+  },
+  {
+    key: "probabilityOfProfit",
+    label: "Probability of Profit",
+    sortColumn: "probabilityOfProfit",
+    align: "right",
+    cellClassName: "text-right font-mono tabular-nums text-primary",
+    Cell: ProbabilityOfProfitCell,
+  },
+  {
+    key: "actions",
+    align: "right",
+    cellClassName: "text-right",
+    Cell: ActionsCell,
+  },
+];
 
 export function RiskRewardCandidatesTable({
   candidates,
@@ -59,9 +143,8 @@ export function RiskRewardCandidatesTable({
   emptyState?: React.ReactNode;
   className?: string;
 }) {
-  const sortedCandidates = candidates.toSorted((left, right) =>
-    compare(left, right, sort),
-  );
+  const sortedCandidates = sortRiskRewardCandidates(candidates, sort);
+  const columns = visibleColumns(showTicker);
   const shouldPage =
     page !== undefined && pageSize !== undefined && onPageChange !== undefined;
   const totalPages = shouldPage
@@ -85,67 +168,22 @@ export function RiskRewardCandidatesTable({
       <Table>
         <TableHeader className="bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
           <TableRow>
-            {showTicker ? (
-              <SortableHeader column="ticker" sort={sort} onSort={onSort}>
-                Ticker
-              </SortableHeader>
-            ) : null}
-            <SortableHeader column="strategy" sort={sort} onSort={onSort}>
-              Strategy
-            </SortableHeader>
-            <SortableHeader column="expiration" sort={sort} onSort={onSort}>
-              Expiration
-            </SortableHeader>
-            <TableHead>Strikes</TableHead>
-            <SortableHeader
-              column="score"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Score
-            </SortableHeader>
-            <SortableHeader
-              column="maxProfit"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Max Profit
-            </SortableHeader>
-            <SortableHeader
-              column="maxLoss"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Max Loss
-            </SortableHeader>
-            <SortableHeader
-              column="returnOnRisk"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Return on Risk
-            </SortableHeader>
-            <SortableHeader
-              column="probabilityOfProfit"
-              sort={sort}
-              onSort={onSort}
-              align="right"
-            >
-              Probability of Profit
-            </SortableHeader>
-            <TableHead />
+            {columns.map((column) => (
+              <ColumnHeader
+                column={column}
+                key={column.key}
+                onSort={onSort}
+                sort={sort}
+              />
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {visibleCandidates.map((candidate) => (
             <CandidateRow
               candidate={candidate}
+              columns={columns}
               key={candidate.id}
-              showTicker={showTicker}
             />
           ))}
         </TableBody>
@@ -163,12 +201,41 @@ export function RiskRewardCandidatesTable({
   );
 }
 
-export function defaultRiskRewardSortDirection(
-  column: RiskRewardSortColumn,
-): RiskRewardSortDirection {
-  return column === "ticker" || column === "strategy" || column === "expiration"
-    ? "asc"
-    : "desc";
+function visibleColumns(showTicker: boolean) {
+  return RISK_REWARD_TABLE_COLUMNS.filter(
+    (column) => column.visible?.({ showTicker }) ?? true,
+  );
+}
+
+function ColumnHeader({
+  column,
+  sort,
+  onSort,
+}: {
+  column: RiskRewardTableColumn;
+  sort: RiskRewardSort;
+  onSort: (column: RiskRewardSortColumn) => void;
+}) {
+  if (column.sortColumn === undefined) {
+    return (
+      <TableHead
+        className={column.align === "right" ? "text-right" : "text-left"}
+      >
+        {column.label}
+      </TableHead>
+    );
+  }
+
+  return (
+    <SortableHeader
+      align={column.align}
+      column={column.sortColumn}
+      onSort={onSort}
+      sort={sort}
+    >
+      {column.label}
+    </SortableHeader>
+  );
 }
 
 function SortableHeader({
@@ -209,76 +276,151 @@ function SortableHeader({
 
 function CandidateRow({
   candidate,
-  showTicker,
+  columns,
 }: {
   candidate: RiskRewardCandidate;
-  showTicker: boolean;
+  columns: RiskRewardTableColumn[];
 }) {
-  const bias = STRATEGY_BIAS[candidate.state.strategy];
-  const ror = candidate.summary.returnOnRisk;
-  const isGoodRor = ror !== null && ror >= 0.25;
-
   return (
     <TableRow>
-      {showTicker ? (
-        <TableCell className="font-mono font-semibold">
-          {candidate.ticker ?? candidate.state.symbol}
-        </TableCell>
-      ) : null}
-      <TableCell className="font-medium">
-        <div className="flex flex-col gap-1">
-          {titleCase(candidate.summary.strategyLabel)}
-          <BiasBadge bias={bias} />
-        </div>
-      </TableCell>
-      <TableCell className="font-mono text-xs text-muted-foreground">
-        {candidate.summary.expiration}
-      </TableCell>
-      <TableCell className="font-mono text-xs">
-        {candidate.summary.strikes.map((strike) => `$${strike}`).join(" / ")}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums">
-        {formatPercent(candidate.summary.score)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums">
-        {formatCurrency(candidate.summary.maxProfit)}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums text-destructive">
-        {candidate.summary.maxLoss === null
-          ? "Undefined"
-          : formatCurrency(Math.abs(candidate.summary.maxLoss))}
-      </TableCell>
-      <TableCell
-        className={cn(
-          "text-right font-mono font-semibold tabular-nums",
-          ror === null
-            ? "text-muted-foreground"
-            : isGoodRor
-              ? "text-profit"
-              : "text-foreground",
-        )}
-      >
-        <div>{ror === null ? "n/a" : formatPercent(ror)}</div>
-        {candidate.summary.returnProfitBasisLabel === "target-profit" && (
-          <div className="mt-0.5 text-[10px] font-normal text-muted-foreground">
-            target
-          </div>
-        )}
-      </TableCell>
-      <TableCell className="text-right font-mono tabular-nums text-primary">
-        {formatPercent(candidate.summary.probabilityOfProfit)}
-      </TableCell>
-      <TableCell className="text-right">
-        <Button
-          nativeButton={false}
-          size="sm"
-          variant="outline"
-          render={<Link href={candidate.summary.builderHref} />}
-        >
-          Open
-        </Button>
-      </TableCell>
+      {columns.map((column) => (
+        <CandidateCell candidate={candidate} column={column} key={column.key} />
+      ))}
     </TableRow>
+  );
+}
+
+function CandidateCell({
+  candidate,
+  column,
+}: {
+  candidate: RiskRewardCandidate;
+  column: RiskRewardTableColumn;
+}) {
+  const Cell = column.Cell;
+
+  return (
+    <TableCell className={tableCellClassName(column, candidate)}>
+      <Cell candidate={candidate} />
+    </TableCell>
+  );
+}
+
+function tableCellClassName(
+  column: RiskRewardTableColumn,
+  candidate: RiskRewardCandidate,
+) {
+  return typeof column.cellClassName === "function"
+    ? column.cellClassName(candidate)
+    : column.cellClassName;
+}
+
+function TickerCell({ candidate }: CandidateCellProps) {
+  return <>{candidate.ticker ?? candidate.state.symbol}</>;
+}
+
+function StrategyCell({ candidate }: CandidateCellProps) {
+  const bias = STRATEGY_BIAS[candidate.state.strategy];
+
+  return (
+    <div className="flex flex-col gap-1">
+      {titleCase(candidate.summary.strategyLabel)}
+      <BiasBadge bias={bias} />
+    </div>
+  );
+}
+
+function ExpirationCell({ candidate }: CandidateCellProps) {
+  return <>{candidate.summary.expiration}</>;
+}
+
+function StrikesCell({ candidate }: CandidateCellProps) {
+  return (
+    <>{candidate.summary.strikes.map((strike) => `$${strike}`).join(" / ")}</>
+  );
+}
+
+function ScoreCell({ candidate }: CandidateCellProps) {
+  return <>{formatPercent(candidate.summary.score)}</>;
+}
+
+function MaxProfitCell({ candidate }: CandidateCellProps) {
+  return <>{formatCurrency(candidate.summary.maxProfit)}</>;
+}
+
+function MaxLossCell({ candidate }: CandidateCellProps) {
+  return (
+    <>
+      {candidate.summary.maxLoss === null
+        ? "Undefined"
+        : formatCurrency(Math.abs(candidate.summary.maxLoss))}
+    </>
+  );
+}
+
+function returnOnRiskClassName(candidate: RiskRewardCandidate) {
+  const ror = candidate.summary.returnOnRisk;
+
+  return cn(
+    "text-right font-mono font-semibold tabular-nums",
+    ror === null
+      ? "text-muted-foreground"
+      : ror >= 0.25
+        ? "text-profit"
+        : "text-foreground",
+  );
+}
+
+function ReturnOnRiskCell({ candidate }: CandidateCellProps) {
+  const ror = candidate.summary.returnOnRisk;
+
+  return (
+    <>
+      <div>{ror === null ? "n/a" : formatPercent(ror)}</div>
+      {candidate.summary.returnProfitBasisLabel === "target-profit" && (
+        <div className="mt-0.5 text-[10px] font-normal text-muted-foreground">
+          target
+        </div>
+      )}
+    </>
+  );
+}
+
+function ExpectedMoveCushionCell({ candidate }: CandidateCellProps) {
+  return (
+    <>{formatExpectedMoveCushion(candidate.summary.expectedMoveCushion)}</>
+  );
+}
+
+function expectedMoveCushionClassName(candidate: RiskRewardCandidate) {
+  const value = candidate.summary.expectedMoveCushion;
+
+  return cn(
+    "text-right font-mono font-semibold tabular-nums",
+    value === null
+      ? "text-muted-foreground"
+      : value > 0
+        ? "text-profit"
+        : value < 0
+          ? "text-destructive"
+          : "text-foreground",
+  );
+}
+
+function ProbabilityOfProfitCell({ candidate }: CandidateCellProps) {
+  return <>{formatPercent(candidate.summary.probabilityOfProfit)}</>;
+}
+
+function ActionsCell({ candidate }: CandidateCellProps) {
+  return (
+    <Button
+      nativeButton={false}
+      size="sm"
+      variant="outline"
+      render={<Link href={candidate.summary.builderHref} />}
+    >
+      Open
+    </Button>
   );
 }
 
@@ -324,73 +466,6 @@ function PaginationFooter({
       </div>
     </div>
   );
-}
-
-function compare(
-  left: RiskRewardCandidate,
-  right: RiskRewardCandidate,
-  sort: RiskRewardSort,
-) {
-  const sign = sort.dir === "asc" ? 1 : -1;
-
-  switch (sort.column) {
-    case "ticker":
-      return (
-        sign *
-        (left.ticker ?? left.state.symbol).localeCompare(
-          right.ticker ?? right.state.symbol,
-        )
-      );
-    case "strategy":
-      return (
-        sign *
-        left.summary.strategyLabel.localeCompare(right.summary.strategyLabel)
-      );
-    case "expiration":
-      return (
-        sign * left.summary.expiration.localeCompare(right.summary.expiration)
-      );
-    case "score":
-      return sign * compareNullable(left.summary.score, right.summary.score);
-    case "maxProfit":
-      return (
-        sign * compareNullable(left.summary.maxProfit, right.summary.maxProfit)
-      );
-    case "maxLoss":
-      return (
-        sign * compareNullable(left.summary.maxLoss, right.summary.maxLoss)
-      );
-    case "returnOnRisk":
-      return (
-        sign *
-        compareNullable(
-          cappedReturnOnRisk(left.summary.returnOnRisk),
-          cappedReturnOnRisk(right.summary.returnOnRisk),
-        )
-      );
-    case "probabilityOfProfit":
-      return (
-        sign *
-        compareNullable(
-          left.summary.probabilityOfProfit,
-          right.summary.probabilityOfProfit,
-        )
-      );
-    default:
-      return 0;
-  }
-}
-
-function compareNullable(left: number | null, right: number | null) {
-  if (left === null && right === null) return 0;
-  if (left === null) return -1;
-  if (right === null) return 1;
-
-  return left - right;
-}
-
-function cappedReturnOnRisk(value: number | null) {
-  return value === null ? null : Math.min(value, RETURN_ON_RISK_SORT_CAP);
 }
 
 function titleCase(value: string) {

@@ -2,6 +2,7 @@
   "name": "options-planner",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -40,13 +41,5 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^5.9.3",
     "vitest": "3.2.4"
-  },
-  "ignoreScripts": [
-    "sharp",
-    "unrs-resolver"
-  ],
-  "trustedDependencies": [
-    "sharp",
-    "unrs-resolver"
-  ]
+  }
 }
