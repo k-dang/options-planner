@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleHelp } from "lucide-react";
 import Link from "next/link";
 import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import {
@@ -10,6 +11,11 @@ import {
   sortRiskRewardCandidates,
 } from "@/components/risk-reward-candidates-table-model";
 import { Button } from "@/components/ui/button";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import {
   Table,
   TableBody,
@@ -24,6 +30,7 @@ import { cn } from "@/lib/utils";
 type RiskRewardTableColumn = {
   key: string;
   label?: string;
+  help?: React.ReactNode;
   sortColumn?: RiskRewardSortColumn;
   align?: "left" | "right";
   visible?: (input: { showTicker: boolean }) => boolean;
@@ -101,6 +108,7 @@ const RISK_REWARD_TABLE_COLUMNS: RiskRewardTableColumn[] = [
   {
     key: "expectedMoveCushion",
     label: "EM Cushion",
+    help: <ExpectedMoveCushionHelp />,
     sortColumn: "expectedMoveCushion",
     align: "right",
     cellClassName: expectedMoveCushionClassName,
@@ -230,6 +238,7 @@ function ColumnHeader({
     <SortableHeader
       align={column.align}
       column={column.sortColumn}
+      help={column.help}
       onSort={onSort}
       sort={sort}
     >
@@ -243,34 +252,76 @@ function SortableHeader({
   sort,
   onSort,
   align = "left",
+  help,
   children,
 }: {
   column: RiskRewardSortColumn;
   sort: RiskRewardSort;
   onSort: (column: RiskRewardSortColumn) => void;
   align?: "left" | "right";
+  help?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const active = sort.column === column;
 
   return (
     <TableHead className={align === "right" ? "text-right" : "text-left"}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="xs"
-        onClick={() => onSort(column)}
+      <div
         className={cn(
-          "h-auto gap-1 px-0 font-medium uppercase tracking-wider hover:bg-transparent hover:text-foreground",
-          active ? "text-foreground" : "text-muted-foreground",
+          "flex items-center gap-1",
+          align === "right" ? "justify-end" : "justify-start",
         )}
       >
-        {children}
-        <span className="text-[9px] opacity-70">
-          {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-        </span>
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          onClick={() => onSort(column)}
+          className={cn(
+            "h-auto gap-1 px-0 font-medium uppercase tracking-wider hover:bg-transparent hover:text-foreground",
+            active ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          {children}
+          <span className="text-[9px] opacity-70">
+            {active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
+          </span>
+        </Button>
+        {help}
+      </div>
     </TableHead>
+  );
+}
+
+function ExpectedMoveCushionHelp() {
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        aria-label="Learn about Expected Move Cushion"
+        delay={200}
+        render={
+          <button
+            type="button"
+            className="inline-flex size-4 cursor-help items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <CircleHelp aria-hidden="true" className="size-3.5" />
+          </button>
+        }
+      />
+      <HoverCardContent
+        side="top"
+        align="end"
+        className="w-72 normal-case tracking-normal"
+      >
+        <p className="font-medium">Expected Move Cushion</p>
+        <p className="mt-1 text-muted-foreground">
+          The distance from the current price to the strategy&apos;s profit
+          range, measured in expected moves from implied volatility and time to
+          expiration. Positive values are inside the profit range; negative
+          values are outside it. More positive is better.
+        </p>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
