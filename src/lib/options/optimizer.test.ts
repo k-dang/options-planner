@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parsePositiveNumber } from "@/lib/utils";
 import {
+  defaultTargetUnderlyingPrice,
+  expirationProfitLossAtPrice,
   type OptimizerInputs,
   type OptionChainSnapshot,
   type OptionQuote,
   optimizeStrategies,
+  rankOptimizerShortlist,
   scanRiskReward,
   strategyTemplates,
   toOptimizerResultRows,
@@ -87,6 +90,42 @@ function testChainAtUnderlying(
 }
 
 describe("optimizer", () => {
+  it("uses one thesis target value across optimizer defaults and summaries", () => {
+    const underlyingPrice = 315.32;
+
+    expect(defaultTargetUnderlyingPrice("bullish", underlyingPrice)).toBe(
+      340.55,
+    );
+    expect(defaultTargetUnderlyingPrice("income", underlyingPrice)).toBe(
+      315.32,
+    );
+    expect(defaultTargetUnderlyingPrice("bearish", underlyingPrice)).toBe(
+      290.09,
+    );
+  });
+
+  it("evaluates target profit directly instead of interpolating chart samples", () => {
+    const targetUnderlyingPrice = 282;
+    const results = optimizeStrategies(
+      {
+        ...baseInputs,
+        targetUnderlyingPrice,
+      },
+      testChainWithStrikes(
+        Array.from({ length: 17 }, (_, index) => 230 + index * 5),
+      ),
+    );
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(
+      results.every(
+        (candidate) =>
+          candidate.summary.targetProfitLoss ===
+          expirationProfitLossAtPrice(candidate.state, targetUnderlyingPrice),
+      ),
+    ).toBe(true);
+  });
+
   it("generates valid candidates across multiple bullish strategy families", () => {
     const results = optimizeStrategies(baseInputs);
     const strategies = new Set(
@@ -178,6 +217,37 @@ describe("optimizer", () => {
     );
     expect(chanceResults.map((candidate) => candidate.summary.score)).toEqual(
       sortedChanceScores,
+    );
+  });
+
+  it("ranks a cross-strategy shortlist using comparable scores", () => {
+    const candidates = optimizeStrategies(baseInputs);
+    const byStrategy = new Map<string, (typeof candidates)[number]>();
+
+    for (const candidate of candidates) {
+      if (!byStrategy.has(candidate.state.strategy)) {
+        byStrategy.set(candidate.state.strategy, candidate);
+      }
+    }
+
+    const shortlist = [...byStrategy.values()];
+    const byReturn = rankOptimizerShortlist(0, shortlist);
+    const byChance = rankOptimizerShortlist(100, shortlist);
+    const highestReturn = Math.max(
+      ...shortlist.map((candidate) => candidate.summary.returnOnRisk ?? 0),
+    );
+    const highestChance = Math.max(
+      ...shortlist.map(
+        (candidate) => candidate.summary.probabilityOfProfit ?? 0,
+      ),
+    );
+
+    expect(byReturn[0]?.summary.returnOnRisk).toBe(highestReturn);
+    expect(byChance[0]?.summary.probabilityOfProfit).toBe(highestChance);
+    expect(byReturn.map((candidate) => candidate.summary.score)).toEqual(
+      [...byReturn]
+        .map((candidate) => candidate.summary.score)
+        .sort((left, right) => right - left),
     );
   });
 

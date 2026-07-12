@@ -4,6 +4,12 @@ const currencyFormat = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+const priceFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 2,
+});
+
 const decimalFormat = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
@@ -34,6 +40,10 @@ export function formatCurrency(value: number | null) {
   }
 
   return currencyFormat.format(value);
+}
+
+export function formatPrice(value: number) {
+  return priceFormat.format(value);
 }
 
 export function formatDecimal(value: number) {

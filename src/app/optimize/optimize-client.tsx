@@ -4,25 +4,33 @@ import { useRouter } from "next/navigation";
 import { useDeferredValue, useState } from "react";
 import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
 import { StrategyCard } from "@/app/optimize/strategy-card";
+import {
+  formatTargetPriceDraft,
+  parseTargetPriceDraft,
+} from "@/app/optimize/target-price";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
+  InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Slider } from "@/components/ui/slider";
-import { formatCurrency } from "@/lib/format";
+import { formatPercent, formatPrice } from "@/lib/format";
 import { optimizeSymbolHref } from "@/lib/hrefs";
 import {
+  defaultTargetUnderlyingPrice,
   enumerateOptimizerCandidates,
   type OptimizerCandidate,
   type OptimizerInputs,
   type OptimizerThesis,
   type OptionChainSnapshot,
+  payoffPriceRange,
   rankOptimizerCandidates,
+  rankOptimizerShortlist,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +41,22 @@ const THESIS_OPTIONS = [
 ] as [OptimizerThesis, string][];
 
 const IS_DEV = process.env.NODE_ENV === "development";
+
+const SNAPSHOT_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  month: "short",
+  timeZone: "UTC",
+  year: "numeric",
+  timeZoneName: "short",
+});
+
+const EXPIRATION_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
 
 const DEFAULT_INPUTS: OptimizerInputs = {
   symbol: "AAPL",
@@ -52,19 +76,41 @@ export function OptimizeClient({
   const defaultExpiration =
     initialChain.expirations.find((e) => e.daysToExpiration >= 30)
       ?.expiration ?? initialChain.expirations[0]?.expiration;
-  const [inputs, setInputs] = useState({
+  const initialTargetUnderlyingPrice = defaultTargetUnderlyingPrice(
+    DEFAULT_INPUTS.thesis,
+    initialChain.underlying.price,
+  );
+  const [inputs, setInputs] = useState<OptimizerInputs>(() => ({
     ...DEFAULT_INPUTS,
     symbol: initialChain.underlying.symbol,
     expiration: defaultExpiration,
-  });
-  const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(
-    String(Math.round(initialChain.underlying.price * 1.08)),
+    targetUnderlyingPrice: initialTargetUnderlyingPrice,
+  }));
+  const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(() =>
+    formatTargetPriceDraft(initialTargetUnderlyingPrice),
   );
+  const [targetTouched, setTargetTouched] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const chain = initialChain;
+  const provider = chain.expirations[0]?.calls[0]?.provider ?? "unknown";
   const candidates = enumerateOptimizerCandidates(inputs, chain);
   const deferredWeight = useDeferredValue(inputs.returnChanceWeight);
   const strategyCards = selectTopStrategyCards(deferredWeight, candidates);
+  const topCandidate = strategyCards[0];
+  const alternativeCards = strategyCards.slice(1);
+  const chartTarget =
+    topCandidate?.summary.targetUnderlyingPrice ?? chain.underlying.price;
+  const targetRange = payoffPriceRange(chain.underlying.price);
+  const targetResult = parseTargetPriceDraft(
+    targetUnderlyingDraft,
+    targetRange,
+  );
+  const appliedTarget =
+    inputs.targetUnderlyingPrice ?? initialTargetUnderlyingPrice;
+  const targetIsDirty =
+    targetResult.valid && targetResult.value !== appliedTarget;
+  const targetError =
+    targetTouched && !targetResult.valid ? targetResult.message : null;
   const optimizerDebugJson = debugOpen
     ? JSON.stringify(
         {
@@ -97,25 +143,45 @@ export function OptimizeClient({
     });
   }
 
-  function handleTargetBlur() {
-    const p = Number(targetUnderlyingDraft);
-    if (p > 0) updateInputs({ targetUnderlyingPrice: p });
+  function handleThesisChange(thesis: OptimizerThesis) {
+    const targetUnderlyingPrice = defaultTargetUnderlyingPrice(
+      thesis,
+      chain.underlying.price,
+    );
+
+    setTargetUnderlyingDraft(formatTargetPriceDraft(targetUnderlyingPrice));
+    setTargetTouched(false);
+    updateInputs({ thesis, targetUnderlyingPrice });
+  }
+
+  function applyTargetPrice() {
+    setTargetTouched(true);
+
+    if (!targetResult.valid) {
+      return;
+    }
+
+    setTargetUnderlyingDraft(formatTargetPriceDraft(targetResult.value));
+    setTargetTouched(false);
+    updateInputs({ targetUnderlyingPrice: targetResult.value });
   }
 
   function handleTargetKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
-      const p = Number(targetUnderlyingDraft);
-      if (p > 0) updateInputs({ targetUnderlyingPrice: p });
+      e.preventDefault();
+      applyTargetPrice();
+    }
+
+    if (e.key === "Escape") {
+      setTargetUnderlyingDraft(formatTargetPriceDraft(appliedTarget));
+      setTargetTouched(false);
     }
   }
 
   return (
     <>
-      <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 -left-16 h-44 w-44 rounded-full bg-primary/8 blur-2xl" />
-
-        <div className="relative flex flex-wrap items-center gap-3">
+      <section className="rounded-xl bg-card p-5 ring-1 ring-border">
+        <div className="flex flex-wrap items-center gap-3">
           <div>
             <TickerCombobox
               defaultSymbol={initialChain.underlying.symbol}
@@ -123,7 +189,7 @@ export function OptimizeClient({
             />
           </div>
 
-          <div>{formatCurrency(chain.underlying.price)}</div>
+          <div>{formatPrice(chain.underlying.price)}</div>
 
           <div className="ml-auto flex items-center gap-2">
             {THESIS_OPTIONS.map(([value, label]) => (
@@ -132,12 +198,12 @@ export function OptimizeClient({
                 aria-pressed={inputs.thesis === value}
                 variant={inputs.thesis === value ? "default" : "outline"}
                 className={cn(
-                  "rounded-full shadow-sm",
+                  "rounded-full shadow-none",
                   inputs.thesis === value
-                    ? "shadow-md"
-                    : "border-border/60 bg-white/80 text-foreground/55 hover:border-primary/40 dark:bg-white/8",
+                    ? ""
+                    : "border-border bg-transparent text-muted-foreground hover:border-primary/40 hover:bg-muted/60 hover:text-foreground",
                 )}
-                onClick={() => updateInputs({ thesis: value })}
+                onClick={() => handleThesisChange(value)}
               >
                 {label}
               </Button>
@@ -145,38 +211,71 @@ export function OptimizeClient({
           </div>
         </div>
 
-        <div className="relative mt-4 grid gap-3 sm:grid-cols-2">
-          <Field className="flex flex-col gap-1.5">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field
+            className="flex flex-col gap-1.5"
+            data-invalid={targetError ? true : undefined}
+          >
             <FieldLabel
-              className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+              className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground"
               htmlFor="target-price"
             >
-              Target Price
+              Target Price at Expiration
             </FieldLabel>
-            <InputGroup className="rounded-full border-border/60 bg-white/80 shadow-sm dark:bg-input/20">
+            <InputGroup className="rounded-full border-border bg-input/50 shadow-none">
               <InputGroupAddon>$</InputGroupAddon>
               <InputGroupInput
                 id="target-price"
                 type="number"
-                min="1"
-                step="1"
+                min={targetRange.low}
+                max={targetRange.high}
+                step="0.01"
+                aria-describedby={
+                  targetError ? "target-price-error" : "target-price-help"
+                }
+                aria-invalid={targetError ? true : undefined}
                 className="font-mono font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 value={targetUnderlyingDraft}
-                onChange={(e) => setTargetUnderlyingDraft(e.target.value)}
-                onBlur={handleTargetBlur}
+                onChange={(e) => {
+                  setTargetUnderlyingDraft(e.target.value);
+                  setTargetTouched(true);
+                }}
+                onBlur={applyTargetPrice}
                 onKeyDown={handleTargetKeyDown}
               />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  aria-label="Apply target price"
+                  disabled={!targetResult.valid || !targetIsDirty}
+                  onClick={applyTargetPrice}
+                >
+                  Apply
+                </InputGroupButton>
+              </InputGroupAddon>
             </InputGroup>
+            {targetError ? (
+              <FieldError id="target-price-error">{targetError}</FieldError>
+            ) : (
+              <p
+                aria-live="polite"
+                className="text-xs leading-5 text-muted-foreground"
+                id="target-price-help"
+              >
+                {targetIsDirty
+                  ? "Not applied yet. Press Enter or choose Apply to update the analysis."
+                  : `Applied to rankings and estimated P/L at expiration. Range ${formatPrice(targetRange.low)}–${formatPrice(targetRange.high)}.`}
+              </p>
+            )}
           </Field>
 
           <Field className="flex flex-col gap-1.5">
             <FieldLabel
-              className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground"
+              className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground"
               htmlFor="rank-by"
             >
               Rank By
             </FieldLabel>
-            <div className="rounded-2xl border border-border/60 bg-white/80 px-4 py-3 shadow-sm dark:bg-white/8">
+            <div className="rounded-lg bg-muted/40 px-4 py-3 ring-1 ring-inset ring-border/70">
               <Slider
                 aria-label="Rank by"
                 id="rank-by"
@@ -186,7 +285,7 @@ export function OptimizeClient({
                 value={[inputs.returnChanceWeight ?? 50]}
                 onValueChange={handleSliderChange}
               />
-              <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>
                   Max Return{" "}
                   <span className="font-semibold tabular-nums text-foreground/70">
@@ -201,28 +300,121 @@ export function OptimizeClient({
                 </span>
               </div>
             </div>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Balances modeled return against modeled probability. A 50/50
+              setting weights them equally.
+            </p>
           </Field>
         </div>
 
-        <div className="relative mt-4">
+        <div className="mt-4">
           <ExpirationTimeline
             expirations={chain.expirations}
             value={inputs.expiration}
             onChange={(expiration) => updateInputs({ expiration })}
           />
         </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border/70 pt-3 text-xs leading-5 text-muted-foreground">
+          <p>
+            Underlying snapshot: {formatSnapshotTime(chain.underlying.asOf)} ·
+            Options chain: {formatProvider(provider)}
+          </p>
+          <p>Model estimates support planning; they are not guarantees.</p>
+        </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {strategyCards.map((candidate) => (
-          <StrategyCard candidate={candidate} key={candidate.id} />
-        ))}
-        {strategyCards.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
-            <p className="text-lg font-semibold">No strategies match</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Try adjusting the thesis, expiration, or target price.
+      <section aria-labelledby="payoff-chart-guide" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div>
+            <h2 className="text-sm font-semibold" id="payoff-chart-guide">
+              Payoff charts
+            </h2>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Each chart shows estimated P/L at expiration.
             </p>
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className="h-0.5 w-3 bg-primary" />
+              P/L
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="w-3 border-t border-dashed border-muted-foreground"
+              />
+              Current {formatPrice(chain.underlying.price)}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="w-3 border-t border-dashed border-destructive"
+              />
+              Target {formatPrice(chartTarget)}
+            </span>
+          </div>
+        </div>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Return/risk uses maximum profit when capped and target profit when
+          unlimited. Unavailable means losses are not capped.
+        </p>
+
+        {topCandidate ? (
+          <>
+            <section aria-labelledby="top-match-heading" className="space-y-3">
+              <div className="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-4">
+                <div>
+                  <h2 className="text-xl font-semibold" id="top-match-heading">
+                    Top-ranked match
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {formatRecommendationContext(inputs, topCandidate)}
+                  </p>
+                </div>
+                <p className="max-w-xl text-sm leading-6 text-muted-foreground">
+                  {formatRecommendationRationale(
+                    topCandidate,
+                    inputs.returnChanceWeight,
+                  )}
+                </p>
+              </div>
+              <StrategyCard candidate={topCandidate} featured />
+            </section>
+
+            {alternativeCards.length > 0 ? (
+              <section
+                aria-labelledby="alternative-heading"
+                className="space-y-3"
+              >
+                <div>
+                  <h2
+                    className="text-base font-semibold"
+                    id="alternative-heading"
+                  >
+                    Other strategies
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Compare different payoff shapes using the same assumptions.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {alternativeCards.map((candidate) => (
+                    <StrategyCard candidate={candidate} key={candidate.id} />
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </>
+        ) : (
+          <div className="flex min-h-64 items-center justify-center rounded-xl border border-dashed border-border p-8 text-center">
+            <div className="max-w-sm">
+              <h2 className="text-lg font-semibold">No strategies match</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Try another thesis, expiration, or target price to widen the
+                search.
+              </p>
+            </div>
           </div>
         )}
       </section>
@@ -244,7 +436,7 @@ export function OptimizeClient({
           ]}
           subtitle={`Provider ${
             chain.expirations[0]?.calls[0]?.provider ?? "n/a"
-          } · ${chain.underlying.symbol} ${formatCurrency(
+          } · ${chain.underlying.symbol} ${formatPrice(
             chain.underlying.price,
           )}`}
           summary={[
@@ -260,6 +452,52 @@ export function OptimizeClient({
   );
 }
 
+function formatSnapshotTime(value: string) {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? value
+    : SNAPSHOT_TIME_FORMAT.format(date);
+}
+
+function formatProvider(provider: string) {
+  return provider.replace(/^./, (character) => character.toUpperCase());
+}
+
+function formatRecommendationContext(
+  inputs: OptimizerInputs,
+  candidate: OptimizerCandidate,
+) {
+  const thesis = inputs.thesis.replace(/^./, (letter) => letter.toUpperCase());
+  const expiration = EXPIRATION_DATE_FORMAT.format(
+    new Date(`${candidate.summary.expiration}T00:00:00.000Z`),
+  );
+
+  return `${thesis} thesis · ${expiration} expiration · ${formatPrice(candidate.summary.targetUnderlyingPrice)} target`;
+}
+
+function formatRecommendationRationale(
+  candidate: OptimizerCandidate,
+  chanceWeight = 50,
+) {
+  const chance = formatPercent(candidate.summary.probabilityOfProfit);
+  const returnOnRisk = formatPercent(candidate.summary.returnOnRisk);
+
+  if (candidate.summary.maxLoss === null) {
+    return "Ranks first on modeled probability, but losses are uncapped. Compare the defined-risk alternatives before proceeding.";
+  }
+
+  if (chanceWeight >= 65) {
+    return `Ranked first with ${chance} modeled probability of profit while preserving ${returnOnRisk} return/risk.`;
+  }
+
+  if (chanceWeight <= 35) {
+    return `Ranked first with ${returnOnRisk} modeled return/risk and a ${chance} probability of profit.`;
+  }
+
+  return `Best blended score at the current balance: ${returnOnRisk} modeled return/risk and ${chance} probability of profit.`;
+}
+
 function selectTopStrategyCards(
   weight: number | undefined,
   candidates: OptimizerCandidate[],
@@ -273,7 +511,7 @@ function selectTopStrategyCards(
     }
   }
 
-  return [...byStrategy.values()];
+  return rankOptimizerShortlist(weight, [...byStrategy.values()]);
 }
 
 function optimizerCandidateDebug(candidate: OptimizerCandidate) {

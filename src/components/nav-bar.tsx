@@ -39,14 +39,14 @@ function NavIcon() {
 
 export function NavBar() {
   return (
-    <nav className="sticky top-0 z-50 flex items-center gap-6 border-b border-border/60 bg-background/80 px-6 py-3 backdrop-blur-md">
+    <nav className="sticky top-0 z-50 flex items-center gap-3 border-b border-border/60 bg-background/80 px-3 py-3 backdrop-blur-md sm:gap-6 sm:px-6">
       <Link href="/" className="flex items-center gap-2">
         <NavIcon />
-        <span className="font-semibold text-sm tracking-tight">
+        <span className="hidden text-sm font-semibold tracking-tight min-[480px]:inline">
           Options Planner
         </span>
       </Link>
-      <div className="h-4 w-px bg-border" />
+      <div className="hidden h-4 w-px bg-border min-[480px]:block" />
       <Link
         href="/optimize"
         className="text-sm text-muted-foreground hover:text-foreground transition-colors"

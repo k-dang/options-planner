@@ -126,6 +126,13 @@ function payoffAtExpiration(state: StrategyState, underlyingPrice: number) {
   return terminalValue + entryCashFlow;
 }
 
+export function expirationProfitLossAtPrice(
+  state: StrategyState,
+  underlyingPrice: number,
+) {
+  return Number(payoffAtExpiration(state, underlyingPrice).toFixed(2));
+}
+
 function payoffAtModelDate(state: StrategyState, underlyingPrice: number) {
   const entryCashFlow = state.legs.reduce(
     (total, leg) => total + legEntryCashFlow(leg),
@@ -139,9 +146,15 @@ function payoffAtModelDate(state: StrategyState, underlyingPrice: number) {
   return currentValue + entryCashFlow;
 }
 
+export function payoffPriceRange(underlyingPrice: number) {
+  return {
+    low: Number((underlyingPrice * 0.5).toFixed(2)),
+    high: Number((underlyingPrice * 1.5).toFixed(2)),
+  };
+}
+
 function buildPayoffGrid(state: StrategyState) {
-  const low = state.underlyingPrice * 0.5;
-  const high = state.underlyingPrice * 1.5;
+  const { low, high } = payoffPriceRange(state.underlyingPrice);
   const step = (high - low) / 40;
 
   return Array.from({ length: 41 }, (_, index) => {
@@ -149,13 +162,11 @@ function buildPayoffGrid(state: StrategyState) {
 
     return {
       underlyingPrice,
-      expirationProfitLoss: Number(
-        payoffAtExpiration(state, underlyingPrice).toFixed(2),
-      ),
+      expirationProfitLoss: expirationProfitLossAtPrice(state, underlyingPrice),
       modelProfitLoss: Number(
         payoffAtModelDate(state, underlyingPrice).toFixed(2),
       ),
-      profitLoss: Number(payoffAtExpiration(state, underlyingPrice).toFixed(2)),
+      profitLoss: expirationProfitLossAtPrice(state, underlyingPrice),
     };
   });
 }

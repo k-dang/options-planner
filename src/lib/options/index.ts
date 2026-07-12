@@ -1,10 +1,13 @@
 export {
   evaluateStrategy,
+  expirationProfitLossAtPrice,
+  payoffPriceRange,
   type StrategyEvaluationResult,
   StrategyValidationError,
   safeEvaluateStrategy,
 } from "./evaluate";
 export {
+  defaultTargetUnderlyingPrice,
   enumerateOptimizerCandidates,
   type OptimizerCandidate,
   type OptimizerInputs,
@@ -12,6 +15,7 @@ export {
   type OptimizerThesis,
   optimizeStrategies,
   rankOptimizerCandidates,
+  rankOptimizerShortlist,
   type ScanInputs,
   scanRiskReward,
   toOptimizerResultRows,

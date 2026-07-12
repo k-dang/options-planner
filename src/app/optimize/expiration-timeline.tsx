@@ -21,6 +21,17 @@ export function ExpirationTimeline({
   value: string | undefined;
   onChange: (expiration: string) => void;
 }) {
+  if (expirations.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-4">
+        <p className="text-sm font-medium">No expirations available</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          Try another symbol or retry after the options chain updates.
+        </p>
+      </div>
+    );
+  }
+
   const selected = expirations.find((e) => e.expiration === value);
   const groups = groupExpirationsByMonth(expirations);
 
@@ -29,7 +40,7 @@ export function ExpirationTimeline({
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-baseline gap-3">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+          <span className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
             Expiration
           </span>
           {selected && (
@@ -43,7 +54,7 @@ export function ExpirationTimeline({
             <span className="font-mono text-sm font-bold tabular-nums leading-none text-primary">
               {selected.daysToExpiration}
             </span>
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-primary/70">
+            <span className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">
               days
             </span>
           </div>
@@ -52,64 +63,66 @@ export function ExpirationTimeline({
 
       {/* Timeline body — grid with one column per expiration so months
           (which span N columns) line up exactly with their day buttons. */}
-      <div
-        className="grid gap-x-1 gap-y-2"
-        style={{
-          gridTemplateColumns: `repeat(${expirations.length}, minmax(0, 1fr))`,
-        }}
-      >
-        {/* Row 1: month pills */}
-        {groups.map((group) => {
-          const isActive = group.items.some((e) => e.expiration === value);
-          return (
-            <div
-              key={group.key}
-              style={{ gridColumn: `span ${group.items.length}` }}
-              className={cn(
-                "min-w-0 overflow-hidden rounded-full px-2 py-1 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.15em] transition-colors",
-                isActive
-                  ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30"
-                  : "bg-muted/50 text-muted-foreground/80 dark:bg-white/5",
-              )}
-            >
-              <span className="block truncate">{group.label}</span>
-            </div>
-          );
-        })}
-
-        {/* Row 2: hairline axis spanning all columns */}
+      <div className="overflow-x-auto pb-1">
         <div
-          style={{ gridColumn: "1 / -1" }}
-          className="h-px w-full bg-gradient-to-r from-transparent via-border/80 to-transparent"
-        />
-
-        {/* Row 3: day buttons, one per column */}
-        {expirations.map((exp) => {
-          const day = Number(exp.expiration.split("-")[2]);
-          const isSelected = exp.expiration === value;
-          return (
-            <div
-              key={exp.expiration}
-              className="flex min-w-0 items-center justify-center"
-            >
-              <Button
-                aria-pressed={isSelected}
-                title={`${exp.expiration} · ${exp.daysToExpiration}d`}
-                variant={isSelected ? "default" : "ghost"}
-                size="icon-xs"
-                onClick={() => onChange(exp.expiration)}
+          className="grid min-w-[48rem] gap-x-1 gap-y-2 sm:min-w-0"
+          style={{
+            gridTemplateColumns: `repeat(${expirations.length}, minmax(0, 1fr))`,
+          }}
+        >
+          {/* Row 1: month pills */}
+          {groups.map((group) => {
+            const isActive = group.items.some((e) => e.expiration === value);
+            return (
+              <div
+                key={group.key}
+                style={{ gridColumn: `span ${group.items.length}` }}
                 className={cn(
-                  "size-7 rounded-full font-mono text-[11px] tabular-nums",
-                  isSelected
-                    ? "font-bold shadow-md shadow-primary/30 ring-2 ring-primary/30 ring-offset-2 ring-offset-background"
-                    : "text-foreground/55",
+                  "min-w-0 overflow-hidden rounded-full px-2 py-1 text-center font-mono text-xs font-semibold uppercase tracking-[0.15em] transition-colors",
+                  isActive
+                    ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30"
+                    : "bg-muted/50 text-muted-foreground/80 dark:bg-white/5",
                 )}
               >
-                {day}
-              </Button>
-            </div>
-          );
-        })}
+                <span className="block truncate">{group.label}</span>
+              </div>
+            );
+          })}
+
+          {/* Row 2: hairline axis spanning all columns */}
+          <div
+            style={{ gridColumn: "1 / -1" }}
+            className="h-px w-full bg-gradient-to-r from-transparent via-border/80 to-transparent"
+          />
+
+          {/* Row 3: day buttons, one per column */}
+          {expirations.map((exp) => {
+            const day = Number(exp.expiration.split("-")[2]);
+            const isSelected = exp.expiration === value;
+            return (
+              <div
+                key={exp.expiration}
+                className="flex min-w-0 items-center justify-center"
+              >
+                <Button
+                  aria-pressed={isSelected}
+                  title={`${exp.expiration} · ${exp.daysToExpiration}d`}
+                  variant={isSelected ? "default" : "ghost"}
+                  size="icon-xs"
+                  onClick={() => onChange(exp.expiration)}
+                  className={cn(
+                    "size-7 rounded-full font-mono text-xs tabular-nums",
+                    isSelected
+                      ? "font-bold shadow-md shadow-primary/30 ring-2 ring-primary/30 ring-offset-2 ring-offset-background"
+                      : "text-foreground/55",
+                  )}
+                >
+                  {day}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { strategyBuilderHref } from "@/lib/hrefs";
-import { evaluateStrategy } from "./evaluate";
+import { evaluateStrategy, expirationProfitLossAtPrice } from "./evaluate";
 import { calculateExpectedMoveCushion } from "./metrics";
 import { createGeneratedChain } from "./providers/generated";
 import {
@@ -191,6 +191,21 @@ function passesFilters(
   return true;
 }
 
+export function defaultTargetUnderlyingPrice(
+  thesis: OptimizerThesis,
+  underlyingPrice: number,
+) {
+  if (thesis === "bearish") {
+    return Number((underlyingPrice * 0.92).toFixed(2));
+  }
+
+  if (thesis === "income") {
+    return Number(underlyingPrice.toFixed(2));
+  }
+
+  return Number((underlyingPrice * 1.08).toFixed(2));
+}
+
 function targetUnderlyingPrice(
   inputs: OptimizerInputs,
   underlyingPrice: number,
@@ -203,55 +218,7 @@ function targetUnderlyingPrice(
     return inputs.targetUnderlyingPrice;
   }
 
-  if (inputs.thesis === "bearish") {
-    return Number((underlyingPrice * 0.92).toFixed(2));
-  }
-
-  if (inputs.thesis === "income") {
-    return Number(underlyingPrice.toFixed(2));
-  }
-
-  return Number((underlyingPrice * 1.08).toFixed(2));
-}
-
-function targetProfitLoss(evaluation: StrategyEvaluation, targetPrice: number) {
-  const payoff = evaluation.payoff;
-  const first = payoff[0];
-  const last = payoff[payoff.length - 1];
-
-  if (!first || !last) {
-    return 0;
-  }
-
-  if (targetPrice <= first.underlyingPrice) {
-    return first.expirationProfitLoss;
-  }
-
-  if (targetPrice >= last.underlyingPrice) {
-    return last.expirationProfitLoss;
-  }
-
-  for (let index = 1; index < payoff.length; index += 1) {
-    const right = payoff[index];
-    const left = payoff[index - 1];
-
-    if (!left || !right || targetPrice > right.underlyingPrice) {
-      continue;
-    }
-
-    const width = right.underlyingPrice - left.underlyingPrice;
-    const weight =
-      width === 0 ? 0 : (targetPrice - left.underlyingPrice) / width;
-
-    return Number(
-      (
-        left.expirationProfitLoss +
-        (right.expirationProfitLoss - left.expirationProfitLoss) * weight
-      ).toFixed(2),
-    );
-  }
-
-  return last.expirationProfitLoss;
+  return defaultTargetUnderlyingPrice(inputs.thesis, underlyingPrice);
 }
 
 function makeCandidate(
@@ -272,7 +239,7 @@ function makeCandidate(
 
   const legs = optionLegs(state);
   const targetPrice = targetUnderlyingPrice(inputs, state.underlyingPrice);
-  const targetProfit = targetProfitLoss(evaluation, targetPrice);
+  const targetProfit = expirationProfitLossAtPrice(state, targetPrice);
   const metrics = returnMetrics(
     evaluation.maxProfit,
     evaluation.maxLoss,
@@ -375,6 +342,21 @@ export function rankOptimizerCandidates(
   candidates: OptimizerCandidate[],
 ): OptimizerCandidate[] {
   return rankCandidatesByFamily(returnChanceWeight, candidates);
+}
+
+export function rankOptimizerShortlist(
+  returnChanceWeight: number | undefined,
+  candidates: OptimizerCandidate[],
+): OptimizerCandidate[] {
+  return candidates
+    .map((candidate) => ({
+      ...candidate,
+      summary: {
+        ...candidate.summary,
+        score: candidateScore(returnChanceWeight, candidate, candidates),
+      },
+    }))
+    .toSorted((left, right) => right.summary.score - left.summary.score);
 }
 
 export function optimizeStrategies(
