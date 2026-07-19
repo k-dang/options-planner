@@ -5,15 +5,16 @@ function Bar({ className }: { className?: string }) {
   return <Skeleton className={cn("rounded-md", className)} />;
 }
 
-const EXPIRATION_PILLS = [
-  { id: "exp-a", width: "w-16" },
-  { id: "exp-b", width: "w-20" },
-  { id: "exp-c", width: "w-14" },
-  { id: "exp-d", width: "w-20" },
-  { id: "exp-e", width: "w-16" },
-  { id: "exp-f", width: "w-20" },
-  { id: "exp-g", width: "w-14" },
+const MONTH_PILLS = [
+  { id: "month-a", width: "w-40" },
+  { id: "month-b", width: "w-28" },
+  { id: "month-c", width: "w-16" },
+  { id: "month-d", width: "w-16" },
+  { id: "month-e", width: "w-16" },
+  { id: "month-f", width: "w-16" },
 ];
+
+const DAY_DOTS = Array.from({ length: 14 }, (_, i) => `day-${i}`);
 
 export function OptimizeSkeleton() {
   return (
@@ -47,10 +48,21 @@ export function OptimizeSkeleton() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {EXPIRATION_PILLS.map(({ id, width }) => (
-            <Bar key={id} className={cn("h-10 rounded-full", width)} />
-          ))}
+        <div className="mt-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <Bar className="h-3 w-40" />
+            <Bar className="h-5 w-20 rounded-full" />
+          </div>
+          <div className="flex gap-1">
+            {MONTH_PILLS.map(({ id, width }) => (
+              <Bar key={id} className={cn("h-6 rounded-full", width)} />
+            ))}
+          </div>
+          <div className="flex justify-between gap-1">
+            {DAY_DOTS.map((id) => (
+              <Bar key={id} className="size-7 rounded-full" />
+            ))}
+          </div>
         </div>
 
         <div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-border/70 pt-3">

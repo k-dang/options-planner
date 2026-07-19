@@ -63,11 +63,12 @@ export function ExpirationTimeline({
 
       {/* Timeline body — grid with one column per expiration so months
           (which span N columns) line up exactly with their day buttons. */}
-      <div className="overflow-x-auto pb-1">
+      <div className="overflow-x-auto pb-1 [scrollbar-color:var(--color-border)_transparent] [scrollbar-width:thin]">
         <div
-          className="grid min-w-[48rem] gap-x-1 gap-y-2 sm:min-w-0"
+          className="grid gap-x-1 gap-y-2"
           style={{
             gridTemplateColumns: `repeat(${expirations.length}, minmax(0, 1fr))`,
+            minWidth: `${expirations.length * 4.25}rem`,
           }}
         >
           {/* Row 1: month pills */}
@@ -78,10 +79,10 @@ export function ExpirationTimeline({
                 key={group.key}
                 style={{ gridColumn: `span ${group.items.length}` }}
                 className={cn(
-                  "min-w-0 overflow-hidden rounded-full px-2 py-1 text-center font-mono text-xs font-semibold uppercase tracking-[0.15em] transition-colors",
+                  "min-w-0 overflow-hidden rounded-full px-1.5 py-1 text-center font-mono text-xs font-semibold uppercase tracking-[0.08em] transition-colors",
                   isActive
                     ? "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30"
-                    : "bg-muted/50 text-muted-foreground/80 dark:bg-white/5",
+                    : "bg-muted/50 text-muted-foreground dark:bg-white/5",
                 )}
               >
                 <span className="block truncate">{group.label}</span>
@@ -105,6 +106,7 @@ export function ExpirationTimeline({
                 className="flex min-w-0 items-center justify-center"
               >
                 <Button
+                  aria-label={`${formatExpirationDate(exp.expiration)}, ${exp.daysToExpiration} days out`}
                   aria-pressed={isSelected}
                   title={`${exp.expiration} · ${exp.daysToExpiration}d`}
                   variant={isSelected ? "default" : "ghost"}
@@ -128,6 +130,17 @@ export function ExpirationTimeline({
   );
 }
 
+const FULL_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+  year: "numeric",
+});
+
+function formatExpirationDate(expiration: string) {
+  return FULL_DATE_FORMAT.format(new Date(`${expiration}T00:00:00.000Z`));
+}
+
 function groupExpirationsByMonth(expirations: OptionExpiration[]): Group[] {
   const map = new Map<string, Group>();
   const currentYear = new Date().getFullYear();
@@ -148,7 +161,7 @@ function groupExpirationsByMonth(expirations: OptionExpiration[]): Group[] {
         label:
           year === currentYear
             ? monthLabel
-            : `${monthLabel} '${String(year).slice(2)}`,
+            : `${monthLabel}'${String(year).slice(2)}`,
         items: [],
       };
       map.set(key, group);

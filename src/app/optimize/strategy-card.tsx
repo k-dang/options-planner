@@ -15,6 +15,13 @@ import { formatCurrency, formatPercent, formatPrice } from "@/lib/format";
 import type { OptimizerCandidate } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
+const EXPIRATION_FORMAT = new Intl.DateTimeFormat("en-US", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+  year: "numeric",
+});
+
 export function StrategyCard({
   candidate,
   featured = false,
@@ -34,7 +41,14 @@ export function StrategyCard({
     : candidate.summary.returnProfitBasisLabel === "target-profit"
       ? "Target return/risk"
       : "Return on risk";
-  const isGoodReturn = returnOnRisk !== null && returnOnRisk >= 0.25;
+  const returnTone =
+    returnOnRisk === null
+      ? "text-muted-foreground"
+      : returnOnRisk < 0
+        ? "text-destructive"
+        : returnOnRisk >= 0.25
+          ? "text-profit"
+          : "text-foreground";
   const cardHeadingId = `strategy-${candidate.id}`;
 
   return (
@@ -48,12 +62,12 @@ export function StrategyCard({
       <CardHeader
         className={cn("pb-3", featured ? "text-left" : "text-center")}
       >
-        <h2
+        <h3
           className={cn("font-semibold", featured ? "text-xl" : "text-base")}
           id={cardHeadingId}
         >
           {title}
-        </h2>
+        </h3>
         <div
           className={cn(
             "mt-1.5 flex flex-wrap gap-1",
@@ -83,7 +97,7 @@ export function StrategyCard({
               <p
                 className={cn(
                   "font-mono text-2xl font-bold tabular-nums leading-none",
-                  isGoodReturn ? "text-profit" : "text-destructive",
+                  returnTone,
                 )}
               >
                 {formatPercent(returnOnRisk)}
@@ -169,8 +183,10 @@ export function StrategyCard({
             <CartesianGrid stroke="var(--border)" strokeOpacity={0.5} />
             <XAxis
               dataKey="underlyingPrice"
+              domain={["dataMin", "dataMax"]}
               tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
               tickFormatter={(value) => `$${value}`}
+              type="number"
             />
             <YAxis
               tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
@@ -209,7 +225,10 @@ export function StrategyCard({
           )}
         >
           <span className="font-mono text-xs text-muted-foreground">
-            {candidate.summary.expiration}
+            Expires{" "}
+            {EXPIRATION_FORMAT.format(
+              new Date(`${candidate.summary.expiration}T00:00:00.000Z`),
+            )}
           </span>
           <Button
             nativeButton={false}

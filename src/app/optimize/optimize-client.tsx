@@ -189,7 +189,14 @@ export function OptimizeClient({
             />
           </div>
 
-          <div>{formatPrice(chain.underlying.price)}</div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Last
+            </span>
+            <span className="font-mono font-semibold tabular-nums">
+              {formatPrice(chain.underlying.price)}
+            </span>
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             {THESIS_OPTIONS.map(([value, label]) => (
@@ -269,16 +276,12 @@ export function OptimizeClient({
           </Field>
 
           <Field className="flex flex-col gap-1.5">
-            <FieldLabel
-              className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground"
-              htmlFor="rank-by"
-            >
+            <span className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground">
               Rank By
-            </FieldLabel>
+            </span>
             <div className="rounded-lg bg-muted/40 px-4 py-3 ring-1 ring-inset ring-border/70">
               <Slider
                 aria-label="Rank by"
-                id="rank-by"
                 max={100}
                 min={0}
                 step={10}
@@ -327,11 +330,13 @@ export function OptimizeClient({
       <section aria-labelledby="payoff-chart-guide" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div>
-            <h2 className="text-sm font-semibold" id="payoff-chart-guide">
+            <h2 className="text-base font-semibold" id="payoff-chart-guide">
               Payoff charts
             </h2>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Each chart shows estimated P/L at expiration.
+            <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+              Each chart shows estimated P/L at expiration. Return/risk uses
+              maximum profit when capped and target profit when unlimited;
+              unavailable means losses are not capped.
             </p>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
@@ -355,11 +360,6 @@ export function OptimizeClient({
             </span>
           </div>
         </div>
-        <p className="text-xs leading-5 text-muted-foreground">
-          Return/risk uses maximum profit when capped and target profit when
-          unlimited. Unavailable means losses are not capped.
-        </p>
-
         {topCandidate ? (
           <>
             <section aria-labelledby="top-match-heading" className="space-y-3">
