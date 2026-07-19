@@ -34,13 +34,15 @@ export function PositionsTable({
   strategies: SavedStrategyListItem[];
   autoRefreshControl?: ReactNode;
 }) {
-  const [showClosed, setShowClosed] = useState(false);
-  const closedCount = strategies.filter(
-    (strategy) => strategy.status === "closed",
-  ).length;
-  const visibleStrategies = showClosed
+  const [showRealized, setShowRealized] = useState(false);
+  // Filters on DB status, not displayStatus: expired-but-unsettled positions
+  // (status still "open") stay visible until settlement realizes their P&L.
+  const isRealized = (strategy: SavedStrategyListItem) =>
+    strategy.status === "closed" || strategy.status === "expired";
+  const realizedCount = strategies.filter(isRealized).length;
+  const visibleStrategies = showRealized
     ? strategies
-    : strategies.filter((strategy) => strategy.status !== "closed");
+    : strategies.filter((strategy) => !isRealized(strategy));
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -50,15 +52,17 @@ export function PositionsTable({
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {autoRefreshControl}
-          {closedCount > 0 ? (
+          {realizedCount > 0 ? (
             <Button
               type="button"
-              variant={showClosed ? "secondary" : "outline"}
+              variant={showRealized ? "secondary" : "outline"}
               size="sm"
-              onClick={() => setShowClosed((value) => !value)}
-              aria-pressed={showClosed}
+              onClick={() => setShowRealized((value) => !value)}
+              aria-pressed={showRealized}
             >
-              {showClosed ? "Hide closed" : `Show closed (${closedCount})`}
+              {showRealized
+                ? "Hide realized"
+                : `Show realized (${realizedCount})`}
             </Button>
           ) : null}
         </div>
