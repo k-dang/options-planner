@@ -213,6 +213,7 @@ export function StrategyCard({
               stroke="var(--primary)"
               strokeWidth={2.5}
               type="linear"
+              zIndex={600}
             />
           </AreaChart>
         </ChartContainer>

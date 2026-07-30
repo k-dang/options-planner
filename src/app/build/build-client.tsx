@@ -377,6 +377,7 @@ export function BuilderClient({
                       stroke="var(--color-expirationProfitLoss)"
                       strokeWidth={2.5}
                       type="monotone"
+                      zIndex={600}
                     />
                     <Line
                       dataKey="modelProfitLoss"
@@ -386,6 +387,7 @@ export function BuilderClient({
                       strokeDasharray="5 5"
                       strokeWidth={2}
                       type="monotone"
+                      zIndex={600}
                     />
                   </LineChart>
                 </ChartContainer>
