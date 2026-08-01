@@ -25,6 +25,7 @@ export {
   createGeneratedChain,
   GeneratedChainProvider,
 } from "./providers/generated";
+export { formatStrategyExport } from "./strategy-export";
 export {
   type BuildStrategyInput,
   type StrategySummary,
