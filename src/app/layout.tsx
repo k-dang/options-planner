@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Outfit } from "next/font/google";
 import { NavBar } from "@/components/nav-bar";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -34,6 +35,7 @@ export default function RootLayout({
       <body className={`${outfit.className} min-h-full flex flex-col`}>
         <NavBar />
         {children}
+        <Toaster />
       </body>
     </html>
   );

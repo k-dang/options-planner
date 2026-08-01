@@ -1,6 +1,6 @@
 "use client";
 
-import { Save } from "lucide-react";
+import { Braces, ChevronDown, FileText, Save, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -24,6 +24,12 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Field,
   FieldGroup,
   FieldLabel,
@@ -44,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/components/ui/toast";
 import {
   type SaveStrategyResult,
   saveBuilderStrategy,
@@ -52,6 +59,7 @@ import { formatCurrency, formatDecimal, formatPercent } from "@/lib/format";
 import { builderStrategyHref, strategyBuilderHref } from "@/lib/hrefs";
 import {
   type BuildStrategyInput,
+  formatStrategyExport,
   type OptionChainSnapshot,
   type OptionExpiration,
   type OptionLeg,
@@ -174,6 +182,23 @@ export function BuilderClient({
     });
   }
 
+  async function copyStrategyExport(format: "Markdown" | "JSON") {
+    if (!evaluationResult.valid) {
+      return;
+    }
+
+    try {
+      const strategyExport = formatStrategyExport(state);
+      const text =
+        format === "Markdown" ? strategyExport.markdown : strategyExport.json;
+
+      await navigator.clipboard.writeText(text);
+      toast.success(`${format} copied`);
+    } catch {
+      toast.error(`Couldn't copy ${format}`);
+    }
+  }
+
   return (
     <>
       <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -237,15 +262,47 @@ export function BuilderClient({
           </FieldGroup>
         </div>
         <div className="flex flex-col items-start gap-1.5 sm:items-end">
-          <Button
-            disabled={!evaluationResult.valid || isSaving}
-            size="sm"
-            type="button"
-            onClick={saveCurrentStrategy}
-          >
-            <Save data-icon="inline-start" />
-            {isSaving ? "Saving" : "Save strategy"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    disabled={!evaluationResult.valid}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  />
+                }
+              >
+                <Share2 aria-hidden="true" data-icon="inline-start" />
+                Export
+                <ChevronDown aria-hidden="true" data-icon="inline-end" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-52">
+                <DropdownMenuItem
+                  onClick={() => void copyStrategyExport("Markdown")}
+                >
+                  <FileText aria-hidden="true" />
+                  Copy as Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void copyStrategyExport("JSON")}
+                >
+                  <Braces aria-hidden="true" />
+                  Copy as JSON
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              disabled={!evaluationResult.valid || isSaving}
+              size="sm"
+              type="button"
+              onClick={saveCurrentStrategy}
+            >
+              <Save data-icon="inline-start" />
+              {isSaving ? "Saving" : "Save strategy"}
+            </Button>
+          </div>
           {saveResult && (
             <p
               className={cn(
