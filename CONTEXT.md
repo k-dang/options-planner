@@ -16,6 +16,10 @@ _Avoid_: Position, saved trade
 A paper trade captured from the Builder with immutable entry state and later mark snapshots.
 _Avoid_: Ticker watchlist item
 
+**Strategy Export**:
+A human-readable rendering of the current Builder strategy's trade structure intended for copying into other tools; it excludes trade prices and market analysis, and carries no promise of being importable or reproducing the strategy exactly.
+_Avoid_: Strategy backup, interchange format
+
 **Expired**:
 A terminal state of a Saved Strategy reached when its options pass expiration, settling at intrinsic value; distinct from a manually Closed strategy and carrying no implication of loss (options expiring worthless can be the winning outcome).
 _Avoid_: Closed, dead, lapsed
@@ -61,6 +65,9 @@ _Avoid_: Per-symbol filters
 - **Watchlist Scan Criteria** reset to default scanner values when the page is opened.
 - A **Ticker Watchlist** uses the same option-chain provider path as the single-symbol scanner.
 - A **Saved Strategy** may originate from a **Risk/Reward Candidate**, but it is not part of the **Ticker Watchlist**.
+- A **Strategy Export** has Markdown and JSON renderings of the same trade structure.
+- A **Strategy Export** describes leg direction as Buy or Sell rather than Long or Short.
+- A **Strategy Export** states every leg quantity in shares or contracts rather than as a unitless number.
 - A selected **Risk/Reward Candidate** opens in the Builder for detailed modeling.
 - **Expected Move Cushion** is first surfaced as a comparative metric on risk/reward candidate tables.
 - **Expected Move Cushion** appears consistently wherever the shared risk/reward candidate table is used, including single-symbol scans and ticker watchlist scan results.
