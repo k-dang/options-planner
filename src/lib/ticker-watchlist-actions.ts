@@ -11,7 +11,11 @@ import {
   type WatchlistScanCriteria,
   type WatchlistScanResult,
 } from "@/lib/ticker-watchlist-scan";
-import { type StrategyTemplateId, strategyTemplates } from "./options";
+import {
+  DEFAULT_SCAN_CRITERIA,
+  type StrategyTemplateId,
+  strategyTemplates,
+} from "./options";
 
 export type WatchlistActionState = {
   ok: boolean;
@@ -113,10 +117,22 @@ export async function scanWatchlistAction(
 }
 
 function scanCriteriaFromFormData(formData: FormData): WatchlistScanCriteria {
-  const minDays = numberFromFormData(formData, "minDaysToExpiration", 30);
-  const maxDays = numberFromFormData(formData, "maxDaysToExpiration", 60);
+  const minDays = numberFromFormData(
+    formData,
+    "minDaysToExpiration",
+    DEFAULT_SCAN_CRITERIA.minDaysToExpiration,
+  );
+  const maxDays = numberFromFormData(
+    formData,
+    "maxDaysToExpiration",
+    DEFAULT_SCAN_CRITERIA.maxDaysToExpiration,
+  );
   const minProbabilityOfProfit =
-    numberFromFormData(formData, "minProbabilityOfProfit", 25) / 100;
+    numberFromFormData(
+      formData,
+      "minProbabilityOfProfit",
+      DEFAULT_SCAN_CRITERIA.minProbabilityOfProfit * 100,
+    ) / 100;
   const enabledStrategies = formData
     .getAll("enabledStrategies")
     .filter(

@@ -1,5 +1,6 @@
 import { normalizeWatchlistSymbol } from "@/db/ticker-watchlist";
 import {
+  DEFAULT_SCAN_CRITERIA,
   type OptimizerCandidate,
   type ScanInputs,
   scanRiskReward,
@@ -31,10 +32,8 @@ export type WatchlistScanResult = {
 };
 
 export const DEFAULT_WATCHLIST_SCAN_CRITERIA: WatchlistScanCriteria = {
-  minDaysToExpiration: 30,
-  maxDaysToExpiration: 60,
-  minProbabilityOfProfit: 0.25,
-  enabledStrategies: [...strategyTemplates.ids()],
+  ...DEFAULT_SCAN_CRITERIA,
+  enabledStrategies: [...strategyTemplates.defaultScanStrategies()],
 };
 
 const MAX_CANDIDATES_PER_TICKER = 10;

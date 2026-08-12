@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Slider } from "@/components/ui/slider";
 import { formatPercent } from "@/lib/format";
-import { type StrategyTemplateId, strategyTemplates } from "@/lib/options";
+import {
+  DEFAULT_SCAN_CRITERIA,
+  type StrategyTemplateId,
+  strategyTemplates,
+} from "@/lib/options";
 import { cn } from "@/lib/utils";
 
 export type ScanFilters = {
@@ -14,15 +18,11 @@ export type ScanFilters = {
   enabled: Set<StrategyTemplateId>;
 };
 
-export const DEFAULT_SCAN_FILTERS = {
-  minDays: 30,
-  maxDays: 60,
-  minPop: 0.25,
-} satisfies Omit<ScanFilters, "enabled">;
-
 export function createDefaultScanFilters(): ScanFilters {
   return {
-    ...DEFAULT_SCAN_FILTERS,
+    minDays: DEFAULT_SCAN_CRITERIA.minDaysToExpiration,
+    maxDays: DEFAULT_SCAN_CRITERIA.maxDaysToExpiration,
+    minPop: DEFAULT_SCAN_CRITERIA.minProbabilityOfProfit,
     enabled: new Set<StrategyTemplateId>(
       strategyTemplates.defaultScanStrategies(),
     ),

@@ -7,6 +7,7 @@ export {
   safeEvaluateStrategy,
 } from "./evaluate";
 export {
+  DEFAULT_SCAN_CRITERIA,
   defaultTargetUnderlyingPrice,
   enumerateOptimizerCandidates,
   type OptimizerCandidate,
@@ -28,6 +29,7 @@ export {
 export { formatStrategyExport } from "./strategy-export";
 export {
   type BuildStrategyInput,
+  type StrategyBias,
   type StrategySummary,
   type StrategyTemplate,
   type StrategyTemplateCatalog,

@@ -405,6 +405,15 @@ export type ScanInputs = {
   strikeWindowFraction?: number;
 };
 
+export const DEFAULT_SCAN_CRITERIA = {
+  minDaysToExpiration: 30,
+  maxDaysToExpiration: 60,
+  minProbabilityOfProfit: 0.25,
+} satisfies Pick<
+  ScanInputs,
+  "minDaysToExpiration" | "maxDaysToExpiration" | "minProbabilityOfProfit"
+>;
+
 function strikesWithinRange(
   strikes: number[],
   price: number,

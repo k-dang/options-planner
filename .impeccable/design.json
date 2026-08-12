@@ -4,22 +4,109 @@
   "title": "Design System: Options Planner",
   "extensions": {
     "colorMeta": {
-      "background": { "role": "neutral", "displayName": "Midnight Field", "canonical": "oklch(0.09 0.012 250)", "tonalRamp": ["oklch(0.15 0.012 250)", "oklch(0.27 0.012 250)", "oklch(0.39 0.012 250)", "oklch(0.51 0.012 250)", "oklch(0.63 0.012 250)", "oklch(0.75 0.012 250)", "oklch(0.87 0.012 250)", "oklch(0.95 0.012 250)"] },
-      "surface": { "role": "neutral", "displayName": "Panel Navy", "canonical": "oklch(0.13 0.01 250)", "tonalRamp": ["oklch(0.15 0.01 250)", "oklch(0.27 0.01 250)", "oklch(0.39 0.01 250)", "oklch(0.51 0.01 250)", "oklch(0.63 0.01 250)", "oklch(0.75 0.01 250)", "oklch(0.87 0.01 250)", "oklch(0.95 0.01 250)"] },
-      "primary": { "role": "primary", "displayName": "Signal Cyan", "canonical": "oklch(0.7 0.16 195)", "tonalRamp": ["oklch(0.15 0.16 195)", "oklch(0.27 0.16 195)", "oklch(0.39 0.16 195)", "oklch(0.51 0.16 195)", "oklch(0.63 0.16 195)", "oklch(0.75 0.16 195)", "oklch(0.87 0.16 195)", "oklch(0.95 0.16 195)"] },
-      "profit": { "role": "secondary", "displayName": "Measured Green", "canonical": "oklch(0.68 0.17 150)", "tonalRamp": ["oklch(0.15 0.17 150)", "oklch(0.27 0.17 150)", "oklch(0.39 0.17 150)", "oklch(0.51 0.17 150)", "oklch(0.63 0.17 150)", "oklch(0.75 0.17 150)", "oklch(0.87 0.17 150)", "oklch(0.95 0.17 150)"] },
-      "destructive": { "role": "tertiary", "displayName": "Risk Red", "canonical": "oklch(0.63 0.22 25)", "tonalRamp": ["oklch(0.15 0.22 25)", "oklch(0.27 0.22 25)", "oklch(0.39 0.22 25)", "oklch(0.51 0.22 25)", "oklch(0.63 0.22 25)", "oklch(0.75 0.22 25)", "oklch(0.87 0.22 25)", "oklch(0.95 0.22 25)"] }
+      "background": {
+        "role": "neutral",
+        "displayName": "Midnight Field",
+        "canonical": "oklch(0.09 0.012 250)",
+        "tonalRamp": [
+          "oklch(0.15 0.012 250)",
+          "oklch(0.27 0.012 250)",
+          "oklch(0.39 0.012 250)",
+          "oklch(0.51 0.012 250)",
+          "oklch(0.63 0.012 250)",
+          "oklch(0.75 0.012 250)",
+          "oklch(0.87 0.012 250)",
+          "oklch(0.95 0.012 250)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Panel Navy",
+        "canonical": "oklch(0.13 0.01 250)",
+        "tonalRamp": [
+          "oklch(0.15 0.01 250)",
+          "oklch(0.27 0.01 250)",
+          "oklch(0.39 0.01 250)",
+          "oklch(0.51 0.01 250)",
+          "oklch(0.63 0.01 250)",
+          "oklch(0.75 0.01 250)",
+          "oklch(0.87 0.01 250)",
+          "oklch(0.95 0.01 250)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Signal Cyan",
+        "canonical": "oklch(0.7 0.16 195)",
+        "tonalRamp": [
+          "oklch(0.15 0.16 195)",
+          "oklch(0.27 0.16 195)",
+          "oklch(0.39 0.16 195)",
+          "oklch(0.51 0.16 195)",
+          "oklch(0.63 0.16 195)",
+          "oklch(0.75 0.16 195)",
+          "oklch(0.87 0.16 195)",
+          "oklch(0.95 0.16 195)"
+        ]
+      },
+      "profit": {
+        "role": "secondary",
+        "displayName": "Measured Green",
+        "canonical": "oklch(0.68 0.17 150)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 150)",
+          "oklch(0.27 0.17 150)",
+          "oklch(0.39 0.17 150)",
+          "oklch(0.51 0.17 150)",
+          "oklch(0.63 0.17 150)",
+          "oklch(0.75 0.17 150)",
+          "oklch(0.87 0.17 150)",
+          "oklch(0.95 0.17 150)"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Risk Red",
+        "canonical": "oklch(0.63 0.22 25)",
+        "tonalRamp": [
+          "oklch(0.15 0.22 25)",
+          "oklch(0.27 0.22 25)",
+          "oklch(0.39 0.22 25)",
+          "oklch(0.51 0.22 25)",
+          "oklch(0.63 0.22 25)",
+          "oklch(0.75 0.22 25)",
+          "oklch(0.87 0.22 25)",
+          "oklch(0.95 0.22 25)"
+        ]
+      }
     },
     "typographyMeta": {
-      "headline": { "displayName": "Decision Headline", "purpose": "Page titles and view-level conclusions." },
-      "body": { "displayName": "Interface Body", "purpose": "Controls, explanations, and compact product copy." },
-      "label": { "displayName": "Analytical Label", "purpose": "Technical labels, symbols, and aligned values." }
+      "headline": {
+        "displayName": "Decision Headline",
+        "purpose": "Page titles and view-level conclusions."
+      },
+      "body": {
+        "displayName": "Interface Body",
+        "purpose": "Controls, explanations, and compact product copy."
+      },
+      "label": {
+        "displayName": "Analytical Label",
+        "purpose": "Technical labels, symbols, and aligned values."
+      }
     },
     "shadows": [
-      { "name": "low-ambient-lift", "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)", "purpose": "Subtle shared-card lift only when hierarchy needs it." }
+      {
+        "name": "low-ambient-lift",
+        "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+        "purpose": "Subtle shared-card lift only when hierarchy needs it."
+      }
     ],
     "motion": [
-      { "name": "state-transition", "value": "150–250ms ease-out", "purpose": "Feedback for hover, focus, and state changes; never a page-load sequence." }
+      {
+        "name": "state-transition",
+        "value": "150–250ms ease-out",
+        "purpose": "Feedback for hover, focus, and state changes; never a page-load sequence."
+      }
     ],
     "breakpoints": [
       { "name": "sm", "value": "640px" },
@@ -79,13 +166,43 @@
   "narrative": {
     "northStar": "The Analyst's Instrument",
     "overview": "Options Planner is a dark, cool-toned decision workspace for options learners and self-directed traders. It turns high-density financial information into a composed field of evidence: price, payoff, probability, and controls should read as one instrument panel rather than a collection of interchangeable SaaS widgets. The system is modern, snappy, and confident. It explicitly rejects the generic SaaS-dashboard look: decorative metric tiles, interchangeable card grids, weak hierarchy, and polish that does not improve a trading decision.",
-    "keyCharacteristics": ["Dark navy layers that reduce glare and let data colors stay legible.", "An Outfit interface voice paired with JetBrains Mono for symbols, metrics, and technical labels.", "Compact controls and a two-level radius system: large shared primitives and tighter structural panels.", "Tonal layering, fine rings, and dividers in place of ornamental depth.", "Semantic profit, loss, and chart colors that never serve as casual decoration."],
-    "rules": [
-      { "name": "The One Signal Rule", "body": "Signal Cyan is for actions, focus, current selection, and the principal data series. It must not become general decoration or fill inactive controls.", "section": "colors" },
-      { "name": "The Evidence-First Rule", "body": "Use the sans-serif voice for decisions and explanations; reserve monospace for the evidence that supports them.", "section": "typography" },
-      { "name": "The Flat-By-Default Rule", "body": "If a surface reads correctly through tonal contrast and an Instrument Line, it gets no shadow. Never pair a decorative wide shadow with a visible border.", "section": "elevation" }
+    "keyCharacteristics": [
+      "Dark navy layers that reduce glare and let data colors stay legible.",
+      "An Outfit interface voice paired with JetBrains Mono for symbols, metrics, and technical labels.",
+      "Compact controls and a two-level radius system: large shared primitives and tighter structural panels.",
+      "Tonal layering, fine rings, and dividers in place of ornamental depth.",
+      "Semantic profit, loss, and chart colors that never serve as casual decoration."
     ],
-    "dos": ["Do use the dark navy layer stack to separate page, panel, and input surfaces before adding any shadow.", "Do reserve Signal Cyan for primary actions, focus, current selection, and the principal chart series.", "Do use tabular Mono values for prices, P&L, Greeks, and counts that users compare line by line.", "Do make profit, loss, warning, and informational states understandable through labels, icons, or copy in addition to color.", "Do keep state transitions brisk (roughly 150–250ms) and honor reduced-motion preferences."],
-    "donts": ["Don't recreate the generic SaaS-dashboard look with decorative metric tiles, interchangeable card grids, or visual polish that does not help a trader make a decision.", "Don't use cyan as a decorative highlight, a muted inactive state, or a second background color.", "Don't use a colored side stripe, gradient text, glassmorphism, or a decorative CSS grid background.", "Don't make every section a rounded card; dense analytical layouts need direct structure, tables, and dividers as well.", "Don't pair an obvious border with a broad soft shadow on the same component."]
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Signal Cyan is for actions, focus, current selection, and the principal data series. It must not become general decoration or fill inactive controls.",
+        "section": "colors"
+      },
+      {
+        "name": "The Evidence-First Rule",
+        "body": "Use the sans-serif voice for decisions and explanations; reserve monospace for the evidence that supports them.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "If a surface reads correctly through tonal contrast and an Instrument Line, it gets no shadow. Never pair a decorative wide shadow with a visible border.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the dark navy layer stack to separate page, panel, and input surfaces before adding any shadow.",
+      "Do reserve Signal Cyan for primary actions, focus, current selection, and the principal chart series.",
+      "Do use tabular Mono values for prices, P&L, Greeks, and counts that users compare line by line.",
+      "Do make profit, loss, warning, and informational states understandable through labels, icons, or copy in addition to color.",
+      "Do keep state transitions brisk (roughly 150–250ms) and honor reduced-motion preferences."
+    ],
+    "donts": [
+      "Don't recreate the generic SaaS-dashboard look with decorative metric tiles, interchangeable card grids, or visual polish that does not help a trader make a decision.",
+      "Don't use cyan as a decorative highlight, a muted inactive state, or a second background color.",
+      "Don't use a colored side stripe, gradient text, glassmorphism, or a decorative CSS grid background.",
+      "Don't make every section a rounded card; dense analytical layouts need direct structure, tables, and dividers as well.",
+      "Don't pair an obvious border with a broad soft shadow on the same component."
+    ]
   }
 }
