@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { rmSync } from "node:fs";
 import {
   artifactsDir,
   instancePath,
@@ -35,7 +35,12 @@ function tryRm(path) {
   try {
     rmSync(path, { force: true });
   } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "EPERM") {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "EPERM"
+    ) {
       console.error(`Could not remove ${path}. A process still has it open.`);
       return;
     }

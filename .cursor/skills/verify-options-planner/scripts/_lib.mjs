@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -50,7 +50,11 @@ export function listenerPid(port, host = DEFAULT_HOST) {
       if (!line.includes(needle) || !line.includes("LISTENING")) {
         continue;
       }
-      if (host && !line.includes(`${host}:${port}`) && !line.includes(`0.0.0.0:${port}`)) {
+      if (
+        host &&
+        !line.includes(`${host}:${port}`) &&
+        !line.includes(`0.0.0.0:${port}`)
+      ) {
         continue;
       }
       const pid = Number(line.trim().split(/\s+/).at(-1));

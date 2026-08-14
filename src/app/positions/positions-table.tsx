@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,6 @@ import {
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PositionActions } from "./position-actions";
-import { PositionRowActionsCell, PositionRowLink } from "./position-row";
 import {
   POSITIONS_TABLE_CLASS,
   PositionsTableColGroup,
@@ -94,9 +94,10 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
   const snapshot = strategy.latestSnapshot;
 
   return (
-    <PositionRowLink
-      href={strategy.builderHref}
+    <TableRow
       className={cn(
+        "relative hover:bg-accent/50",
+        "has-[a:focus-visible]:bg-accent/50 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-ring",
         (strategy.displayStatus === "closed" ||
           strategy.displayStatus === "expired") &&
           "bg-muted/20 text-muted-foreground",
@@ -104,9 +105,14 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
     >
       <TableCell>
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="truncate font-medium text-foreground">
+          {/* Stretched link: the ::after overlay makes the whole row clickable
+              while keeping a real, prefetchable, middle-clickable anchor. */}
+          <Link
+            href={strategy.builderHref}
+            className="truncate font-medium text-foreground outline-none after:absolute after:inset-0"
+          >
             {strategy.name}
-          </span>
+          </Link>
           <span className="truncate font-mono text-xs text-muted-foreground">
             {strategy.symbol} ·{" "}
             {formatTitleCaseFromKebab(strategy.strategyType)}
@@ -138,14 +144,15 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
           </span>
         )}
       </TableCell>
-      <PositionRowActionsCell>
+      {/* relative so the actions stack above the stretched link overlay */}
+      <TableCell className="relative">
         <PositionActions
           id={strategy.id}
           name={strategy.name}
           disabled={strategy.displayStatus !== "open"}
         />
-      </PositionRowActionsCell>
-    </PositionRowLink>
+      </TableCell>
+    </TableRow>
   );
 }
 

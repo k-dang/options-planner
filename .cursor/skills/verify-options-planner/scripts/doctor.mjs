@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 
-import { fetchText, instanceUrl, listenerPid, pidAlive, readInstance } from "./_lib.mjs";
+import {
+  fetchText,
+  instanceUrl,
+  listenerPid,
+  pidAlive,
+  readInstance,
+} from "./_lib.mjs";
 
 function fail(message, extra = {}) {
-  console.error(JSON.stringify({ ok: false, error: message, ...extra }, null, 2));
+  console.error(
+    JSON.stringify({ ok: false, error: message, ...extra }, null, 2),
+  );
   process.exit(1);
 }
 
@@ -17,10 +25,13 @@ if (!instance) {
 if (!pidAlive(instance.pid)) {
   const listening = listenerPid(instance.port, instance.host);
   if (!listening) {
-    fail("Verify pid is dead and nothing is listening on the recorded port. Run cleanup.mjs, then launch.mjs.", {
-      pid: instance.pid,
-      url: instance.url,
-    });
+    fail(
+      "Verify pid is dead and nothing is listening on the recorded port. Run cleanup.mjs, then launch.mjs.",
+      {
+        pid: instance.pid,
+        url: instance.url,
+      },
+    );
   }
   instance.pid = listening;
 }
@@ -31,12 +42,10 @@ const optimize = await fetchText(`${url}/optimize?symbol=AAPL`);
 const watchlist = await fetchText(`${url}/watchlist`);
 
 const homeOk = home.ok && home.body.includes("Options Planner");
-const optimizeOk =
-  optimize.ok && optimize.body.includes("Strategy Optimizer");
+const optimizeOk = optimize.ok && optimize.body.includes("Strategy Optimizer");
 const generatedHint =
   optimize.body.includes("generated") || optimize.body.includes("Generated");
-const watchlistReachable =
-  watchlist.ok && watchlist.body.includes("Watchlist");
+const watchlistReachable = watchlist.ok && watchlist.body.includes("Watchlist");
 
 if (!homeOk || !optimizeOk) {
   fail("HTTP checks failed. This instance is not worth driving.", {

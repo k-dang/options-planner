@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync, openSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   artifactsDir,
@@ -115,7 +115,9 @@ if (occupied?.status) {
     };
     mkdirSync(runDir, { recursive: true });
     writeFileSync(instancePath, `${JSON.stringify(instance, null, 2)}\n`);
-    console.log(JSON.stringify({ ok: true, alreadyRunning: true, ...instance }, null, 2));
+    console.log(
+      JSON.stringify({ ok: true, alreadyRunning: true, ...instance }, null, 2),
+    );
     process.exit(0);
   }
 
