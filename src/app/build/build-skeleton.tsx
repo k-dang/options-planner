@@ -17,10 +17,6 @@ export function BuildSkeleton() {
     >
       <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Bar className="h-9 w-56" />
-            <Bar className="h-5 w-20 rounded-full" />
-          </div>
           <div className="grid gap-3 sm:grid-cols-[minmax(9rem,12rem)_auto_minmax(13rem,17rem)] sm:items-end">
             <div className="flex flex-col gap-1.5">
               <Bar className="h-3 w-16" />

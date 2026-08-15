@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useDeferredValue, useState } from "react";
+import { Suspense, use, useDeferredValue, useState } from "react";
 import { ExpirationTimeline } from "@/app/optimize/expiration-timeline";
 import { StrategyCard } from "@/app/optimize/strategy-card";
 import {
@@ -33,6 +33,13 @@ import {
   rankOptimizerShortlist,
 } from "@/lib/options";
 import { cn } from "@/lib/utils";
+import {
+  OptimizeExpirationSkeleton,
+  OptimizeIdentitySkeleton,
+  OptimizeSkeleton,
+  OptimizeSnapshotSkeleton,
+  OptimizeTargetSkeleton,
+} from "./optimize-skeleton";
 
 const THESIS_OPTIONS = [
   ["bearish", "Bearish"],
@@ -70,62 +77,10 @@ const DEFAULT_INPUTS: OptimizerInputs = {
 export function OptimizeClient({
   initialChain,
 }: {
-  initialChain: OptionChainSnapshot;
+  initialChain: Promise<OptionChainSnapshot>;
 }) {
-  const router = useRouter();
-  const defaultExpiration =
-    initialChain.expirations.find((e) => e.daysToExpiration >= 30)
-      ?.expiration ?? initialChain.expirations[0]?.expiration;
-  const initialTargetUnderlyingPrice = defaultTargetUnderlyingPrice(
-    DEFAULT_INPUTS.thesis,
-    initialChain.underlying.price,
-  );
-  const [inputs, setInputs] = useState<OptimizerInputs>(() => ({
-    ...DEFAULT_INPUTS,
-    symbol: initialChain.underlying.symbol,
-    expiration: defaultExpiration,
-    targetUnderlyingPrice: initialTargetUnderlyingPrice,
-  }));
-  const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(() =>
-    formatTargetPriceDraft(initialTargetUnderlyingPrice),
-  );
-  const [targetTouched, setTargetTouched] = useState(false);
-  const [debugOpen, setDebugOpen] = useState(false);
-  const chain = initialChain;
-  const provider = chain.expirations[0]?.calls[0]?.provider ?? "unknown";
-  const candidates = enumerateOptimizerCandidates(inputs, chain);
-  const deferredWeight = useDeferredValue(inputs.returnChanceWeight);
-  const strategyCards = selectTopStrategyCards(deferredWeight, candidates);
-  const topCandidate = strategyCards[0];
-  const alternativeCards = strategyCards.slice(1);
-  const chartTarget =
-    topCandidate?.summary.targetUnderlyingPrice ?? chain.underlying.price;
-  const targetRange = payoffPriceRange(chain.underlying.price);
-  const targetResult = parseTargetPriceDraft(
-    targetUnderlyingDraft,
-    targetRange,
-  );
-  const appliedTarget =
-    inputs.targetUnderlyingPrice ?? initialTargetUnderlyingPrice;
-  const targetIsDirty =
-    targetResult.valid && targetResult.value !== appliedTarget;
-  const targetError =
-    targetTouched && !targetResult.valid ? targetResult.message : null;
-  const optimizerDebugJson = debugOpen
-    ? JSON.stringify(
-        {
-          inputs,
-          selectedCards: strategyCards.map((candidate) =>
-            optimizerCandidateDebug(candidate),
-          ),
-        },
-        null,
-        2,
-      )
-    : "";
-  const initialChainDebugJson = debugOpen
-    ? JSON.stringify(initialChain, null, 2)
-    : "";
+  const [inputs, setInputs] = useState<OptimizerInputs>(DEFAULT_INPUTS);
+
   function updateInputs(next: Partial<OptimizerInputs>) {
     setInputs((current) => {
       for (const key of Object.keys(next) as (keyof OptimizerInputs)[]) {
@@ -144,59 +99,23 @@ export function OptimizeClient({
   }
 
   function handleThesisChange(thesis: OptimizerThesis) {
-    const targetUnderlyingPrice = defaultTargetUnderlyingPrice(
-      thesis,
-      chain.underlying.price,
-    );
-
-    setTargetUnderlyingDraft(formatTargetPriceDraft(targetUnderlyingPrice));
-    setTargetTouched(false);
-    updateInputs({ thesis, targetUnderlyingPrice });
+    updateInputs({ thesis, targetUnderlyingPrice: undefined });
   }
 
-  function applyTargetPrice() {
-    setTargetTouched(true);
-
-    if (!targetResult.valid) {
-      return;
-    }
-
-    setTargetUnderlyingDraft(formatTargetPriceDraft(targetResult.value));
-    setTargetTouched(false);
-    updateInputs({ targetUnderlyingPrice: targetResult.value });
-  }
-
-  function handleTargetKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      applyTargetPrice();
-    }
-
-    if (e.key === "Escape") {
-      setTargetUnderlyingDraft(formatTargetPriceDraft(appliedTarget));
-      setTargetTouched(false);
-    }
+  function resetForSymbol(symbol: string) {
+    setInputs({ ...DEFAULT_INPUTS, symbol });
   }
 
   return (
     <>
       <section className="rounded-xl bg-card p-5 ring-1 ring-border">
         <div className="flex flex-wrap items-center gap-3">
-          <div>
-            <TickerCombobox
-              defaultSymbol={initialChain.underlying.symbol}
-              onNavigate={(symbol) => router.push(optimizeSymbolHref(symbol))}
+          <Suspense fallback={<OptimizeIdentitySkeleton />}>
+            <OptimizeIdentity
+              initialChain={initialChain}
+              onSymbolChange={resetForSymbol}
             />
-          </div>
-
-          <div className="flex items-baseline gap-1.5">
-            <span className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Last
-            </span>
-            <span className="font-mono font-semibold tabular-nums">
-              {formatPrice(chain.underlying.price)}
-            </span>
-          </div>
+          </Suspense>
 
           <div className="ml-auto flex items-center gap-2">
             {THESIS_OPTIONS.map(([value, label]) => (
@@ -219,115 +138,327 @@ export function OptimizeClient({
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field
-            className="flex flex-col gap-1.5"
-            data-invalid={targetError ? true : undefined}
-          >
-            <FieldLabel
-              className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground"
-              htmlFor="target-price"
-            >
-              Target Price at Expiration
-            </FieldLabel>
-            <InputGroup className="rounded-full border-border bg-input/50 shadow-none">
-              <InputGroupAddon>$</InputGroupAddon>
-              <InputGroupInput
-                id="target-price"
-                type="number"
-                min={targetRange.low}
-                max={targetRange.high}
-                step="0.01"
-                aria-describedby={
-                  targetError ? "target-price-error" : "target-price-help"
-                }
-                aria-invalid={targetError ? true : undefined}
-                className="font-mono font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                value={targetUnderlyingDraft}
-                onChange={(e) => {
-                  setTargetUnderlyingDraft(e.target.value);
-                  setTargetTouched(true);
-                }}
-                onBlur={applyTargetPrice}
-                onKeyDown={handleTargetKeyDown}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  aria-label="Apply target price"
-                  disabled={!targetResult.valid || !targetIsDirty}
-                  onClick={applyTargetPrice}
-                >
-                  Apply
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-            {targetError ? (
-              <FieldError id="target-price-error">{targetError}</FieldError>
-            ) : (
-              <p
-                aria-live="polite"
-                className="text-xs leading-5 text-muted-foreground"
-                id="target-price-help"
-              >
-                {targetIsDirty
-                  ? "Not applied yet. Press Enter or choose Apply to update the analysis."
-                  : `Applied to rankings and estimated P/L at expiration. Range ${formatPrice(targetRange.low)}–${formatPrice(targetRange.high)}.`}
-              </p>
-            )}
-          </Field>
+          <Suspense fallback={<OptimizeTargetSkeleton />}>
+            <OptimizeTarget
+              initialChain={initialChain}
+              inputs={inputs}
+              updateInputs={updateInputs}
+            />
+          </Suspense>
 
-          <Field className="flex flex-col gap-1.5">
-            <span className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground">
-              Rank By
-            </span>
-            <div className="rounded-lg bg-muted/40 px-4 py-3 ring-1 ring-inset ring-border/70">
-              <Slider
-                aria-label="Rank by"
-                max={100}
-                min={0}
-                step={10}
-                value={[inputs.returnChanceWeight ?? 50]}
-                onValueChange={handleSliderChange}
-              />
-              <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  Max Return{" "}
-                  <span className="font-semibold tabular-nums text-foreground/70">
-                    {100 - (inputs.returnChanceWeight ?? 50)}%
-                  </span>
-                </span>
-                <span>
-                  <span className="font-semibold tabular-nums text-foreground/70">
-                    {inputs.returnChanceWeight ?? 50}%
-                  </span>{" "}
-                  Max Chance
-                </span>
-              </div>
-            </div>
-            <p className="text-xs leading-5 text-muted-foreground">
-              Balances modeled return against modeled probability. A 50/50
-              setting weights them equally.
-            </p>
-          </Field>
+          <RankControl inputs={inputs} onChange={handleSliderChange} />
         </div>
 
         <div className="mt-4">
-          <ExpirationTimeline
-            expirations={chain.expirations}
-            value={inputs.expiration}
-            onChange={(expiration) => updateInputs({ expiration })}
-          />
+          <Suspense fallback={<OptimizeExpirationSkeleton />}>
+            <OptimizeExpiration
+              initialChain={initialChain}
+              inputs={inputs}
+              updateInputs={updateInputs}
+            />
+          </Suspense>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border/70 pt-3 text-xs leading-5 text-muted-foreground">
-          <p>
-            Underlying snapshot: {formatSnapshotTime(chain.underlying.asOf)} ·
-            Options chain: {formatProvider(provider)}
-          </p>
-          <p>Model estimates support planning; they are not guarantees.</p>
-        </div>
+        <Suspense fallback={<OptimizeSnapshotSkeleton />}>
+          <OptimizeSnapshot initialChain={initialChain} />
+        </Suspense>
       </section>
 
-      <section aria-labelledby="payoff-chart-guide" className="space-y-4">
+      <Suspense fallback={<OptimizeSkeleton />}>
+        <OptimizeResults initialChain={initialChain} inputs={inputs} />
+      </Suspense>
+    </>
+  );
+}
+
+function OptimizeIdentity({
+  initialChain,
+  onSymbolChange,
+}: {
+  initialChain: Promise<OptionChainSnapshot>;
+  onSymbolChange: (symbol: string) => void;
+}) {
+  const router = useRouter();
+  const chain = use(initialChain);
+
+  return (
+    <>
+      <TickerCombobox
+        defaultSymbol={chain.underlying.symbol}
+        key={chain.underlying.symbol}
+        onNavigate={(symbol) => {
+          onSymbolChange(symbol);
+          router.push(optimizeSymbolHref(symbol));
+        }}
+      />
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          Last
+        </span>
+        <span className="font-mono font-semibold tabular-nums">
+          {formatPrice(chain.underlying.price)}
+        </span>
+      </div>
+    </>
+  );
+}
+
+function RankControl({
+  inputs,
+  onChange,
+}: {
+  inputs: OptimizerInputs;
+  onChange: (value: number | readonly number[]) => void;
+}) {
+  return (
+    <Field className="flex flex-col gap-1.5">
+      <span className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground">
+        Rank By
+      </span>
+      <div className="rounded-lg bg-muted/40 px-4 py-3 ring-1 ring-inset ring-border/70">
+        <Slider
+          aria-label="Rank by"
+          max={100}
+          min={0}
+          step={10}
+          value={[inputs.returnChanceWeight ?? 50]}
+          onValueChange={onChange}
+        />
+        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Max Return{" "}
+            <span className="font-semibold tabular-nums text-foreground/70">
+              {100 - (inputs.returnChanceWeight ?? 50)}%
+            </span>
+          </span>
+          <span>
+            <span className="font-semibold tabular-nums text-foreground/70">
+              {inputs.returnChanceWeight ?? 50}%
+            </span>{" "}
+            Max Chance
+          </span>
+        </div>
+      </div>
+      <p className="text-xs leading-5 text-muted-foreground">
+        Balances modeled return against modeled probability. A 50/50 setting
+        weights them equally.
+      </p>
+    </Field>
+  );
+}
+
+function OptimizeTarget({
+  initialChain,
+  inputs,
+  updateInputs,
+}: {
+  initialChain: Promise<OptionChainSnapshot>;
+  inputs: OptimizerInputs;
+  updateInputs: (next: Partial<OptimizerInputs>) => void;
+}) {
+  const chain = use(initialChain);
+  const resolvedInputs = resolveInputs(inputs, chain);
+
+  return (
+    <TargetPriceControl
+      chain={chain}
+      inputs={resolvedInputs}
+      key={`${chain.underlying.symbol}:${inputs.thesis}`}
+      updateInputs={updateInputs}
+    />
+  );
+}
+
+function TargetPriceControl({
+  chain,
+  inputs,
+  updateInputs,
+}: {
+  chain: OptionChainSnapshot;
+  inputs: OptimizerInputs;
+  updateInputs: (next: Partial<OptimizerInputs>) => void;
+}) {
+  const appliedTarget = inputs.targetUnderlyingPrice ?? chain.underlying.price;
+  const [targetUnderlyingDraft, setTargetUnderlyingDraft] = useState(() =>
+    formatTargetPriceDraft(appliedTarget),
+  );
+  const [targetTouched, setTargetTouched] = useState(false);
+  const targetRange = payoffPriceRange(chain.underlying.price);
+  const targetResult = parseTargetPriceDraft(
+    targetUnderlyingDraft,
+    targetRange,
+  );
+  const targetIsDirty =
+    targetResult.valid && targetResult.value !== appliedTarget;
+  const targetError =
+    targetTouched && !targetResult.valid ? targetResult.message : null;
+
+  function applyTargetPrice() {
+    setTargetTouched(true);
+
+    if (!targetResult.valid) {
+      return;
+    }
+
+    setTargetUnderlyingDraft(formatTargetPriceDraft(targetResult.value));
+    setTargetTouched(false);
+    updateInputs({
+      symbol: chain.underlying.symbol,
+      targetUnderlyingPrice: targetResult.value,
+    });
+  }
+
+  function handleTargetKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      applyTargetPrice();
+    }
+
+    if (e.key === "Escape") {
+      setTargetUnderlyingDraft(formatTargetPriceDraft(appliedTarget));
+      setTargetTouched(false);
+    }
+  }
+
+  return (
+    <Field
+      className="flex flex-col gap-1.5"
+      data-invalid={targetError ? true : undefined}
+    >
+      <FieldLabel
+        className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground"
+        htmlFor="target-price"
+      >
+        Target Price at Expiration
+      </FieldLabel>
+      <InputGroup className="rounded-full border-border bg-input/50 shadow-none">
+        <InputGroupAddon>$</InputGroupAddon>
+        <InputGroupInput
+          id="target-price"
+          type="number"
+          min={targetRange.low}
+          max={targetRange.high}
+          step="0.01"
+          aria-describedby={
+            targetError ? "target-price-error" : "target-price-help"
+          }
+          aria-invalid={targetError ? true : undefined}
+          className="font-mono font-semibold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          value={targetUnderlyingDraft}
+          onChange={(e) => {
+            setTargetUnderlyingDraft(e.target.value);
+            setTargetTouched(true);
+          }}
+          onBlur={applyTargetPrice}
+          onKeyDown={handleTargetKeyDown}
+        />
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            aria-label="Apply target price"
+            disabled={!targetResult.valid || !targetIsDirty}
+            onClick={applyTargetPrice}
+          >
+            Apply
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
+      {targetError ? (
+        <FieldError id="target-price-error">{targetError}</FieldError>
+      ) : (
+        <p
+          aria-live="polite"
+          className="text-xs leading-5 text-muted-foreground"
+          id="target-price-help"
+        >
+          {targetIsDirty
+            ? "Not applied yet. Press Enter or choose Apply to update the analysis."
+            : `Applied to rankings and estimated P/L at expiration. Range ${formatPrice(targetRange.low)}–${formatPrice(targetRange.high)}.`}
+        </p>
+      )}
+    </Field>
+  );
+}
+
+function OptimizeExpiration({
+  initialChain,
+  inputs,
+  updateInputs,
+}: {
+  initialChain: Promise<OptionChainSnapshot>;
+  inputs: OptimizerInputs;
+  updateInputs: (next: Partial<OptimizerInputs>) => void;
+}) {
+  const chain = use(initialChain);
+  const resolvedInputs = resolveInputs(inputs, chain);
+
+  return (
+    <ExpirationTimeline
+      expirations={chain.expirations}
+      value={resolvedInputs.expiration}
+      onChange={(expiration) =>
+        updateInputs({ expiration, symbol: chain.underlying.symbol })
+      }
+    />
+  );
+}
+
+function OptimizeSnapshot({
+  initialChain,
+}: {
+  initialChain: Promise<OptionChainSnapshot>;
+}) {
+  const chain = use(initialChain);
+  const provider = chain.expirations[0]?.calls[0]?.provider ?? "unknown";
+
+  return (
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-border/70 pt-3 text-xs leading-5 text-muted-foreground">
+      <p>
+        Underlying snapshot: {formatSnapshotTime(chain.underlying.asOf)} ·
+        Options chain: {formatProvider(provider)}
+      </p>
+      <p>Model estimates support planning; they are not guarantees.</p>
+    </div>
+  );
+}
+
+function OptimizeResults({
+  initialChain,
+  inputs,
+}: {
+  initialChain: Promise<OptionChainSnapshot>;
+  inputs: OptimizerInputs;
+}) {
+  const chain = use(initialChain);
+  const resolvedInputs = resolveInputs(inputs, chain);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const candidates = enumerateOptimizerCandidates(resolvedInputs, chain);
+  const deferredWeight = useDeferredValue(resolvedInputs.returnChanceWeight);
+  const strategyCards = selectTopStrategyCards(deferredWeight, candidates);
+  const topCandidate = strategyCards[0];
+  const alternativeCards = strategyCards.slice(1);
+  const chartTarget =
+    topCandidate?.summary.targetUnderlyingPrice ?? chain.underlying.price;
+  const optimizerDebugJson = debugOpen
+    ? JSON.stringify(
+        {
+          inputs: resolvedInputs,
+          selectedCards: strategyCards.map((candidate) =>
+            optimizerCandidateDebug(candidate),
+          ),
+        },
+        null,
+        2,
+      )
+    : "";
+  const initialChainDebugJson = debugOpen ? JSON.stringify(chain, null, 2) : "";
+
+  return (
+    <>
+      <section
+        aria-labelledby="payoff-chart-guide"
+        className="space-y-4"
+        data-testid="optimizer-resolved"
+      >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div>
             <h2 className="text-base font-semibold" id="payoff-chart-guide">
@@ -369,13 +500,13 @@ export function OptimizeClient({
                     Top-ranked match
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {formatRecommendationContext(inputs, topCandidate)}
+                    {formatRecommendationContext(resolvedInputs, topCandidate)}
                   </p>
                 </div>
                 <p className="max-w-xl text-sm leading-6 text-muted-foreground">
                   {formatRecommendationRationale(
                     topCandidate,
-                    inputs.returnChanceWeight,
+                    resolvedInputs.returnChanceWeight,
                   )}
                 </p>
               </div>
@@ -434,11 +565,7 @@ export function OptimizeClient({
               value: initialChainDebugJson,
             },
           ]}
-          subtitle={`Provider ${
-            chain.expirations[0]?.calls[0]?.provider ?? "n/a"
-          } · ${chain.underlying.symbol} ${formatPrice(
-            chain.underlying.price,
-          )}`}
+          subtitle={`Provider ${chain.expirations[0]?.calls[0]?.provider ?? "n/a"} · ${chain.underlying.symbol} ${formatPrice(chain.underlying.price)}`}
           summary={[
             { label: "As of", value: chain.underlying.asOf },
             { label: "Expirations", value: String(chain.expirations.length) },
@@ -450,6 +577,31 @@ export function OptimizeClient({
       ) : null}
     </>
   );
+}
+
+function resolveInputs(
+  inputs: OptimizerInputs,
+  chain: OptionChainSnapshot,
+): OptimizerInputs {
+  const symbolMatches = inputs.symbol === chain.underlying.symbol;
+  const defaultExpiration =
+    chain.expirations.find((expiration) => expiration.daysToExpiration >= 30)
+      ?.expiration ?? chain.expirations[0]?.expiration;
+  const defaultTarget = defaultTargetUnderlyingPrice(
+    inputs.thesis,
+    chain.underlying.price,
+  );
+
+  return {
+    ...inputs,
+    symbol: chain.underlying.symbol,
+    expiration: symbolMatches
+      ? (inputs.expiration ?? defaultExpiration)
+      : defaultExpiration,
+    targetUnderlyingPrice: symbolMatches
+      ? (inputs.targetUnderlyingPrice ?? defaultTarget)
+      : defaultTarget,
+  };
 }
 
 function formatSnapshotTime(value: string) {

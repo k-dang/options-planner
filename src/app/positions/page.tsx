@@ -85,7 +85,7 @@ async function PositionsContent() {
   );
 
   return (
-    <>
+    <div data-testid="positions-resolved">
       {strategies.length === 0 ? (
         <EmptyState />
       ) : (
@@ -100,7 +100,7 @@ async function PositionsContent() {
           />
         </div>
       )}
-    </>
+    </div>
   );
 }
 

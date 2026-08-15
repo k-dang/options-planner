@@ -11,7 +11,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { DebugDrawer } from "@/components/debug-drawer";
 import { StrikeSlider } from "@/components/strike-slider";
 import { TickerCombobox } from "@/components/ticker-combobox";
@@ -201,14 +200,11 @@ export function BuilderClient({
 
   return (
     <>
-      <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+      <section
+        className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"
+        data-testid="builder-resolved"
+      >
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {formatStrategyName(state.strategy)}
-            </h1>
-            <BiasBadge bias={STRATEGY_BIAS[state.strategy]} />
-          </div>
           <FieldGroup className="gap-3 sm:grid sm:grid-cols-[minmax(9rem,12rem)_auto_minmax(13rem,17rem)] sm:items-end">
             <Field className="gap-1.5">
               <FieldLabel htmlFor="symbol">Symbol</FieldLabel>
@@ -632,10 +628,6 @@ function strikeInput(index: number, strike: number) {
 function legRowKey(leg: StrategyState["legs"][number]) {
   if (leg.kind === "stock") return `stock-${leg.side}`;
   return `option-${leg.optionType}-${leg.side}-${leg.strike}-${leg.expiration}`;
-}
-
-function formatStrategyName(strategy: StrategyState["strategy"]) {
-  return strategyTemplates.get(strategy).label;
 }
 
 function describeLegText(leg: StrategyState["legs"][number]) {

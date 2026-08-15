@@ -48,16 +48,16 @@ async function WatchlistContent() {
 
   if (symbols.length === 0) {
     return (
-      <>
+      <div className="flex flex-col gap-6" data-testid="watchlist-resolved">
         <AddWatchlistSymbolForm />
         <EmptyState />
         <WatchlistScanner symbolCount={0} />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-6" data-testid="watchlist-resolved">
       <AddWatchlistSymbolForm />
       <section className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -90,7 +90,7 @@ async function WatchlistContent() {
         </ul>
       </section>
       <WatchlistScanner symbolCount={symbols.length} />
-    </>
+    </div>
   );
 }
 
@@ -110,7 +110,14 @@ function EmptyState() {
 
 function WatchlistSkeleton() {
   return (
-    <>
+    // Wrapper carries the gap the parent used to apply between the fragment's
+    // three children, so the skeleton lines up with the resolved content.
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading watchlist"
+      className="flex flex-col gap-6"
+    >
       {/* AddWatchlistSymbolForm */}
       <div className="flex w-full max-w-md flex-col gap-1.5">
         <div className="flex items-center gap-2">
@@ -181,6 +188,8 @@ function WatchlistSkeleton() {
         </div>
         <div className="min-h-48 rounded-lg border border-dashed border-border bg-card/40" />
       </div>
-    </>
+
+      <span className="sr-only">Loading watchlist</span>
+    </div>
   );
 }

@@ -13,19 +13,6 @@ function Bar({ className }: { className?: string }) {
   return <Skeleton className={cn("rounded-md", className)} />;
 }
 
-const STRATEGY_PILLS = [
-  { id: "pill-a", width: "w-20" },
-  { id: "pill-b", width: "w-24" },
-  { id: "pill-c", width: "w-24" },
-  { id: "pill-d", width: "w-28" },
-  { id: "pill-e", width: "w-20" },
-  { id: "pill-f", width: "w-24" },
-  { id: "pill-g", width: "w-28" },
-  { id: "pill-h", width: "w-20" },
-  { id: "pill-i", width: "w-28" },
-  { id: "pill-j", width: "w-24" },
-];
-
 const ROWS = [
   {
     id: "row-a",
@@ -75,38 +62,9 @@ export function ScanSkeleton() {
       role="status"
       aria-busy="true"
       aria-label="Loading scanner"
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-2"
     >
-      <section className="relative overflow-hidden rounded-2xl border border-border/50 bg-white/60 p-6 shadow-xl backdrop-blur-xl dark:bg-white/4">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-primary/12 blur-3xl" />
-
-        <div className="relative flex flex-wrap items-center gap-3">
-          <Bar className="h-9 w-40 rounded-full" />
-          <Bar className="h-4 w-20" />
-          <Bar className="ml-auto h-3 w-20" />
-        </div>
-
-        <div className="relative mt-5 grid gap-5 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Bar className="h-2.5 w-48" />
-            <Bar className="h-[58px] w-full rounded-2xl" />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Bar className="h-2.5 w-44" />
-            <Bar className="h-[58px] w-full rounded-2xl" />
-          </div>
-        </div>
-
-        <div className="relative mt-5">
-          <Bar className="mb-2 h-2.5 w-20" />
-          <div className="flex flex-wrap gap-2">
-            {STRATEGY_PILLS.map(({ id, width }) => (
-              <Bar key={id} className={cn("h-7", width)} />
-            ))}
-          </div>
-        </div>
-      </section>
-
+      <Bar className="ml-auto h-3 w-20" />
       <section className="overflow-hidden rounded-2xl border border-border/50 bg-card shadow-sm">
         <Table>
           <TableHeader className="bg-muted/40">
@@ -187,5 +145,14 @@ export function ScanSkeleton() {
 
       <span className="sr-only">Loading scanner</span>
     </div>
+  );
+}
+
+export function ScanSummarySkeleton() {
+  return (
+    <>
+      <Bar className="h-9 w-40 rounded-full" />
+      <Bar className="h-4 w-20" />
+    </>
   );
 }
