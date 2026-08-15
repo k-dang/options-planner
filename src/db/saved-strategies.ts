@@ -1,4 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
+import { connection } from "next/server";
 import { getDb, savedStrategies, strategySnapshots } from "@/db";
 import type {
   NewStrategySnapshot,
@@ -51,6 +52,33 @@ export type SavedStrategyListItem = {
   } | null;
 };
 
+const INSTANT_NAVIGATION_FIXTURE_ID = "instant-navigation-long-call";
+
+function hasInstantNavigationFixture() {
+  return process.env.OPTIONS_PLANNER_E2E_FIXTURES === "instant-navigation";
+}
+
+async function readInstantNavigationFixture(): Promise<SavedStrategyListItem> {
+  // Preserve the real database read's Suspense behavior in the E2E build.
+  await connection();
+
+  return {
+    id: INSTANT_NAVIGATION_FIXTURE_ID,
+    name: "Instant Navigation Long Call",
+    symbol: "AAPL",
+    strategyType: "long-call",
+    status: "open",
+    displayStatus: "open",
+    createdAt: new Date("2026-01-15T15:30:00.000Z"),
+    closedAt: null,
+    daysUntilExpiration: 30,
+    entrySignedMarkValue: 425,
+    capitalAtRisk: 425,
+    builderHref: `/build/long-call/AAPL?positionId=${INSTANT_NAVIGATION_FIXTURE_ID}`,
+    latestSnapshot: null,
+  };
+}
+
 function buildPositionBuilderHref(strategy: SavedStrategy): string {
   const base = strategyBuilderHref(strategy.entryState);
   const separator = base.includes("?") ? "&" : "?";
@@ -99,6 +127,10 @@ function toSavedStrategyListItem(
 }
 
 export async function listSavedStrategies(): Promise<SavedStrategyListItem[]> {
+  if (hasInstantNavigationFixture()) {
+    return [await readInstantNavigationFixture()];
+  }
+
   const db = getDb();
   const [strategies, snapshots] = await Promise.all([
     db
@@ -129,6 +161,10 @@ export async function listSavedStrategies(): Promise<SavedStrategyListItem[]> {
 export async function getSavedStrategy(
   id: string,
 ): Promise<SavedStrategyListItem | null> {
+  if (hasInstantNavigationFixture() && id === INSTANT_NAVIGATION_FIXTURE_ID) {
+    return readInstantNavigationFixture();
+  }
+
   const db = getDb();
   const [strategy] = await db
     .select()

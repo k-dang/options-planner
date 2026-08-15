@@ -134,7 +134,7 @@ async function getProduct(slug: string) {
 
 > A bare `'use cache'` applies the `default` `cacheLife` profile. Choose freshness explicitly with `cacheLife('<profile>')` (`default` / `seconds` / `minutes` / `hours` / `days` / `weeks` / `max`) rather than shipping the default lifetime by omission.
 >
-> Serverless note: `use cache` is in-memory and does not persist across instances — use [`use cache: remote`](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote) for a durable shell.
+> Serverless note: `use cache` is in-memory and does not persist across instances. [`use cache: remote`](https://nextjs.org/docs/app/api-reference/directives/use-cache-remote) provides remote persistence only when `cacheComponents` is enabled and `cacheHandlers.remote` or a managed provider supplies a remote handler. Self-hosted deployments must configure that handler explicitly.
 
 **Insight:** [uncached data during prerendering](https://nextjs.org/docs/messages/blocking-prerender-dynamic).
 
@@ -184,10 +184,11 @@ export default function Page(props: PageProps<'/search'>) {
 async function Results({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: PageProps<'/search'>['searchParams']
 }) {
   const { q } = await searchParams
-  return <ResultList query={q} />
+  const query = Array.isArray(q) ? q[0] : q
+  return <ResultList query={query} />
 }
 ```
 

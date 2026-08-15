@@ -22,55 +22,8 @@ export function OptimizeSkeleton() {
       role="status"
       aria-busy="true"
       aria-label="Loading optimizer"
-      className="flex flex-col gap-6"
+      className="flex flex-col"
     >
-      <section className="rounded-xl bg-card p-5 ring-1 ring-border">
-        <div className="flex flex-wrap items-center gap-3">
-          <Bar className="h-9 w-40 rounded-full" />
-          <Bar className="h-5 w-20" />
-          <div className="ml-auto flex items-center gap-2">
-            <Bar className="h-9 w-24 rounded-full" />
-            <Bar className="h-9 w-24 rounded-full" />
-            <Bar className="h-9 w-24 rounded-full" />
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Bar className="h-3 w-40" />
-            <Bar className="h-9 w-full rounded-full" />
-            <Bar className="h-3 w-56" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Bar className="h-3 w-20" />
-            <Bar className="h-12 w-full rounded-lg" />
-            <Bar className="h-3 w-64" />
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3">
-            <Bar className="h-3 w-40" />
-            <Bar className="h-5 w-20 rounded-full" />
-          </div>
-          <div className="flex gap-1">
-            {MONTH_PILLS.map(({ id, width }) => (
-              <Bar key={id} className={cn("h-6 rounded-full", width)} />
-            ))}
-          </div>
-          <div className="flex justify-between gap-1">
-            {DAY_DOTS.map((id) => (
-              <Bar key={id} className="size-7 rounded-full" />
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-border/70 pt-3">
-          <Bar className="h-3 w-72" />
-          <Bar className="h-3 w-64" />
-        </div>
-      </section>
-
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2">
@@ -101,6 +54,66 @@ export function OptimizeSkeleton() {
       </section>
 
       <span className="sr-only">Loading optimizer</span>
+    </div>
+  );
+}
+
+export function OptimizeIdentitySkeleton() {
+  return (
+    <>
+      <Bar className="h-9 w-40 rounded-full" />
+      <div className="flex items-center gap-1.5">
+        <span className="font-mono text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          Last
+        </span>
+        <Bar className="h-5 w-20" />
+      </div>
+    </>
+  );
+}
+
+export function OptimizeTargetSkeleton() {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="font-mono text-xs font-medium tracking-[0.12em] text-muted-foreground">
+        Target Price at Expiration
+      </span>
+      <Bar className="h-9 w-full rounded-full" />
+      <Bar className="h-3 w-56" />
+    </div>
+  );
+}
+
+export function OptimizeExpirationSkeleton() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-mono text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">
+          Expiration
+        </span>
+        <Bar className="h-5 w-20 rounded-full" />
+      </div>
+      <div className="flex gap-1 overflow-hidden">
+        {MONTH_PILLS.map(({ id, width }) => (
+          <Bar key={id} className={cn("h-6 shrink-0 rounded-full", width)} />
+        ))}
+      </div>
+      <div className="flex justify-between gap-1 overflow-hidden">
+        {DAY_DOTS.map((id) => (
+          <Bar key={id} className="size-7 shrink-0 rounded-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function OptimizeSnapshotSkeleton() {
+  return (
+    <div className="mt-5 flex flex-wrap justify-between gap-2 border-t border-border/70 pt-3">
+      <Bar className="h-3 w-72" />
+      <p className="text-xs leading-5 text-muted-foreground">
+        Model estimates support planning; they are not guarantees.
+      </p>
     </div>
   );
 }

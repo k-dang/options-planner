@@ -16,13 +16,15 @@ export default defineConfig({
     // routes on demand, so a shell prefetch races the first compile.
     command: `pnpm build && pnpm start --port ${port} --hostname 127.0.0.1`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 300_000,
     env: {
       // Own port and distDir so the suite never touches the dev server on
       // :3000 or its .next dir. Generated chain keeps runs offline.
       OPTION_CHAIN_PROVIDER: "generated",
+      OPTIONS_PLANNER_E2E_FIXTURES: "instant-navigation",
       OPTIONS_PLANNER_DIST_DIR: ".next-e2e",
+      PLAYWRIGHT_E2E: "1",
     },
   },
 });

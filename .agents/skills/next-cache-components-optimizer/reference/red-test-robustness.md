@@ -83,7 +83,7 @@ reason; the rig file's DRIFT list says which rows apply to your app.
 
 The strongest evidence that the RED measured the property:
 
-```
+```text
 1. on the fixed branch → GREEN
 2. revert ONLY the fix (the <Suspense> push-down) → RED
 3. re-apply → GREEN

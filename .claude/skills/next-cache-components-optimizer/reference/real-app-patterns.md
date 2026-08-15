@@ -10,7 +10,7 @@ Instant validation treats every parallel-route slot below the shared layout as a
 - **An uncovered dynamic read in any slot blocks the whole navigation.** A perfect `@content` does not help if `@sidebar` awaits a session at the top.
 - **A slot that renders `null` (e.g. `default.tsx`) is shell-safe**: it is static and performs no reads. Slots that do not re-render for this navigation cost nothing.
 
-```
+```text
 [tenant]/layout.tsx         (shared: already mounted on a soft navigation; not re-rendered)
   ├ @content  → settings/layout → billing/page     ← guard each slot's dynamic reads…
   ├ @sidebar  → side nav                            ← …here too (independent boundary)
@@ -51,34 +51,33 @@ export default async function SettingsLayout({ children }) {
 ```
 
 ```tsx
-// ✅ After: render children unconditionally; move the gate into a Suspense child
+// ✅ After: prerender only non-sensitive shell UI; keep protected children gated
 import { Suspense } from 'react'
 
 export default function SettingsLayout({ children }) {
   return (
     <Shell>
       <Suspense fallback={null}>
-        <AuthGate />
+        <AuthGate>{children}</AuthGate>
       </Suspense>
-      {children}
     </Shell>
   )
 }
 
-async function AuthGate() {
+async function AuthGate({ children }) {
   const session = await getSession() // the session read suspends during prerender…
   if (!session?.user) redirect(getLoginUrl()) // …so redirect() never runs at build time
-  return null
+  return children
 }
 ```
 
-The shell prerenders as if authorized (the session read suspends before `redirect()` is reached, so the redirect only happens at request time), and `{children}` is now in the shell instead of behind the gate. (`fallback={null}` is correct here: `AuthGate` renders nothing on success.)
+Only the explicitly non-sensitive `Shell` prerenders. Protected `{children}` remain behind `AuthGate` and render only after the session succeeds; an unauthorized request still redirects at request time. The existing `fallback={null}` leaves the protected region blank while authorization resolves.
 
 ## Initial-load shell vs soft-navigation shell
 
 The `test-template.md` specs drive a `<Link>` click for soft navigations and `page.goto()` for initial loads. The two shells can differ for the same route:
 
-> **The initial-load shell can show less than the soft-navigation shell when a layout above the shared boundary awaits un-enumerated `params`/`searchParams`.** An initial load re-runs every layout from the root; if a parent layout does `await props.params` and that segment has no `generateStaticParams`, the param suspends on the initial load and its whole subtree drops out of the shell. A soft navigation does not re-render that parent and already has the params. Symptom: an element present after a `<Link>` click is missing after `goto`.
+> **The initial-load shell can show less than the soft-navigation shell when a layout above the shared boundary awaits un-enumerated `params`.** Layouts receive `params`, not `searchParams`. An initial load re-runs every layout from the root; if a parent layout does `await props.params` and that segment has no `generateStaticParams`, the param suspends and its whole subtree drops out of the shell. A soft navigation does not re-render that parent and already has the params. Pages receive `searchParams`, while Client Components can read them with `useSearchParams()`; those page-level consumers can also differ between initial and client navigation. Symptom: an element present after a `<Link>` click is missing after `goto`.
 
 To assert the soft-navigation shell, drive a real `<Link>` click (through menus if necessary). Use `page.goto()` inside `instant()` to assert the initial-load shell, or when no parent above the shared boundary awaits un-enumerated params, in which case the two coincide.
 

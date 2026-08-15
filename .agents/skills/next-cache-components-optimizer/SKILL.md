@@ -114,7 +114,7 @@ hear those words.
 
 ## The workflow
 
-```
+```text
 - [ ] P  PREREQS      Next.js 16.3+ with cacheComponents: true; upgrade first → below
 - [ ] 0  SETUP        once per repo: discover + write instant-nav.rig.md     → rig-template.md
 - [ ] A  RIG          production build with the testing API exposed          → below
@@ -145,8 +145,8 @@ The workflow depends on framework capabilities that ship with current Next.js:
   testing API is in the `next` runtime, gated by the
   `experimental.exposeTestingApiInProductionBuild` config flag (phase A).
 
-If the project does not meet these, upgrade first (`npx @next/codemod upgrade`
-automates most of it), then enable Cache Components in `next.config.ts`:
+If the project does not meet these, upgrade first (`pnpm dlx @next/codemod@16.3.0 upgrade 16.3.0`
+pins both the codemod and target), then enable Cache Components in `next.config.ts`:
 
 ```ts
 export default { cacheComponents: true }
@@ -270,7 +270,7 @@ hoist it above the boundary.
 
 ### The most common blocker: a top-level `await` in a layout on a fallback route
 
-```
+```text
 app/[locale]/(app)/[tenant]/dashboard/...
        │ generateStaticParams ✅   │ no generateStaticParams → fallback route
 ```
@@ -283,17 +283,19 @@ the static shell, even when it reads a statically known param. Minimal shape: a
 dynamic-segment route with one segment lacking `generateStaticParams`, plus a
 top-level `await` in the layout above it.
 
-### The fix: defer the gate, render children
+### The fix: defer the gate with protected children
 
-Render `children` unconditionally; move the top-level `await` into a
-`<Suspense fallback={null}>`-wrapped child. Mechanism and before→after:
+Keep only explicitly non-sensitive shell UI outside the gate. Pass protected
+`children` into a `<Suspense>`-wrapped gate and render them only after the
+top-level authorization `await` succeeds. Mechanism and before→after:
 `reference/real-app-patterns.md`, "Deferring an auth gate".
 
 **Fix the page below the shell too, not only the layout.** A page-level
 top-level `await` (commonly `await params`) blocks the same way the layout's
 does, so make the page sync and push its dynamic reads into a
-`<Suspense>`-wrapped leaf as well. `fallback={null}` is correct only when a gate renders nothing on
-success; for data, the fallback must be a real loading skeleton (see D1).
+`<Suspense>`-wrapped leaf as well. `fallback={null}` is correct only when an
+empty protected region is intentional; for data, the fallback must be a real
+loading skeleton (see D1).
 
 Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
 reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,

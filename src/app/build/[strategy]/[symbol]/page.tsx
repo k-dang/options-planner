@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
 import { strategyTemplates } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { parsePositiveNumber, singleValue } from "@/lib/utils";
@@ -37,6 +38,9 @@ export default async function BuildStrategyPage({
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
             Options Planner · Builder
           </p>
+          <Suspense fallback={<BuildHeadingFallback />}>
+            <BuildHeading params={params} />
+          </Suspense>
         </header>
         <Suspense fallback={null}>
           <PositionBannerFromSearchParams searchParams={searchParams} />
@@ -46,6 +50,29 @@ export default async function BuildStrategyPage({
         </Suspense>
       </div>
     </main>
+  );
+}
+
+async function BuildHeading({ params }: { params: Params }) {
+  const route = await params;
+  const strategy = strategyTemplates.coerce(route.strategy);
+  const symbol = route.symbol.trim().toUpperCase();
+
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-3">
+      <h1 className="text-3xl font-bold tracking-tight">
+        {strategyTemplates.get(strategy).label} on {symbol}
+      </h1>
+      <BiasBadge bias={STRATEGY_BIAS[strategy]} />
+    </div>
+  );
+}
+
+function BuildHeadingFallback() {
+  return (
+    <h1 className="mt-1.5 text-3xl font-bold tracking-tight">
+      Strategy Builder
+    </h1>
   );
 }
 

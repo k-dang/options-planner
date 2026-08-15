@@ -48,16 +48,16 @@ async function WatchlistContent() {
 
   if (symbols.length === 0) {
     return (
-      <>
+      <div className="flex flex-col gap-6" data-testid="watchlist-resolved">
         <AddWatchlistSymbolForm />
         <EmptyState />
         <WatchlistScanner symbolCount={0} />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-6" data-testid="watchlist-resolved">
       <AddWatchlistSymbolForm />
       <section className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -90,7 +90,7 @@ async function WatchlistContent() {
         </ul>
       </section>
       <WatchlistScanner symbolCount={symbols.length} />
-    </>
+    </div>
   );
 }
 

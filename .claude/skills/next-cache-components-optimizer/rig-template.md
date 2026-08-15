@@ -41,7 +41,9 @@ build/run obstacles, accumulated as you first hit them).
 === 'staging'` for a generic CI/staging env var; `process.env.VERCEL_ENV ===
 'preview'` on Vercel.
 3. **RUN**: how is the Playwright suite invoked, and against which
-   `BASE_URL`?
+   `BASE_URL`? For a local Playwright `webServer`, set
+   `reuseExistingServer: false` so a stale listener cannot bypass the fresh
+   production build.
 4. **TEST USER**: which account does the suite run as, and how does login
    happen (helper, `storageState`, API token)? What flags / plan / role / data
    does that account have?
@@ -91,8 +93,9 @@ cannot capture.
 
 **No CI / local-only.** BUILD: `EXPOSE_TESTING_API=1 next build && next
 start`. EXPOSE: that env var. RUN: `BASE_URL=http://localhost:3000 playwright
-test`. LOOP: build → start → test on one machine; fully agent-drivable, with
-nothing to push, no secrets, and no deploy wait.
+test` with `reuseExistingServer: false`. LOOP: build → start → test on one
+machine; fully agent-drivable, with nothing to push, no secrets, and no deploy
+wait.
 
 **Generic CI + container.** BUILD: the pipeline builds an image and deploys it
 to a staging namespace. EXPOSE: `process.env.DEPLOY_ENV === 'staging'`. RUN: a

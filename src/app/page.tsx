@@ -33,7 +33,10 @@ export default function Home() {
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
           Options Planner
         </p>
-        <h1 className="mt-5 max-w-3xl text-5xl font-bold leading-[1.08] tracking-tight md:text-6xl lg:text-7xl">
+        <h1
+          data-testid="home-shell"
+          className="mt-5 max-w-3xl text-5xl font-bold leading-[1.08] tracking-tight md:text-6xl lg:text-7xl"
+        >
           Model any trade
           <br />
           <span className="text-primary">before you make it.</span>

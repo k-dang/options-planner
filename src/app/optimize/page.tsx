@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
 import { singleValue } from "@/lib/utils";
 import { OptimizeClient } from "./optimize-client";
-import { OptimizeSkeleton } from "./optimize-skeleton";
 
 export const metadata: Metadata = {
   title: "Optimize",
@@ -14,6 +12,8 @@ export default function OptimizePage({
 }: {
   searchParams: Promise<{ symbol?: string | string[] }>;
 }) {
+  const initialChain = loadInitialChain(searchParams);
+
   return (
     <main>
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
@@ -25,30 +25,19 @@ export default function OptimizePage({
             Strategy Optimizer
           </h1>
         </header>
-        <Suspense fallback={<OptimizeSkeleton />}>
-          <OptimizeContent searchParams={searchParams} />
-        </Suspense>
+        <OptimizeClient initialChain={initialChain} />
       </div>
     </main>
   );
 }
 
-async function OptimizeContent({
-  searchParams,
-}: {
-  searchParams: Promise<{ symbol?: string | string[] }>;
-}) {
+async function loadInitialChain(
+  searchParams: Promise<{ symbol?: string | string[] }>,
+) {
   const query = await searchParams;
   const symbol = singleValue(query.symbol)?.trim().toUpperCase() || "AAPL";
 
-  const initialChain = await getOptionChainProvider().getChain({
+  return getOptionChainProvider().getChain({
     symbol,
   });
-
-  return (
-    <OptimizeClient
-      initialChain={initialChain}
-      key={initialChain.underlying.symbol}
-    />
-  );
 }
