@@ -234,7 +234,13 @@ export function StrategyCard({
           <Button
             nativeButton={false}
             size="sm"
-            render={<Link href={candidate.summary.builderHref} />}
+            render={
+              <Link
+                href={candidate.summary.builderHref}
+                rel="noopener noreferrer"
+                target="_blank"
+              />
+            }
           >
             {featured && hasUnlimitedRisk
               ? "Review uncapped risk"
