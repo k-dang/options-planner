@@ -1,3 +1,4 @@
+import { io } from "next/cache";
 import type {
   AlpacaChainResponse,
   AlpacaClient,
@@ -36,6 +37,9 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
 
   async getChain(input: OptionChainRequest): Promise<OptionChainSnapshot> {
     const symbol = normalizeSymbol(input.symbol);
+    // Keeps new Date() out of the prerendered static shell. io() resolves
+    // immediately in real requests, server actions, and workflow steps.
+    await io();
     const asOf = input.asOf ?? new Date();
     const quotes: OptionQuote[] = [];
     let pageToken: string | undefined;
