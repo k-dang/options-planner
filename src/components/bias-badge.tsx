@@ -1,22 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import {
-  type StrategyBias,
-  type StrategyTemplateId,
-  strategyTemplates,
-} from "@/lib/options";
+import type { DisplayBias } from "@/lib/strategy-bias";
 import { cn } from "@/lib/utils";
-
-export type DisplayBias = Exclude<StrategyBias, "income">;
-
-export const STRATEGY_BIAS = Object.fromEntries(
-  strategyTemplates
-    .all()
-    .map((template) => [
-      template.id,
-      template.biases.find((bias): bias is DisplayBias => bias !== "income") ??
-        "neutral",
-    ]),
-) as Record<StrategyTemplateId, DisplayBias>;
 
 export function BiasBadge({ bias }: { bias: DisplayBias }) {
   const className =

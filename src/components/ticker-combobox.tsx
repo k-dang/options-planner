@@ -31,19 +31,29 @@ export function TickerCombobox({
 
   useEffect(() => {
     setIsLoading(true);
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
           `/api/tickers/search?q=${encodeURIComponent(symbolDraft)}`,
+          { signal: controller.signal },
         );
         if (res.ok) {
           setTickerSuggestions((await res.json()) as TickerSuggestion[]);
         }
+      } catch {
+        // Aborted or offline. Leave the current suggestions in place.
       } finally {
-        setIsLoading(false);
+        // Once aborted, the newer request owns isLoading.
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }, 500);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [symbolDraft]);
 
   function commit(symbol: string) {

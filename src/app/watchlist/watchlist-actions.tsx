@@ -8,13 +8,10 @@ import {
   type RiskRewardSort,
   type RiskRewardSortColumn,
 } from "@/components/risk-reward-candidates-table-model";
-import {
-  createDefaultScanFilters,
-  ScanCriteriaControls,
-  type ScanFilters,
-} from "@/components/scan-criteria-controls";
+import { ScanCriteriaControls } from "@/components/scan-criteria-controls";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { Button } from "@/components/ui/button";
+import { createDefaultScanFilters, type ScanFilters } from "@/lib/scan-filters";
 import {
   addWatchlistSymbolAction,
   removeWatchlistSymbolAction,

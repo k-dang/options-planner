@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
+import { BiasBadge } from "@/components/bias-badge";
 import { strategyTemplates } from "@/lib/options";
 import { getOptionChainProvider } from "@/lib/options/providers/registry";
+import { STRATEGY_BIAS } from "@/lib/strategy-bias";
 import { parsePositiveNumber, singleValue } from "@/lib/utils";
 import { BuilderClient } from "../../build-client";
 import { BuildSkeleton } from "../../build-skeleton";
