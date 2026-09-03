@@ -27,6 +27,11 @@ import {
   PositionsTableColGroup,
 } from "./positions-table-layout";
 
+// Filters on DB status, not displayStatus. Expired-but-unsettled positions
+// (status still "open") stay visible until settlement realizes their P&L.
+const isRealized = (strategy: SavedStrategyListItem) =>
+  strategy.status === "closed" || strategy.status === "expired";
+
 export function PositionsTable({
   strategies,
   autoRefreshControl,
@@ -35,10 +40,6 @@ export function PositionsTable({
   autoRefreshControl?: ReactNode;
 }) {
   const [showRealized, setShowRealized] = useState(false);
-  // Filters on DB status, not displayStatus: expired-but-unsettled positions
-  // (status still "open") stay visible until settlement realizes their P&L.
-  const isRealized = (strategy: SavedStrategyListItem) =>
-    strategy.status === "closed" || strategy.status === "expired";
   const realizedCount = strategies.filter(isRealized).length;
   const visibleStrategies = showRealized
     ? strategies

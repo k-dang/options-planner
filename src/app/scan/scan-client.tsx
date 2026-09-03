@@ -8,15 +8,12 @@ import {
   type RiskRewardSort,
   type RiskRewardSortColumn,
 } from "@/components/risk-reward-candidates-table-model";
-import {
-  createDefaultScanFilters,
-  ScanCriteriaControls,
-  type ScanFilters,
-} from "@/components/scan-criteria-controls";
+import { ScanCriteriaControls } from "@/components/scan-criteria-controls";
 import { TickerCombobox } from "@/components/ticker-combobox";
 import { formatCurrency } from "@/lib/format";
 import { scanSymbolHref } from "@/lib/hrefs";
 import { type OptionChainSnapshot, scanRiskReward } from "@/lib/options";
+import { createDefaultScanFilters, type ScanFilters } from "@/lib/scan-filters";
 import { ScanSkeleton, ScanSummarySkeleton } from "./scan-skeleton";
 
 export function ScanClient({

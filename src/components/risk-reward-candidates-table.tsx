@@ -2,7 +2,7 @@
 
 import { CircleHelp } from "lucide-react";
 import Link from "next/link";
-import { BiasBadge, STRATEGY_BIAS } from "@/components/bias-badge";
+import { BiasBadge } from "@/components/bias-badge";
 import {
   formatExpectedMoveCushion,
   type RiskRewardCandidate,
@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatPercent } from "@/lib/format";
+import { STRATEGY_BIAS } from "@/lib/strategy-bias";
 import { cn } from "@/lib/utils";
 
 type RiskRewardTableColumn = {

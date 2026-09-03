@@ -11,11 +11,9 @@ import {
   type WatchlistScanCriteria,
   type WatchlistScanResult,
 } from "@/lib/ticker-watchlist-scan";
-import {
-  DEFAULT_SCAN_CRITERIA,
-  type StrategyTemplateId,
-  strategyTemplates,
-} from "./options";
+import { DEFAULT_SCAN_CRITERIA } from "./options/optimizer";
+import { strategyTemplates } from "./options/strategy-templates";
+import type { StrategyTemplateId } from "./options/types";
 
 export type WatchlistActionState = {
   ok: boolean;
@@ -133,12 +131,12 @@ function scanCriteriaFromFormData(formData: FormData): WatchlistScanCriteria {
       "minProbabilityOfProfit",
       DEFAULT_SCAN_CRITERIA.minProbabilityOfProfit * 100,
     ) / 100;
+  const knownStrategyIds = new Set<string>(strategyTemplates.ids());
   const enabledStrategies = formData
     .getAll("enabledStrategies")
     .filter(
       (value): value is StrategyTemplateId =>
-        typeof value === "string" &&
-        strategyTemplates.ids().includes(value as StrategyTemplateId),
+        typeof value === "string" && knownStrategyIds.has(value),
     );
 
   return {

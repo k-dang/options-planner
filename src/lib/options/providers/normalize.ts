@@ -1,6 +1,4 @@
-import { blackScholes } from "../pricing";
 import type {
-  LegGreeks,
   OptionChainSnapshot,
   OptionExpiration,
   OptionQuote,
@@ -56,25 +54,6 @@ export function daysToExpiration(asOfIso: string, expirationIso: string) {
     Math.round((expiration.getTime() - asOf.getTime()) / 86_400_000),
     0,
   );
-}
-
-export function greeksForQuote(input: {
-  quote: Pick<
-    OptionQuote,
-    "optionType" | "strike" | "impliedVolatility" | "expiration"
-  >;
-  underlyingPrice: number;
-  asOfIso: string;
-  impliedVolatility: number;
-}): LegGreeks {
-  return blackScholes({
-    optionType: input.quote.optionType,
-    spot: input.underlyingPrice,
-    strike: input.quote.strike,
-    yearsToExpiration:
-      daysToExpiration(input.asOfIso, input.quote.expiration) / 365,
-    volatility: input.impliedVolatility,
-  }).greeks;
 }
 
 export function groupQuotesByExpiration(input: {

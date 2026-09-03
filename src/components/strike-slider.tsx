@@ -184,7 +184,11 @@ export function StrikeSlider({
           const top = row === 0 ? PILL_ROW_NEAR : PILL_ROW_FAR;
           const leaderHeight = TRACK_TOP - top - PILL_HEIGHT;
           const list = leg.optionType === "call" ? callStrikes : putStrikes;
-          const pillKey = `${index}-${leg.optionType}-${leg.side}-${leg.quantity}`;
+
+          // Legs are identified by index everywhere else (activeIndex,
+          // onLegStrikeChange). Quantity stays out of the key so editing it does
+          // not remount every pill and drop pointer capture mid-drag.
+          const pillKey = `${index}-${leg.optionType}-${leg.side}`;
 
           return (
             <div
