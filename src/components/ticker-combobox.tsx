@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Combobox,
   ComboboxContent,
@@ -22,7 +22,8 @@ export function TickerCombobox({
   onNavigate?: (symbol: string) => void;
   resetOnBlur?: boolean;
 }) {
-  const [committedSymbol, setCommittedSymbol] = useState(defaultSymbol);
+  // Never rendered, only read by the blur reset, so a ref avoids a re-render.
+  const committedSymbolRef = useRef(defaultSymbol);
   const [symbolDraft, setSymbolDraft] = useState(defaultSymbol);
   const [tickerSuggestions, setTickerSuggestions] = useState<
     TickerSuggestion[]
@@ -57,7 +58,7 @@ export function TickerCombobox({
   }, [symbolDraft]);
 
   function commit(symbol: string) {
-    setCommittedSymbol(symbol);
+    committedSymbolRef.current = symbol;
     setSymbolDraft(symbol);
     onNavigate?.(symbol);
   }
@@ -71,7 +72,7 @@ export function TickerCombobox({
     if (!resetOnBlur) {
       return;
     }
-    setSymbolDraft(committedSymbol);
+    setSymbolDraft(committedSymbolRef.current);
   }
 
   return (

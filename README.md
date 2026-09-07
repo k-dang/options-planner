@@ -2,21 +2,32 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Use Node.js 24 and pnpm. `mise.toml` pins the development runtime and pnpm
+versions; `package.json` declares the supported Node.js major and pins pnpm for
+package-manager tooling. Keep the pnpm version in both files aligned when upgrading.
+
+With [mise](https://mise.jdx.dev/), install the pinned tools and dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+mise install
+mise exec -- pnpm install --frozen-lockfile
+mise exec -- pnpm dev
 ```
+
+If mise is already activated in your shell, or you installed the versions from
+`mise.toml` yourself, run:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Commit dependency changes with `pnpm-lock.yaml`. `pnpm-workspace.yaml` contains
+the dependency release-age and build-script policies.
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

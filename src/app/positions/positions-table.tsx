@@ -4,14 +4,7 @@ import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import type { SavedStrategyListItem } from "@/db/saved-strategies";
 import {
   formatCurrency,
@@ -25,6 +18,7 @@ import { PositionActions } from "./position-actions";
 import {
   POSITIONS_TABLE_CLASS,
   PositionsTableColGroup,
+  PositionsTableHead,
 } from "./positions-table-layout";
 
 // Filters on DB status, not displayStatus. Expired-but-unsettled positions
@@ -70,17 +64,7 @@ export function PositionsTable({
       </div>
       <Table className={POSITIONS_TABLE_CLASS}>
         <PositionsTableColGroup />
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead>Name</TableHead>
-            <TableHead>Total Return</TableHead>
-            <TableHead>Created At</TableHead>
-            <TableHead>Days To Expiration</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Marked</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
+        <PositionsTableHead />
         <TableBody>
           {visibleStrategies.map((strategy) => (
             <PositionRow key={strategy.id} strategy={strategy} />

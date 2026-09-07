@@ -1,16 +1,10 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import {
   POSITIONS_TABLE_CLASS,
   PositionsTableColGroup,
+  PositionsTableHead,
 } from "./positions-table-layout";
 
 const ROWS = [
@@ -84,17 +78,7 @@ export function PositionsSkeleton() {
         <div className="overflow-hidden rounded-lg border border-border bg-card">
           <Table className={POSITIONS_TABLE_CLASS}>
             <PositionsTableColGroup />
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Name</TableHead>
-                <TableHead>Total Return</TableHead>
-                <TableHead>Created At</TableHead>
-                <TableHead>Days To Expiration</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Marked</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+            <PositionsTableHead />
             <TableBody>
               {ROWS.map((row) => (
                 <TableRow key={row.id} className="hover:bg-transparent">

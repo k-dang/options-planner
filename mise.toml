@@ -1,2 +1,5 @@
 [tools]
-bun = "latest"
+node = "24.4.1"
+# Keep this aligned with package.json's packageManager field.
+# The npm backend avoids legacy GitHub asset names in older mise releases.
+"npm:pnpm" = "11.7.0"

@@ -204,54 +204,71 @@ export function AutoRefreshPositionsButton({
 
   if (compact) {
     return (
-      <form
-        action={
-          enabled
-            ? stopAutoRefreshPositionsAction
-            : startAutoRefreshPositionsAction
-        }
-      >
-        <Button
-          type="submit"
-          variant={enabled ? "default" : "outline"}
-          size="sm"
-          disabled={disabled}
-          title={
-            lastError ??
-            (enabled
-              ? `Auto refresh every ${formatInterval(intervalSeconds)}`
-              : "Auto refresh off")
-          }
-        >
-          {enabled ? <TimerOff /> : <Timer />}
-          {enabled ? "Stop auto" : "Auto refresh"}
-        </Button>
-      </form>
+      <AutoRefreshToggleForm
+        enabled={enabled}
+        intervalSeconds={intervalSeconds}
+        lastError={lastError}
+        disabled={disabled}
+        compact
+      />
     );
   }
 
   return (
     <div className="flex min-w-56 flex-col items-end gap-1">
-      <form
-        action={
-          enabled
-            ? stopAutoRefreshPositionsAction
-            : startAutoRefreshPositionsAction
-        }
-      >
-        <Button
-          type="submit"
-          variant={enabled ? "default" : "outline"}
-          disabled={disabled}
-        >
-          {enabled ? <TimerOff /> : <Timer />}
-          {enabled ? "Stop auto" : "Auto refresh"}
-        </Button>
-      </form>
+      <AutoRefreshToggleForm
+        enabled={enabled}
+        intervalSeconds={intervalSeconds}
+        lastError={lastError}
+        disabled={disabled}
+        compact={false}
+      />
       <p className="min-h-4 text-right text-xs text-muted-foreground">
         {statusText}
       </p>
     </div>
+  );
+}
+
+function AutoRefreshToggleForm({
+  enabled,
+  intervalSeconds,
+  lastError,
+  disabled,
+  compact,
+}: {
+  enabled: boolean;
+  intervalSeconds: number;
+  lastError: string | null;
+  disabled: boolean;
+  compact: boolean;
+}) {
+  return (
+    <form
+      action={
+        enabled
+          ? stopAutoRefreshPositionsAction
+          : startAutoRefreshPositionsAction
+      }
+    >
+      <Button
+        type="submit"
+        variant={enabled ? "default" : "outline"}
+        size={compact ? "sm" : undefined}
+        disabled={disabled}
+        title={
+          compact
+            ? (lastError ??
+              (enabled
+                ? `Auto refresh every ${formatInterval(intervalSeconds)}`
+                : "Auto refresh off"))
+            : undefined
+        }
+      >
+        {enabled ? <TimerOff /> : <Timer />}
+        {enabled ? "Stop auto" : "Auto refresh"}
+      </Button>
+    </form>
   );
 }
 
