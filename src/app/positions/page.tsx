@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { getPositionRefreshWorkflowState } from "@/db/position-refresh-workflow-state";
 import {
   listSavedStrategies,
   type SavedStrategyListItem,
 } from "@/db/saved-strategies";
 import { formatCurrency } from "@/lib/format";
+import { summarizeMarkFreshness } from "@/lib/options/monitoring";
 import { cn } from "@/lib/utils";
 import { DevSkeletonToggle } from "./dev-skeleton-toggle";
-import {
-  AutoRefreshPositionsButton,
-  RefreshAllPositionsButton,
-} from "./position-actions";
+import { RefreshAllPositionsButton } from "./position-actions";
 import { PositionsSkeleton } from "./positions-skeleton";
 import { PositionsTable } from "./positions-table";
 
@@ -57,32 +54,11 @@ export default function PositionsPage() {
   );
 }
 
-async function AutoRefreshControl({ compact }: { compact?: boolean }) {
-  const autoRefresh = await getPositionRefreshWorkflowState();
-
-  return (
-    <AutoRefreshPositionsButton
-      enabled={autoRefresh.enabled}
-      intervalSeconds={autoRefresh.intervalSeconds}
-      lastError={autoRefresh.lastError}
-      compact={compact}
-    />
-  );
-}
-
 async function PositionsContent() {
   const strategies = await listSavedStrategies();
   const realizedProfitLoss = calculateRealizedProfitLoss(strategies);
   const realizedCount = strategies.filter(isRealized).length;
-
-  const autoRefreshControl = (
-    <Suspense
-      key="auto-refresh-control"
-      fallback={<AutoRefreshPositionsButton disabled compact />}
-    >
-      <AutoRefreshControl compact />
-    </Suspense>
-  );
+  const markFreshness = summarizeMarkFreshness(strategies, new Date());
 
   return (
     <div data-testid="positions-resolved">
@@ -96,7 +72,7 @@ async function PositionsContent() {
           />
           <PositionsTable
             strategies={strategies}
-            autoRefreshControl={autoRefreshControl}
+            markFreshness={markFreshness}
           />
         </div>
       )}

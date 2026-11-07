@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, RefreshCw, Timer, TimerOff, Trash2 } from "lucide-react";
+import { Check, RefreshCw, Trash2 } from "lucide-react";
 import { useActionState } from "react";
 import {
   AlertDialog,
@@ -20,8 +20,6 @@ import {
   type PositionActionState,
   refreshAllOpenPositionsAction,
   refreshPositionAction,
-  startAutoRefreshPositionsAction,
-  stopAutoRefreshPositionsAction,
 } from "@/lib/position-actions";
 import { cn } from "@/lib/utils";
 
@@ -179,105 +177,4 @@ export function RefreshAllPositionsButton() {
       )}
     </div>
   );
-}
-
-export function AutoRefreshPositionsButton({
-  enabled = false,
-  intervalSeconds = 14_400,
-  lastError = null,
-  disabled = false,
-  compact = false,
-}: {
-  enabled?: boolean;
-  intervalSeconds?: number;
-  lastError?: string | null;
-  disabled?: boolean;
-  compact?: boolean;
-}) {
-  const statusText = lastError ? (
-    <span className="text-destructive">{lastError}</span>
-  ) : enabled ? (
-    `Every ${formatInterval(intervalSeconds)}`
-  ) : (
-    "Off"
-  );
-
-  if (compact) {
-    return (
-      <AutoRefreshToggleForm
-        enabled={enabled}
-        intervalSeconds={intervalSeconds}
-        lastError={lastError}
-        disabled={disabled}
-        compact
-      />
-    );
-  }
-
-  return (
-    <div className="flex min-w-56 flex-col items-end gap-1">
-      <AutoRefreshToggleForm
-        enabled={enabled}
-        intervalSeconds={intervalSeconds}
-        lastError={lastError}
-        disabled={disabled}
-        compact={false}
-      />
-      <p className="min-h-4 text-right text-xs text-muted-foreground">
-        {statusText}
-      </p>
-    </div>
-  );
-}
-
-function AutoRefreshToggleForm({
-  enabled,
-  intervalSeconds,
-  lastError,
-  disabled,
-  compact,
-}: {
-  enabled: boolean;
-  intervalSeconds: number;
-  lastError: string | null;
-  disabled: boolean;
-  compact: boolean;
-}) {
-  return (
-    <form
-      action={
-        enabled
-          ? stopAutoRefreshPositionsAction
-          : startAutoRefreshPositionsAction
-      }
-    >
-      <Button
-        type="submit"
-        variant={enabled ? "default" : "outline"}
-        size={compact ? "sm" : undefined}
-        disabled={disabled}
-        title={
-          compact
-            ? (lastError ??
-              (enabled
-                ? `Auto refresh every ${formatInterval(intervalSeconds)}`
-                : "Auto refresh off"))
-            : undefined
-        }
-      >
-        {enabled ? <TimerOff /> : <Timer />}
-        {enabled ? "Stop auto" : "Auto refresh"}
-      </Button>
-    </form>
-  );
-}
-
-function formatInterval(intervalSeconds: number) {
-  if (intervalSeconds % 3600 === 0) {
-    const hours = intervalSeconds / 3600;
-    return hours === 1 ? "1 hour" : `${hours} hours`;
-  }
-
-  const minutes = Math.round(intervalSeconds / 60);
-  return minutes === 1 ? "1 min" : `${minutes} min`;
 }

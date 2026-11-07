@@ -1,0 +1,1 @@
+DROP TABLE "options_planner"."position_refresh_workflows" CASCADE;

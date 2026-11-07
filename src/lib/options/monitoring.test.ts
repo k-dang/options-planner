@@ -7,8 +7,60 @@ import {
   calculateSignedMarkValue,
   getDaysUntilExpiration,
   selectOptionMark,
+  summarizeMarkFreshness,
 } from "./monitoring";
 import type { OptionQuote, StrategyState } from "./types";
+
+describe("mark freshness", () => {
+  const now = new Date("2026-11-06T12:00:00.000Z");
+  const hoursAgo = (hours: number) =>
+    new Date(now.getTime() - hours * 3_600_000);
+  const position = (
+    createdAgo: number,
+    snapshotType: "entry" | "mark",
+    observedAgo: number,
+    status = "open",
+  ) => ({
+    status,
+    createdAt: hoursAgo(createdAgo),
+    latestSnapshot: { snapshotType, observedAt: hoursAgo(observedAgo) },
+  });
+
+  it("has nothing to report without open positions", () => {
+    expect(
+      summarizeMarkFreshness([position(99, "mark", 99, "closed")], now),
+    ).toBeNull();
+  });
+
+  it("tolerates one missed run", () => {
+    expect(summarizeMarkFreshness([position(99, "mark", 7)], now)).toEqual({
+      lastMarkedAt: hoursAgo(7),
+      stale: false,
+    });
+  });
+
+  it("flags a schedule that stopped marking", () => {
+    expect(summarizeMarkFreshness([position(99, "mark", 9)], now)?.stale).toBe(
+      true,
+    );
+  });
+
+  it("gives a new position until the staleness window to get its first mark", () => {
+    expect(summarizeMarkFreshness([position(1, "entry", 1)], now)).toEqual({
+      lastMarkedAt: null,
+      stale: false,
+    });
+  });
+
+  it("flags a position that never got a mark while others did", () => {
+    expect(
+      summarizeMarkFreshness(
+        [position(99, "mark", 1), position(600, "entry", 600)],
+        now,
+      ),
+    ).toEqual({ lastMarkedAt: hoursAgo(1), stale: true });
+  });
+});
 
 describe("saved strategy monitoring", () => {
   it("signs entry marks positive for long legs and negative for short legs", () => {

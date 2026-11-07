@@ -1,7 +1,5 @@
 import {
-  boolean,
   index,
-  integer,
   jsonb,
   numeric,
   pgSchema,
@@ -119,31 +117,6 @@ export const strategySnapshots = optionsPlannerSchema.table(
   ],
 );
 
-export const positionRefreshWorkflows = optionsPlannerSchema.table(
-  "position_refresh_workflows",
-  {
-    id: varchar("id", { length: 32 }).primaryKey(),
-    enabled: boolean("enabled").notNull().default(false),
-    runId: varchar("run_id", { length: 128 }),
-    intervalSeconds: integer("interval_seconds").notNull().default(14_400),
-    lastStartedAt: timestamp("last_started_at", { withTimezone: true }),
-    lastStoppedAt: timestamp("last_stopped_at", { withTimezone: true }),
-    lastRefreshAt: timestamp("last_refresh_at", { withTimezone: true }),
-    lastResult: jsonb("last_result").$type<{
-      refreshed: number;
-      failed: number;
-      total: number;
-    }>(),
-    lastError: varchar("last_error", { length: 500 }),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    index("position_refresh_workflows_enabled_idx").on(table.enabled),
-  ],
-);
-
 export const watchlistSymbols = optionsPlannerSchema.table(
   "watchlist_symbols",
   {
@@ -163,7 +136,5 @@ export type SavedStrategy = typeof savedStrategies.$inferSelect;
 export type NewSavedStrategy = typeof savedStrategies.$inferInsert;
 export type StrategySnapshot = typeof strategySnapshots.$inferSelect;
 export type NewStrategySnapshot = typeof strategySnapshots.$inferInsert;
-export type PositionRefreshWorkflow =
-  typeof positionRefreshWorkflows.$inferSelect;
 export type WatchlistSymbol = typeof watchlistSymbols.$inferSelect;
 export type NewWatchlistSymbol = typeof watchlistSymbols.$inferInsert;
