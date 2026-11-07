@@ -38,7 +38,7 @@ export class AlpacaOptionChainProvider implements OptionChainProvider {
   async getChain(input: OptionChainRequest): Promise<OptionChainSnapshot> {
     const symbol = normalizeSymbol(input.symbol);
     // Keeps new Date() out of the prerendered static shell. io() resolves
-    // immediately in real requests, server actions, and workflow steps.
+    // immediately in real requests, server actions, and route handlers.
     await io();
     const asOf = input.asOf ?? new Date();
     const quotes: OptionQuote[] = [];

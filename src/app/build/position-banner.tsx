@@ -9,6 +9,7 @@ import {
   formatShortDateTime,
   formatTitleCaseFromKebab,
 } from "@/lib/format";
+import { hasMarketMark } from "@/lib/options/monitoring";
 import { cn } from "@/lib/utils";
 
 export async function PositionBanner({ positionId }: { positionId: string }) {
@@ -19,14 +20,7 @@ export async function PositionBanner({ positionId }: { positionId: string }) {
   }
 
   const snapshot = position.latestSnapshot;
-  const profitLoss =
-    snapshot?.unrealizedProfitLoss ??
-    (snapshot ? snapshot.signedMarkValue - position.entrySignedMarkValue : 0);
-  const returnOnRisk =
-    snapshot?.returnOnRisk ??
-    (position.capitalAtRisk === null
-      ? null
-      : profitLoss / position.capitalAtRisk);
+  const mark = snapshot && hasMarketMark(snapshot) ? snapshot : null;
 
   return (
     <section
@@ -50,42 +44,50 @@ export async function PositionBanner({ positionId }: { positionId: string }) {
         </div>
         <p className="font-mono text-xs text-muted-foreground">
           {position.symbol} · {formatTitleCaseFromKebab(position.strategyType)}
-          {snapshot
-            ? ` · marked ${formatShortDateTime(snapshot.observedAt)}`
-            : ""}
+          {mark ? ` · marked ${formatShortDateTime(mark.observedAt)}` : ""}
         </p>
       </div>
 
-      <dl className="flex items-center gap-6">
-        <div className="flex flex-col items-end gap-0.5">
-          <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {position.status === "open" ? "Unrealized" : "Realized"} P/L
-          </dt>
-          <dd
-            className={cn(
-              "font-mono text-lg font-semibold tabular-nums leading-none",
-              profitLoss > 0 && "text-profit",
-              profitLoss < 0 && "text-destructive",
-            )}
-          >
-            {formatCurrency(profitLoss)}
-          </dd>
-        </div>
-        <div className="flex flex-col items-end gap-0.5">
-          <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            Return
-          </dt>
-          <dd
-            className={cn(
-              "font-mono text-lg font-semibold tabular-nums leading-none",
-              returnOnRisk !== null && returnOnRisk > 0 && "text-profit",
-              returnOnRisk !== null && returnOnRisk < 0 && "text-destructive",
-            )}
-          >
-            {returnOnRisk === null ? "n/a" : formatPercent(returnOnRisk)}
-          </dd>
-        </div>
-      </dl>
+      {mark ? (
+        <dl className="flex items-center gap-6">
+          <div className="flex flex-col items-end gap-0.5">
+            <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {position.status === "open" ? "Unrealized" : "Realized"} P/L
+            </dt>
+            <dd
+              className={cn(
+                "font-mono text-lg font-semibold tabular-nums leading-none",
+                mark.unrealizedProfitLoss > 0 && "text-profit",
+                mark.unrealizedProfitLoss < 0 && "text-destructive",
+              )}
+            >
+              {formatCurrency(mark.unrealizedProfitLoss)}
+            </dd>
+          </div>
+          <div className="flex flex-col items-end gap-0.5">
+            <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Return
+            </dt>
+            <dd
+              className={cn(
+                "font-mono text-lg font-semibold tabular-nums leading-none",
+                mark.returnOnRisk !== null &&
+                  mark.returnOnRisk > 0 &&
+                  "text-profit",
+                mark.returnOnRisk !== null &&
+                  mark.returnOnRisk < 0 &&
+                  "text-destructive",
+              )}
+            >
+              {mark.returnOnRisk === null
+                ? "n/a"
+                : formatPercent(mark.returnOnRisk)}
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="text-sm text-muted-foreground">Not marked yet</p>
+      )}
     </section>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -13,6 +13,7 @@ import {
   formatShortDateTime,
   formatTitleCaseFromKebab,
 } from "@/lib/format";
+import { hasMarketMark, type MarkFreshness } from "@/lib/options/monitoring";
 import { cn } from "@/lib/utils";
 import { PositionActions } from "./position-actions";
 import {
@@ -28,10 +29,10 @@ const isRealized = (strategy: SavedStrategyListItem) =>
 
 export function PositionsTable({
   strategies,
-  autoRefreshControl,
+  markFreshness,
 }: {
   strategies: SavedStrategyListItem[];
-  autoRefreshControl?: ReactNode;
+  markFreshness: MarkFreshness | null;
 }) {
   const [showRealized, setShowRealized] = useState(false);
   const realizedCount = strategies.filter(isRealized).length;
@@ -46,7 +47,7 @@ export function PositionsTable({
           Showing {visibleStrategies.length} of {strategies.length} positions
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          {autoRefreshControl}
+          {markFreshness ? <MarkFreshnessNote {...markFreshness} /> : null}
           {realizedCount > 0 ? (
             <Button
               type="button"
@@ -119,7 +120,7 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
         <StatusBadge status={strategy.displayStatus} />
       </TableCell>
       <TableCell>
-        {snapshot ? (
+        {snapshot && hasMarketMark(snapshot) ? (
           <span className="text-sm tabular-nums text-muted-foreground">
             {formatShortDateTime(snapshot.observedAt)}
           </span>
@@ -141,16 +142,33 @@ function PositionRow({ strategy }: { strategy: SavedStrategyListItem }) {
   );
 }
 
+function MarkFreshnessNote({ lastMarkedAt, stale }: MarkFreshness) {
+  return (
+    <p
+      className={cn(
+        "text-xs tabular-nums text-muted-foreground",
+        stale && "text-destructive",
+      )}
+    >
+      {lastMarkedAt
+        ? `Last marked ${formatShortDateTime(lastMarkedAt)}`
+        : "Not marked yet"}
+      {stale ? " · refresh overdue" : null}
+    </p>
+  );
+}
+
 function TotalReturn({ strategy }: { strategy: SavedStrategyListItem }) {
   const snapshot = strategy.latestSnapshot;
-  const profitLoss =
-    snapshot?.unrealizedProfitLoss ??
-    (snapshot ? snapshot.signedMarkValue - strategy.entrySignedMarkValue : 0);
-  const returnOnRisk =
-    snapshot?.returnOnRisk ??
-    (strategy.capitalAtRisk === null
-      ? null
-      : profitLoss / strategy.capitalAtRisk);
+
+  if (!snapshot || !hasMarketMark(snapshot)) {
+    return (
+      <span className="text-sm text-muted-foreground">Not marked yet</span>
+    );
+  }
+
+  const profitLoss = snapshot.unrealizedProfitLoss;
+  const returnOnRisk = snapshot.returnOnRisk;
 
   return (
     <div

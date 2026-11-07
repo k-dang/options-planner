@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "schedules": {
+    "refresh-open-positions": {
+      "schedule": "0 */4 * * *",
+      "path": "/api/positions/refresh"
+    }
+  }
+}

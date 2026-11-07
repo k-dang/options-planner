@@ -29,6 +29,13 @@
       "when": 1778896889636,
       "tag": "0004_ticker_watchlist",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794022866135,
+      "tag": "0005_drop_position_refresh_workflows",
+      "breakpoints": true
     }
   ]
 }

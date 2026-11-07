@@ -26,6 +26,55 @@ export type CurrentMarkSnapshotResult = {
   quoteSource: string;
 };
 
+export type MarkFreshness = {
+  lastMarkedAt: Date | null;
+  stale: boolean;
+};
+
+// Twice the 4-hour refresh schedule in vercel.json, so one missed run is
+// tolerated and a stalled schedule is not.
+const MARK_STALE_AFTER_MS = 8 * 3_600_000;
+
+// The entry snapshot records the saved premiums, not a market observation, so
+// its zero P/L must never be shown as a return.
+export function hasMarketMark(snapshot: { snapshotType: string }) {
+  return snapshot.snapshotType !== "entry";
+}
+
+export function summarizeMarkFreshness(
+  strategies: {
+    status: string;
+    createdAt: Date;
+    latestSnapshot: { snapshotType: string; observedAt: Date } | null;
+  }[],
+  now: Date,
+): MarkFreshness | null {
+  const open = strategies.filter((strategy) => strategy.status === "open");
+
+  if (open.length === 0) {
+    return null;
+  }
+
+  let lastMarkedAt: Date | null = null;
+  let stale = false;
+
+  for (const { createdAt, latestSnapshot } of open) {
+    const markedAt =
+      latestSnapshot && hasMarketMark(latestSnapshot)
+        ? latestSnapshot.observedAt
+        : null;
+
+    if (markedAt && (!lastMarkedAt || markedAt > lastMarkedAt)) {
+      lastMarkedAt = markedAt;
+    }
+
+    const lastExpectedAt = markedAt ?? createdAt;
+    stale ||= now.getTime() - lastExpectedAt.getTime() > MARK_STALE_AFTER_MS;
+  }
+
+  return { lastMarkedAt, stale };
+}
+
 export function calculateSignedMarkValue(state: StrategyState) {
   return roundMoney(
     state.legs.reduce((total, leg) => total + signedEntryLegValue(leg), 0),
